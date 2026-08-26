@@ -1,6 +1,5 @@
 /* ============================================================
-   APURAÇÃO — Design System & Tokens
-   Conceito: Quadro tático de vestiário moderno.
+   APURAÇÃO — Design System & Tokens (com Dashboard FIFA/EA FC)
    ============================================================ */
 :root {
   --pitch-dark: #071F17;
@@ -13,11 +12,12 @@
   --line-strong: rgba(246, 243, 235, 0.22);
   
   --gold: #E5B558;
-  --gold-glow: rgba(229, 181, 88, 0.28);
+  --gold-glow: rgba(229, 181, 88, 0.35);
   --gold-soft: rgba(229, 181, 88, 0.14);
   
   --terracotta: #E26847;
   --terracotta-soft: rgba(226, 104, 71, 0.18);
+  --terracotta-glow: rgba(226, 104, 71, 0.35);
   
   --win: #72C787;
   --loss: #E26847;
@@ -30,9 +30,8 @@
   --font-body: 'Inter', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
   
-  /* Glassmorphism de alto contraste */
-  --glass-bg: rgba(9, 36, 26, 0.82);
-  --glass-bg-strong: rgba(6, 26, 19, 0.94);
+  --glass-bg: rgba(9, 36, 26, 0.85);
+  --glass-bg-strong: rgba(6, 26, 19, 0.95);
   --glass-border: rgba(246, 243, 235, 0.16);
   --glass-blur: blur(16px) saturate(160%);
   --glass-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
@@ -51,7 +50,6 @@ body {
   background-color: var(--pitch-dark);
 }
 
-/* Imagem de Fundo com Overlay Seguro */
 body::before {
   content: "";
   position: fixed;
@@ -231,6 +229,8 @@ button { font-family: inherit; cursor: pointer; }
 .btn.ghost { background: transparent; color: var(--chalk); border: 1px solid var(--line-strong); }
 .btn.ghost:hover { background: rgba(255, 255, 255, 0.06); border-color: var(--chalk); }
 .btn.small { padding: 6px 12px; font-size: 0.78rem; }
+.btn.danger { background: rgba(226, 104, 71, 0.15); border: 1px solid var(--terracotta); color: var(--terracotta); }
+.btn.danger:hover { background: var(--terracotta); color: #fff; }
 
 /* ---------- Filtros de Classificação (Geral / Casa / Fora) ---------- */
 .table-filter-group {
@@ -262,7 +262,6 @@ button { font-family: inherit; cursor: pointer; }
 .standings-table tbody tr { cursor: pointer; transition: background .12s; }
 .standings-table tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
 
-/* Fixar Colunas # e Time no Mobile */
 .standings-table th.pos-cell, .standings-table td.pos-cell {
   position: sticky; left: 0; z-index: 3;
   background: var(--pitch-mid); width: 34px; min-width: 34px;
@@ -310,22 +309,6 @@ button { font-family: inherit; cursor: pointer; }
 .stat-value small { font-size: 0.85rem; color: var(--chalk-dim); font-weight: 400; }
 .stat-split { display: flex; gap: 12px; margin-top: 6px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--chalk-dim); }
 
-/* ---------- Gráfico de Distribuição de Gols por Tempo ---------- */
-.goal-timing-wrap {
-  margin-top: 20px; padding: 18px; border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.25); border: 1px solid var(--line);
-}
-.goal-timing-bars { display: flex; gap: 8px; align-items: flex-end; height: 110px; margin-top: 14px; padding-bottom: 24px; position: relative; }
-.goal-timing-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; position: relative; }
-.goal-bar-pair { display: flex; gap: 3px; align-items: flex-end; width: 100%; justify-content: center; height: 100%; }
-.goal-bar { width: 10px; border-radius: 3px 3px 0 0; transition: height .4s ease; min-height: 2px; }
-.goal-bar.for { background: var(--gold); }
-.goal-bar.against { background: var(--terracotta); }
-.goal-timing-label {
-  position: absolute; bottom: 0; font-family: var(--font-mono); font-size: 0.65rem; color: var(--chalk-dim);
-  white-space: nowrap; transform: translateY(18px);
-}
-
 /* ---------- Barra de Comparação & Probabilidade ---------- */
 .pitch-bar-wrap {
   background: repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,255,255,0.02) 40px, rgba(255,255,255,0.02) 41px), var(--glass-bg);
@@ -359,6 +342,10 @@ button { font-family: inherit; cursor: pointer; }
 .draw-caption { text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--chalk-dim); margin-top: 8px; }
 
 /* ---------- Comparação: Seletor de Confronto e Rápidos ---------- */
+.compare-header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+}
 .compare-picker {
   display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center;
   margin-bottom: 20px;
@@ -398,23 +385,118 @@ button { font-family: inherit; cursor: pointer; }
 }
 .quick-tag:hover { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); }
 
-/* ---------- Odds & Value Bets (+EV) ---------- */
-.odds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-.odds-card {
-  background: rgba(0, 0, 0, 0.28); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); padding: 12px; text-align: center; position: relative;
+/* ============================================================
+   NOVO: DASHBOARD DE ESTATÍSTICAS EA FC / FIFA (LAYOUT DA IMAGEM 2)
+   ============================================================ */
+.fifa-dashboard {
+  background: rgba(5, 22, 16, 0.88);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+  margin-bottom: 24px;
 }
-.odds-card.has-value { border-color: var(--win); background: rgba(114, 199, 135, 0.08); }
-.odds-label { display: block; font-size: 0.72rem; color: var(--chalk-dim); text-transform: uppercase; margin-bottom: 4px; }
-.odds-val { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 700; color: var(--gold); }
-.ev-tag {
-  display: inline-block; margin-top: 4px; font-family: var(--font-mono);
-  font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;
-}
-.ev-tag.positive { background: var(--win); color: var(--pitch-dark); }
-.ev-tag.negative { background: rgba(255, 255, 255, 0.08); color: var(--chalk-dim); }
 
-/* ---------- Mini Campo Tático 2D Reestruturado ---------- */
+/* Abas estilo EA FC */
+.fifa-tabs {
+  display: flex; justify-content: center; gap: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.fifa-tab-btn {
+  background: transparent; border: none; color: var(--chalk-dim);
+  font-family: var(--font-display); font-size: 0.95rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  transition: all .15s ease; white-space: nowrap;
+}
+.fifa-tab-btn:hover { color: var(--chalk); background: rgba(255,255,255,0.05); }
+.fifa-tab-btn.active {
+  color: #fff; background: rgba(255, 255, 255, 0.12);
+  border-bottom: 2px solid var(--gold);
+}
+
+/* Grid de 3 Colunas: Gauges A | Stats Centrais | Gauges B */
+.fifa-body {
+  display: grid;
+  grid-template-columns: 200px 1fr 200px;
+  gap: 16px; padding: 24px 18px;
+  align-items: center;
+}
+
+/* Coluna de Gauges Circulares */
+.fifa-gauges-col {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+}
+
+.fifa-gauge {
+  display: flex; flex-direction: column;
+  align-items: center; text-align: center;
+}
+
+.fifa-gauge-circle {
+  position: relative;
+  width: 86px; height: 86px; border-radius: 50%;
+  background: conic-gradient(var(--gauge-color) calc(var(--gauge-pct) * 1%), rgba(255, 255, 255, 0.08) 0);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  transition: all .5s ease;
+}
+.fifa-gauge-circle::before {
+  content: ""; position: absolute; inset: 7px;
+  border-radius: 50%; background: var(--pitch-card);
+}
+.fifa-gauge-val {
+  position: relative; z-index: 2; font-family: var(--font-mono);
+  font-size: 1.15rem; font-weight: 700; color: var(--chalk);
+}
+.fifa-gauge-label {
+  font-family: var(--font-display); font-size: 0.76rem;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--chalk-dim); margin-top: 8px; max-width: 130px;
+  line-height: 1.2;
+}
+
+/* Tabela Central de Métricas */
+.fifa-stats-center {
+  display: flex; flex-direction: column;
+  gap: 3px; background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 10px 6px;
+}
+
+.fifa-stat-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 12px; border-radius: 4px;
+  transition: background .12s;
+}
+.fifa-stat-row:hover { background: rgba(255, 255, 255, 0.04); }
+
+.fifa-val {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 1.05rem; font-weight: 700;
+  min-width: 60px;
+}
+.fifa-val.a { justify-content: flex-start; color: var(--chalk); }
+.fifa-val.b { justify-content: flex-end; color: var(--chalk); }
+.fifa-val.highlight.a { color: var(--gold); }
+.fifa-val.highlight.b { color: var(--terracotta); }
+
+.fifa-bar {
+  width: 4px; height: 18px; border-radius: 2px;
+}
+.fifa-bar.a { background: var(--gold); box-shadow: 0 0 8px var(--gold-glow); }
+.fifa-bar.b { background: var(--terracotta); box-shadow: 0 0 8px var(--terracotta-glow); }
+
+.fifa-label {
+  flex: 1; text-align: center;
+  font-family: var(--font-body); font-size: 0.8rem; font-weight: 500;
+  color: var(--chalk-dim); letter-spacing: 0.02em; padding: 0 10px;
+}
+
+/* Mini Campo Tático 2D */
 .tactical-pitch {
   position: relative; width: 100%; height: 420px;
   background: radial-gradient(circle at center, rgba(16, 58, 43, 0.95), rgba(7, 28, 20, 0.98)),
@@ -460,23 +542,7 @@ button { font-family: inherit; cursor: pointer; }
   padding: 1px 6px; border-radius: 4px; white-space: nowrap;
 }
 
-/* ---------- Auto-Refresh no Ao Vivo ---------- */
-.live-header-bar {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 18px; flex-wrap: wrap; gap: 12px;
-}
-.live-refresh-ctrl {
-  display: flex; align-items: center; gap: 10px;
-  background: var(--glass-bg); border: 1px solid var(--glass-border);
-  padding: 6px 14px; border-radius: 999px;
-}
-.live-progress {
-  width: 60px; height: 6px; background: rgba(255, 255, 255, 0.1);
-  border-radius: 999px; overflow: hidden;
-}
-.live-progress-fill { height: 100%; background: var(--gold); width: 100%; transition: width 1s linear; }
-
-/* ---------- Skeletons (Carregamento Elegante) ---------- */
+/* Skeletons */
 .skeleton {
   background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
   background-size: 200% 100%;
@@ -484,12 +550,11 @@ button { font-family: inherit; cursor: pointer; }
   border-radius: var(--radius-sm);
 }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
 .skeleton-box { height: 120px; width: 100%; margin-bottom: 12px; }
 .skeleton-line { height: 16px; width: 70%; margin-bottom: 8px; }
 .skeleton-title { height: 28px; width: 40%; margin-bottom: 16px; }
 
-/* ---------- Footer & Toast ---------- */
+/* Footer & Toast */
 .corner-credit {
   position: fixed; left: 16px; bottom: 14px; z-index: 20;
   display: flex; gap: 8px; align-items: center;
@@ -507,7 +572,7 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 0.88rem; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.6);
 }
 
-/* ---------- Sub-Navegação & Listas ---------- */
+/* Sub-Navegação & Listas */
 .subnav { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
 .subnav-item {
   font-family: var(--font-mono); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;
@@ -527,51 +592,20 @@ button { font-family: inherit; cursor: pointer; }
 .fixture-team.right { text-align: right; }
 .fixture-score { font-family: var(--font-mono); font-weight: 700; color: var(--gold); font-size: 1rem; }
 
-/* Squad & Elenco */
-.squad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 22px; }
-.squad-card {
-  background: var(--glass-bg); backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border); border-radius: var(--radius);
-  padding: 14px 10px; text-align: center; transition: all .18s;
-}
-.squad-card:hover { transform: translateY(-2px); border-color: var(--gold); background: var(--glass-bg-strong); }
-.squad-card img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; margin-bottom: 8px; }
-.squad-number { font-family: var(--font-mono); color: var(--gold); font-size: 0.8rem; font-weight: 700; }
-.squad-name { font-size: 0.86rem; margin-top: 3px; font-weight: 500; }
-.squad-age { font-family: var(--font-mono); font-size: 0.72rem; color: var(--chalk-dim); margin-top: 2px; }
-
-/* Justificativas */
-.justif-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.justif-item {
-  display: flex; gap: 12px; align-items: flex-start;
-  background: rgba(0, 0, 0, 0.22); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); padding: 11px 14px; font-size: 0.88rem; line-height: 1.4;
-}
-.justif-side { flex-shrink: 0; width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; }
-.justif-side.a { background: var(--gold); box-shadow: 0 0 6px var(--gold-glow); }
-.justif-side.b { background: var(--terracotta); box-shadow: 0 0 6px var(--terracotta-soft); }
-.justif-side.n { background: var(--chalk-dim); }
-
-/* Detalhe do Jogo Hero */
-.fixture-hero {
-  display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center;
-  background: var(--glass-bg); backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border); border-radius: var(--radius);
-  padding: 22px; margin-bottom: 22px; text-align: center;
-}
-.fixture-hero-team { display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: var(--font-display); }
-.fixture-hero-team img { width: 52px; height: 52px; object-fit: contain; }
-.fixture-hero-score { font-family: var(--font-mono); font-size: 2.2rem; font-weight: 700; }
-.fixture-hero-status { font-family: var(--font-body); font-size: 0.72rem; color: var(--chalk-dim); text-transform: uppercase; margin-top: 4px; }
-
 /* Responsividade */
-@media (max-width: 768px) {
+@media (max-width: 860px) {
+  .fifa-body {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .fifa-gauges-col {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-around;
+  }
   .compare-picker { grid-template-columns: 1fr; }
   .compare-vs { margin: -6px 0; }
   .page-title { font-size: 1.65rem; }
-  .fixture-hero { grid-template-columns: 1fr; }
-  .fixture-hero-score { order: -1; }
-  .fixture-row { grid-template-columns: 50px 1fr auto 1fr; font-size: 0.8rem; }
   .tactical-pitch { height: 360px; }
 }
 
