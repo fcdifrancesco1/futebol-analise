@@ -65,7 +65,7 @@ async function apiGet(endpoint, params = {}) {
     throw new Error("Resposta inválida da API.");
   }
   if (!res.ok) {
-    throw new Error(data.error || `Erro ${res.status} ao consultar a API.`);
+    throw new Error(data.error || data.message || `Erro ${res.status} ao consultar a API.`);
   }
   if (data.errors && Array.isArray(data.errors) === false && Object.keys(data.errors).length) {
     const firstErr = Object.values(data.errors)[0];

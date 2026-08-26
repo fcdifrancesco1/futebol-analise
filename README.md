@@ -5,12 +5,12 @@ Site para analisar times de futebol: classificação por liga, estatísticas ind
 ## Como funciona por baixo dos panos
 
 - **Frontend**: HTML + CSS + JS puro, sem framework, sem build. Um SPA simples com roteamento por hash (`#/liga/71/2026`, `#/compare`).
-- **Dados**: API-Football (via RapidAPI). Como a chave da API não pode ficar exposta no navegador, todas as chamadas passam por uma **Serverless Function da Vercel** (`api/football.js`) que funciona como proxy — o navegador nunca vê sua chave. A Vercel detecta automaticamente qualquer arquivo dentro da pasta `api/` e publica como endpoint (`/api/football`), sem precisar de configuração extra.
+- **Dados**: API-Football, acessada diretamente pelo **api-sports.io** (não pela RapidAPI). Como a chave da API não pode ficar exposta no navegador, todas as chamadas passam por uma **Serverless Function da Vercel** (`api/football.js`) que funciona como proxy — o navegador nunca vê sua chave. A Vercel detecta automaticamente qualquer arquivo dentro da pasta `api/` e publica como endpoint (`/api/football`), sem precisar de configuração extra.
 - **Probabilidade de vitória**: calculada no próprio navegador a partir de 4 fatores (aproveitamento na temporada, saldo de gols por jogo, forma recente, histórico de confronto direto) + bônus de mandante se você marcar quem joga em casa. A fórmula está comentada em `app.js`, função `computeProbability`.
 
 ## Passo a passo — publicar na Vercel e configurar a chave da API
 
-Você disse que já tem a chave do API-Football no RapidAPI. Ela **não** vai em nenhum arquivo do projeto — vai como variável de ambiente direto no painel da Vercel.
+Você disse que já tem a chave do API-Football. Ela **não** vai em nenhum arquivo do projeto — vai como variável de ambiente direto no painel da Vercel. A chave certa pra esse projeto é a que aparece no seu **dashboard do api-sports.io** (dashboard.api-sports.io → **My Access**), na linha **FOOTBALL** — não é uma chave da RapidAPI (são dois sistemas diferentes, com formatos de autenticação diferentes; esse projeto fala direto com o api-sports.io).
 
 ### 1. Criar conta e instalar a CLI (ou usar o site, sem instalar nada)
 
@@ -61,7 +61,7 @@ Tem dois caminhos. Escolha o que preferir:
 2. Clique na aba **Settings** (menu superior do projeto).
 3. No menu lateral, clique em **Environment Variables**.
 4. No campo **Key**, digite exatamente: `FOOTBALL_API_KEY`
-5. No campo **Value**, cole a sua chave do RapidAPI (a mesma que você usa pra acessar o API-Football).
+5. No campo **Value**, cole a sua chave do api-sports.io (a que aparece em **My Access** → linha **FOOTBALL** → coluna **API-KEY**).
 6. Em **Environments**, deixe marcado **Production**, **Preview** e **Development** (os três).
 7. Clique em **Save**.
 
@@ -86,7 +86,7 @@ Variáveis de ambiente só valem a partir do próximo deploy — o deploy que vo
 2. Clique em qualquer liga (ex: Brasileirão Série A).
 3. Se aparecer a tabela de classificação, a chave está funcionando.
 4. Se aparecer uma mensagem de erro tipo "FOOTBALL_API_KEY não configurada", volta no passo 2 e confere se o nome da variável está exatamente `FOOTBALL_API_KEY` (maiúsculas, sem espaço) e se você fez o redeploy do passo 3.
-5. Se aparecer erro vindo da própria API (tipo limite de requisições ou chave inválida), confere se a chave colada é a certa e se o seu plano no RapidAPI ainda tem cota disponível.
+5. Se aparecer erro vindo da própria API (tipo limite de requisições ou chave inválida), confere se a chave colada é a certa e se sua assinatura no api-sports.io ainda tem cota disponível (dashboard.api-sports.io → **My Access**).
 
 ### Atualizando o site depois
 
@@ -130,7 +130,7 @@ Pra adicionar outra liga: abra `app.js`, ache a constante `LEAGUES` no topo do a
 
 ## Sobre a cota da API
 
-O plano gratuito do API-Football (via RapidAPI) tem limite diário de requisições. Cada tela consome algumas chamadas:
+O plano da sua conta no api-sports.io tem limite diário de requisições (confira em dashboard.api-sports.io → **My Access**, coluna **Limit Per Day**). Cada tela consome algumas chamadas:
 - Classificação: 1 chamada.
 - Jogos da liga: 2 chamadas (próximos + recentes).
 - Artilheiros/garçons/cartões: 3 chamadas.
@@ -140,7 +140,7 @@ O plano gratuito do API-Football (via RapidAPI) tem limite diário de requisiç�
 - Detalhe de um jogo: até 5 chamadas (eventos, escalação, estatísticas, odds, previsão — rodam em paralelo e cada uma pode falhar individualmente sem travar a tela).
 - Comparação: 3 chamadas (estatísticas dos 2 times + confronto direto), mais 1 chamada extra por time na primeira vez que ele é buscado, mais 2 chamadas se houver conferência cruzada com jogo marcado.
 
-Se o site parar de responder com erro de limite, é a cota diária que acabou — ela reseta em 24h. Se você usar bastante essas telas (principalmente Detalhe do jogo e Ao Vivo), vale considerar um plano pago no RapidAPI.
+Se o site parar de responder com erro de limite, é a cota diária que acabou — ela reseta 24h após o início da sua assinatura (veja a coluna **Subscription End** no dashboard). Se você usar bastante essas telas (principalmente Detalhe do jogo e Ao Vivo), vale considerar fazer upgrade de plano direto no dashboard.api-sports.io (botão **Upgrade Plan** na linha FOOTBALL).
 
 ## Estrutura de arquivos
 
