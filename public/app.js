@@ -173,6 +173,7 @@ function renderHome() {
       ${LEAGUES.map(
         (l) => `
         <a class="league-card" href="#/liga/${l.id}/${defaultSeasonFor(l)}">
+          <img class="league-logo" src="https://media.api-sports.io/football/leagues/${l.id}.png" alt="" loading="lazy" onerror="this.style.display='none'">
           <div class="league-country">${escapeHtml(l.country)}</div>
           <div class="league-name">${escapeHtml(l.name)}</div>
         </a>`

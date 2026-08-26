@@ -90,14 +90,9 @@ button{font-family:inherit;cursor:pointer;}
   display:flex;align-items:center;justify-content:space-between;
   gap:16px;
 }
-.brand{display:flex;align-items:center;gap:8px;}
-.brand-mark{color:var(--gold);font-size:1.1rem;}
-.brand-name{
-  font-family:var(--font-display);
-  font-weight:600;
-  letter-spacing:0.08em;
-  font-size:1rem;
-}
+.brand{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;color:var(--gold);transition:background .15s;}
+.brand:hover{background:rgba(255,255,255,0.06);}
+.brand-mark{display:block;}
 .tabs{display:flex;gap:4px;background:rgba(0,0,0,0.2);padding:4px;border-radius:999px;}
 .tab{
   background:transparent;border:none;color:var(--chalk-dim);
@@ -157,6 +152,7 @@ button{font-family:inherit;cursor:pointer;}
   overflow:hidden;
 }
 .league-card:hover{border-color:var(--gold-soft);transform:translateY(-2px);background:var(--glass-bg-strong);}
+.league-logo{width:32px;height:32px;object-fit:contain;margin-bottom:10px;display:block;}
 .league-card::after{
   content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
   background:linear-gradient(90deg, var(--gold), transparent);
@@ -394,11 +390,16 @@ button{font-family:inherit;cursor:pointer;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ---------- Footer / toast ---------- */
-.footer{border-top:1px solid var(--glass-border);margin-top:40px;background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);}
-.footer-inner{
-  max-width:1080px;margin:0 auto;padding:16px 20px;
-  font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);
-  display:flex;gap:8px;
+.corner-credit{
+  position:fixed;left:16px;bottom:14px;z-index:15;
+  display:flex;gap:8px;align-items:center;
+  font-family:var(--font-mono);font-size:0.68rem;color:var(--chalk-dim);
+  background:var(--glass-bg);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid var(--glass-border);
+  border-radius:999px;
+  padding:6px 12px;
 }
 .footer-dot{opacity:0.5;}
 .toast{

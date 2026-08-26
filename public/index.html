@@ -17,9 +17,11 @@
 
 <header class="topbar">
   <div class="topbar-inner">
-    <a href="#/" class="brand" data-nav="home">
-      <span class="brand-mark">⚑</span>
-      <span class="brand-name">APURAÇÃO</span>
+    <a href="#/" class="brand" data-nav="home" aria-label="Página inicial">
+      <svg class="brand-mark" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 11L12 3L21 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 9.5V20C5 20.5523 5.44772 21 6 21H9.5V15C9.5 14.4477 9.94772 14 10.5 14H13.5C14.0523 14 14.5 14.4477 14.5 15V21H18C18.5523 21 19 20.5523 19 20V9.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </a>
     <nav class="tabs">
       <button class="tab active" data-nav="home">Ligas</button>
@@ -33,13 +35,11 @@
   <!-- conteúdo renderizado via JS -->
 </main>
 
-<footer class="footer">
-  <div class="footer-inner">
-    <span>Dados via API-Football</span>
-    <span class="footer-dot">·</span>
-    <span id="quota-hint">—</span>
-  </div>
-</footer>
+<div class="corner-credit">
+  <span>Dados via API-Football</span>
+  <span class="footer-dot">·</span>
+  <span id="quota-hint">—</span>
+</div>
 
 <div id="toast" class="toast" hidden></div>
 
