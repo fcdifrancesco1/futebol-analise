@@ -1,7 +1,7 @@
-// Proxy seguro para a API-Football via RapidAPI, no formato de Serverless Function da Vercel.
+// Proxy seguro para a API-Football (api-sports.io direto).
 // A chave nunca fica exposta no frontend — fica só na variável de ambiente do projeto na Vercel.
 
-const RAPIDAPI_HOST = "api-football-v1.p.rapidapi.com";
+const API_HOST = "v3.football.api-sports.io";
 
 const ALLOWED_ENDPOINTS = new Set([
   "leagues",
@@ -46,13 +46,12 @@ module.exports = async (req, res) => {
   }
 
   const qs = new URLSearchParams(rest).toString();
-  const url = `https://${RAPIDAPI_HOST}/v3/${endpoint}${qs ? "?" + qs : ""}`;
+  const url = `https://${API_HOST}/${endpoint}${qs ? "?" + qs : ""}`;
 
   try {
     const apiResp = await fetch(url, {
       headers: {
-        "X-RapidAPI-Key": API_KEY,
-        "X-RapidAPI-Host": RAPIDAPI_HOST,
+        "x-apisports-key": API_KEY,
       },
     });
 
