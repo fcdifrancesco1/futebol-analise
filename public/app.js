@@ -1,6 +1,5 @@
 // ============================================================
-// APURAÇÃO — app.js
-// Estatísticas Ao Vivo em Tempo Real + Campo 2D + Auto-Refresh Inteligente
+// APURAÇÃO — app.js (com Detecção de Gols, Cartões e Substituições)
 // ============================================================
 
 const FN_URL = "/api/football";
@@ -131,7 +130,7 @@ async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
   return data.response;
 }
 
-// ---------- Formatador de Rodadas / Fases e Detecção de Ida/Volta ----------
+// ---------- Formatador de Fases e Detecção de Ida/Volta ----------
 function formatRoundName(r) {
   if (!r) return "Partidas";
   let s = String(r);
@@ -449,7 +448,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
 }
 
 // ============================================================
-// View: Liga — Jogos
+// View: Liga — Jogos & Rankings
 // ============================================================
 async function renderLeagueFixtures(leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
@@ -563,9 +562,6 @@ function renderGroupedFixtures(fixtures) {
   `).join("");
 }
 
-// ============================================================
-// View: Liga — Rankings
-// ============================================================
 async function renderLeagueTopStats(leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
   app.innerHTML = `
@@ -931,7 +927,7 @@ function startLiveAutoRefresh(refreshFn) {
 }
 
 // ============================================================
-// View: Detalhe do Jogo (COM ESTATÍSTICAS AO VIVO + CAMPO 2D COMPLETO)
+// View: Detalhe do Jogo (COM GOLS, CARTÕES E SUBSTITUIÇÕES NO CAMPO)
 // ============================================================
 async function renderFixture(fixtureId, isSilentRefresh = false) {
   if (!isSilentRefresh) {
@@ -940,12 +936,11 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
   const content = document.getElementById("fixture-content") || app;
 
   try {
-    // Busca dados com TTL zerado/baixo para permitir acompanhamento ao vivo
     const [fxResponse, eventsRes, statsRes, lineupsRes, predictionsRes] = await Promise.allSettled([
       apiGet("fixtures", { id: fixtureId }, 0.5),
       apiGet("fixtures/events", { fixture: fixtureId }, 0.5),
       apiGet("fixtures/statistics", { fixture: fixtureId }, 0.5),
-      apiGet("fixtures/lineups", { fixture: fixtureId }, 30), // Escalação muda pouco, cache de 30 min
+      apiGet("fixtures/lineups", { fixture: fixtureId }, 30),
       apiGet("predictions", { fixture: fixtureId }, 60),
     ]);
 
@@ -955,15 +950,14 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       return;
     }
 
-    const events = eventsRes.status === "fulfilled" ? eventsRes.value : [];
-    const statsArr = statsRes.status === "fulfilled" ? statsRes.value : [];
-    const lineupsArr = lineupsRes.status === "fulfilled" ? lineupsRes.value : [];
+    const events = eventsRes.status === "fulfilled" ? (eventsRes.value || []) : [];
+    const statsArr = statsRes.status === "fulfilled" ? (statsRes.value || []) : [];
+    const lineupsArr = lineupsRes.status === "fulfilled" ? (lineupsRes.value || []) : [];
     const pred = predictionsRes.status === "fulfilled" ? predictionsRes.value?.[0] : null;
 
     const date = new Date(fx.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
     const time = new Date(fx.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     
-    // Status ao vivo
     const isLive = ["1H", "2H", "HT", "ET", "P", "LIVE"].includes(fx.fixture.status.short);
     const statusText = isLive 
       ? `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${fx.fixture.status.elapsed ?? ""}' (${fx.fixture.status.long})</span>` 
@@ -1008,9 +1002,9 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         ${renderLiveMatchStats(statsArr, fx)}
       </div>
 
-      <!-- 2. Campo Tático 2D e Escalações -->
+      <!-- 2. Campo Tático 2D com Gols, Cartões e Substituições -->
       <div id="fixture-lineups-section" style="margin-bottom:24px;">
-        ${renderFixtureLineups(lineupsArr)}
+        ${renderFixtureLineups(lineupsArr, events)}
       </div>
 
       <!-- 3. Previsão Oficial -->
@@ -1033,7 +1027,6 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       </div>
     `;
 
-    // Inicia auto-refresh se estiver acontecendo agora
     if (isLive) {
       startLiveAutoRefresh(() => renderFixture(fixtureId, true));
     }
@@ -1043,7 +1036,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
 }
 
 // ------------------------------------------------------------
-// Renderizador de Estatísticas Ao Vivo do Jogo
+// Renderizador de Estatísticas Ao Vivo
 // ------------------------------------------------------------
 function renderLiveMatchStats(statsArr, fx) {
   if (!statsArr || statsArr.length < 2) {
@@ -1115,14 +1108,90 @@ function renderLiveMatchStats(statsArr, fx) {
 }
 
 // ------------------------------------------------------------
-// Renderizador de Escalação e Mini Campo Tático 2D
+// Renderizador de Escalação e Campo 2D com Gols, Cartões e Subs
 // ------------------------------------------------------------
-function renderFixtureLineups(lineupsArr) {
+function renderFixtureLineups(lineupsArr, events = []) {
   if (!lineupsArr || !lineupsArr.length) {
     return `
       <div class="card" style="text-align:center;padding:24px;color:var(--chalk-dim);">
         <p style="margin:0;">Escalações táticas serão confirmadas cerca de 45 minutos antes do jogo.</p>
       </div>`;
+  }
+
+  // Mapear eventos por jogador (Gols, Cartões, Entradas e Saídas)
+  const playerEventsMap = {};
+
+  events.forEach(e => {
+    const min = e.time?.elapsed ?? 0;
+    
+    // Gols
+    if (e.type === "Goal" && e.detail !== "Missed Penalty") {
+      const pid = e.player?.id;
+      if (pid) {
+        playerEventsMap[pid] = playerEventsMap[pid] || { goals: 0, yellows: 0, reds: 0 };
+        playerEventsMap[pid].goals += 1;
+      }
+    }
+    // Cartões
+    else if (e.type === "Card") {
+      const pid = e.player?.id;
+      if (pid) {
+        playerEventsMap[pid] = playerEventsMap[pid] || { goals: 0, yellows: 0, reds: 0 };
+        if (e.detail === "Yellow Card") {
+          playerEventsMap[pid].yellows += 1;
+        } else {
+          playerEventsMap[pid].reds += 1;
+        }
+      }
+    }
+    // Substituições
+    else if (e.type === "subst") {
+      const pOutId = e.player?.id; // Quem saiu
+      const pInId = e.assist?.id;  // Quem entrou
+      if (pOutId) {
+        playerEventsMap[pOutId] = playerEventsMap[pOutId] || { goals: 0, yellows: 0, reds: 0 };
+        playerEventsMap[pOutId].subOut = min;
+      }
+      if (pInId) {
+        playerEventsMap[pInId] = playerEventsMap[pInId] || { goals: 0, yellows: 0, reds: 0 };
+        playerEventsMap[pInId].subIn = min;
+      }
+    }
+  });
+
+  // Função auxiliar para gerar badges de eventos do jogador
+  function generateEventBadges(pid) {
+    const ev = playerEventsMap[pid];
+    if (!ev) return "";
+
+    const badges = [];
+
+    // Gols (⚽ ou ⚽x2, ⚽x3)
+    if (ev.goals > 0) {
+      badges.push(`<span class="event-pill goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `x${ev.goals}` : ''}</span>`);
+    }
+
+    // Cartão Amarelo
+    if (ev.yellows > 0) {
+      badges.push(`<span class="event-pill yellow" title="Cartão Amarelo">🟨${ev.yellows > 1 ? `x${ev.yellows}` : ''}</span>`);
+    }
+
+    // Cartão Vermelho
+    if (ev.reds > 0) {
+      badges.push(`<span class="event-pill red" title="Cartão Vermelho">🟥</span>`);
+    }
+
+    // Saiu (🔻 Minuto)
+    if (ev.subOut) {
+      badges.push(`<span class="event-pill sub-out" title="Substituído aos ${ev.subOut}'">🔻${ev.subOut}'</span>`);
+    }
+
+    // Entrou (🔺 Minuto)
+    if (ev.subIn) {
+      badges.push(`<span class="event-pill sub-in" title="Entrou aos ${ev.subIn}'">🔺${ev.subIn}'</span>`);
+    }
+
+    return badges.join("");
   }
 
   return `
@@ -1133,7 +1202,6 @@ function renderFixtureLineups(lineupsArr) {
         const formation = l.formation || "4-4-2";
         const formLines = formation.split("-").map(Number);
         
-        // Separar jogadores por linhas táticas (Goleiro, Defesa, Meio, Ataque)
         const rows = [];
         let cursor = 1;
         rows.push([l.startXI[0]]); // Goleiro
@@ -1142,7 +1210,6 @@ function renderFixtureLineups(lineupsArr) {
           cursor += count;
         });
 
-        // Caso a formação não cubra os 11 jogadores
         if (cursor < l.startXI.length) {
           rows.push(l.startXI.slice(cursor));
         }
@@ -1172,27 +1239,44 @@ function renderFixtureLineups(lineupsArr) {
               <div class="pitch-players-layer">
                 ${displayRows.map(rowPlayers => `
                   <div class="pitch-row">
-                    ${rowPlayers.map(p => `
-                      <div class="pitch-player" title="${escapeHtml(p.player.name)} (#${p.player.number ?? ''})">
-                        <div class="pitch-player-badge ${isAway ? 'away' : 'home'}">${p.player.number ?? ""}</div>
-                        <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
-                      </div>`
-                    ).join("")}
+                    ${rowPlayers.map(p => {
+                      const pid = p.player?.id;
+                      const eventBadges = generateEventBadges(pid);
+                      return `
+                        <div class="pitch-player" title="${escapeHtml(p.player.name)} (#${p.player.number ?? ''})">
+                          <div class="pitch-badge-wrapper">
+                            <div class="pitch-player-badge ${isAway ? 'away' : 'home'}">${p.player.number ?? ""}</div>
+                            ${eventBadges ? `<div class="pitch-event-icons">${eventBadges}</div>` : ''}
+                          </div>
+                          <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
+                        </div>`;
+                    }).join("")}
                   </div>`
                 ).join("")}
               </div>
             </div>
 
-            <!-- Banco de Reservas -->
+            <!-- Banco de Reservas com Eventos -->
             <p class="stat-label" style="margin-top:16px;">Banco de Reservas</p>
-            <ul style="list-style:none;padding:0;margin:0;font-size:0.82rem;display:flex;flex-direction:column;gap:4px;color:var(--chalk-dim);">
-              ${l.substitutes.map(s => `<li><strong style="color:var(--gold);font-family:var(--font-mono);margin-right:6px;">${s.player.number ?? "-"}</strong>${escapeHtml(s.player.name)}</li>`).join("")}
+            <ul style="list-style:none;padding:0;margin:0;font-size:0.82rem;display:flex;flex-direction:column;gap:3px;color:var(--chalk-dim);">
+              ${l.substitutes.map(s => {
+                const pid = s.player?.id;
+                const eventBadges = generateEventBadges(pid);
+                const entered = playerEventsMap[pid]?.subIn;
+                return `
+                  <li class="sub-player-item ${entered ? 'was-subbed-in' : ''}">
+                    <span class="sub-num">${s.player.number ?? "-"}</span>
+                    <span class="sub-name">${escapeHtml(s.player.name)}</span>
+                    ${eventBadges ? `<span class="sub-events">${eventBadges}</span>` : ''}
+                  </li>`;
+              }).join("")}
             </ul>
           </div>`;
       }).join("")}
     </div>
   `;
 }
+
 function renderFixtureEvents(events, fx) {
   if (!events || !events.length) return "";
 
