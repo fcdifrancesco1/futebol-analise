@@ -1,23 +1,23 @@
 // ============================================================
-// APURAÇÃO — app.js (com Correção de Rodadas e Estatísticas do Clube)
+// APURAÇÃO — app.js (Total Geral de Jogadores & Rodadas 1..38)
 // ============================================================
 
 const FN_URL = "/api/football";
 
 const LEAGUES = [
-  { id: 71, name: "Brasileirão Série A", country: "Brasil", calendarYear: true },
-  { id: 72, name: "Brasileirão Série B", country: "Brasil", calendarYear: true },
-  { id: 13, name: "Copa Libertadores", country: "América do Sul", calendarYear: true },
-  { id: 11, name: "Copa Sul-Americana", country: "América do Sul", calendarYear: true },
-  { id: 73, name: "Copa do Brasil", country: "Brasil", calendarYear: true },
-  { id: 140, name: "La Liga", country: "Espanha", calendarYear: false },
-  { id: 39, name: "Premier League", country: "Inglaterra", calendarYear: false },
-  { id: 61, name: "Ligue 1", country: "França", calendarYear: false },
-  { id: 78, name: "Bundesliga", country: "Alemanha", calendarYear: false },
-  { id: 135, name: "Serie A", country: "Itália", calendarYear: false },
-  { id: 2, name: "Champions League", country: "UEFA", calendarYear: false },
-  { id: 3, name: "Europa League", country: "UEFA", calendarYear: false },
-  { id: 4, name: "Conference League", country: "UEFA", calendarYear: false },
+  { id: 71, name: "Brasileirão Série A", country: "Brasil", calendarYear: true, isCup: false },
+  { id: 72, name: "Brasileirão Série B", country: "Brasil", calendarYear: true, isCup: false },
+  { id: 13, name: "Copa Libertadores", country: "América do Sul", calendarYear: true, isCup: true },
+  { id: 11, name: "Copa Sul-Americana", country: "América do Sul", calendarYear: true, isCup: true },
+  { id: 73, name: "Copa do Brasil", country: "Brasil", calendarYear: true, isCup: true },
+  { id: 140, name: "La Liga", country: "Espanha", calendarYear: false, isCup: false },
+  { id: 39, name: "Premier League", country: "Inglaterra", calendarYear: false, isCup: false },
+  { id: 61, name: "Ligue 1", country: "França", calendarYear: false, isCup: false },
+  { id: 78, name: "Bundesliga", country: "Alemanha", calendarYear: false, isCup: false },
+  { id: 135, name: "Serie A", country: "Itália", calendarYear: false, isCup: false },
+  { id: 2, name: "Champions League", country: "UEFA", calendarYear: false, isCup: true },
+  { id: 3, name: "Europa League", country: "UEFA", calendarYear: false, isCup: true },
+  { id: 4, name: "Conference League", country: "UEFA", calendarYear: false, isCup: true },
 ];
 
 const POPULAR_TEAMS = [
@@ -130,16 +130,25 @@ async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
   return data.response;
 }
 
-// ---------- Utilitários Visuais ----------
+// ---------- Formatador Rigoroso de Rodadas e Copas ----------
 function formatRoundName(r) {
   if (!r) return "Partidas";
-  let s = String(r);
+  let s = String(r).trim();
 
+  // 1. Caso seja rodada de liga (Regular Season, Round, Rodada)
+  if (/Regular Season|Round|Rodada/i.test(s)) {
+    const matchNum = s.match(/\d+/);
+    if (matchNum) {
+      return `Rodada ${matchNum[0]}`;
+    }
+  }
+
+  // 2. Caso seja fase eliminatória de Copa
   const isLeg1 = /[-_ ]1$|\b1st leg\b|\bida\b/i.test(s);
   const isLeg2 = /[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(s);
   const legSuffix = isLeg1 ? " — Jogo de Ida" : isLeg2 ? " — Jogo de Volta" : "";
 
-  s = s.replace(/[-_ ]\d+$/, "").trim();
+  const cleanPhase = s.replace(/[-_ ]\d+$/, "").trim();
 
   const dict = {
     "Round of 16": "Oitavas de Final",
@@ -151,9 +160,6 @@ function formatRoundName(r) {
     "Final": "Grande Final",
     "Round of 32": "16 avos de Final",
     "16th Finals": "16 avos de Final",
-    "1st Round": "1ª Rodada",
-    "2nd Round": "2ª Rodada",
-    "3rd Round": "3ª Rodada",
     "Preliminary Round": "Fase Preliminar",
     "1st Qualifying Round": "1ª Pré-Eliminatória",
     "2nd Qualifying Round": "2ª Pré-Eliminatória",
@@ -163,17 +169,17 @@ function formatRoundName(r) {
   };
 
   for (const [en, pt] of Object.entries(dict)) {
-    if (s.toLowerCase().includes(en.toLowerCase())) {
+    if (cleanPhase.toLowerCase().includes(en.toLowerCase())) {
       return pt + legSuffix;
     }
   }
 
-  if (/Regular Season/i.test(s)) {
-    const num = s.match(/\d+/);
-    return num ? `${num[0]}ª Rodada` : "Fase Regular";
-  }
+  return s;
+}
 
-  return s + legSuffix;
+function extractRoundNumber(title) {
+  const m = title.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 9999;
 }
 
 function skeletonTable() {
@@ -452,10 +458,10 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
 }
 
 // ============================================================
-// View: Liga — Jogos (Extração Segura de Rodadas sem Erro de Endpoint)
+// View: Liga — Jogos Separados por Rodadas (Rodada 1, Rodada 2...)
 // ============================================================
 async function renderLeagueFixtures(leagueId, season) {
-  const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
+  const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "", isCup: false };
   app.innerHTML = `
     ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league.name, href: `#/liga/${leagueId}/${season}` }, { label: "Jogos", href: "" }])}
     <div class="page-head">
@@ -472,7 +478,6 @@ async function renderLeagueFixtures(leagueId, season) {
 
   const content = document.getElementById("fx-content");
   try {
-    // Busca todas as partidas da temporada usando apenas o endpoint permitido 'fixtures'
     const allFixtures = await apiGet("fixtures", { league: leagueId, season }, 15);
 
     if (!allFixtures || !allFixtures.length) {
@@ -480,21 +485,25 @@ async function renderLeagueFixtures(leagueId, season) {
       return;
     }
 
-    // Extrair lista de rodadas únicas diretamente das partidas
-    const uniqueRounds = [];
+    // Extrair títulos de rodadas já formatados
+    const uniqueRoundsMap = new Map();
     allFixtures.forEach(f => {
-      const r = f.league?.round;
-      if (r && !uniqueRounds.includes(r)) {
-        uniqueRounds.push(r);
+      const formattedTitle = formatRoundName(f.league?.round);
+      if (!uniqueRoundsMap.has(formattedTitle)) {
+        uniqueRoundsMap.set(formattedTitle, f.league?.round);
       }
     });
 
-    const roundOptions = uniqueRounds.map(r => `
-      <option value="${escapeHtml(r)}">${escapeHtml(formatRoundName(r))}</option>
+    const uniqueRoundTitles = Array.from(uniqueRoundsMap.keys()).sort((a, b) => {
+      return extractRoundNumber(a) - extractRoundNumber(b);
+    });
+
+    const roundOptions = uniqueRoundTitles.map(title => `
+      <option value="${escapeHtml(title)}">${escapeHtml(title)}</option>
     `).join("");
 
     content.innerHTML = `
-      ${uniqueRounds.length > 1 ? `
+      ${uniqueRoundTitles.length > 1 ? `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;background:var(--glass-bg);border:1px solid var(--glass-border);padding:12px 16px;border-radius:var(--radius);">
           <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;">FILTRAR RODADA:</span>
           <select id="select-league-round" style="background:var(--pitch-card);border:1px solid var(--line-strong);color:var(--chalk);padding:6px 12px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.82rem;">
@@ -503,15 +512,15 @@ async function renderLeagueFixtures(leagueId, season) {
           </select>
         </div>
       ` : ""}
-      <div id="rounds-container">${renderGroupedFixtures(allFixtures)}</div>
+      <div id="rounds-container">${renderGroupedFixtures(allFixtures, league.isCup)}</div>
     `;
 
     const selectEl = document.getElementById("select-league-round");
     if (selectEl) {
       selectEl.addEventListener("change", (e) => {
         const val = e.target.value;
-        const filtered = val === "ALL" ? allFixtures : allFixtures.filter(f => f.league.round === val);
-        document.getElementById("rounds-container").innerHTML = renderGroupedFixtures(filtered);
+        const filtered = val === "ALL" ? allFixtures : allFixtures.filter(f => formatRoundName(f.league.round) === val);
+        document.getElementById("rounds-container").innerHTML = renderGroupedFixtures(filtered, league.isCup);
       });
     }
   } catch (err) {
@@ -519,19 +528,22 @@ async function renderLeagueFixtures(leagueId, season) {
   }
 }
 
-function renderGroupedFixtures(fixtures) {
+function renderGroupedFixtures(fixtures, isCup = false) {
   if (!fixtures || !fixtures.length) return `<div class="card"><p style="color:var(--chalk-dim);">Nenhum jogo encontrado.</p></div>`;
 
   const pairOccurrences = {};
-  fixtures.forEach(f => {
-    const tA = Math.min(f.teams.home.id, f.teams.away.id);
-    const tB = Math.max(f.teams.home.id, f.teams.away.id);
-    const key = `${tA}-${tB}`;
-    pairOccurrences[key] = (pairOccurrences[key] || 0) + 1;
-  });
+  if (isCup) {
+    fixtures.forEach(f => {
+      const tA = Math.min(f.teams.home.id, f.teams.away.id);
+      const tB = Math.max(f.teams.home.id, f.teams.away.id);
+      const key = `${tA}-${tB}`;
+      pairOccurrences[key] = (pairOccurrences[key] || 0) + 1;
+    });
+  }
 
   const pairCountSeen = {};
 
+  // Agrupar por título formatado (ex: Rodada 1, Rodada 2...)
   const groups = {};
   fixtures.forEach(f => {
     let roundTitle = formatRoundName(f.league?.round);
@@ -539,62 +551,70 @@ function renderGroupedFixtures(fixtures) {
     groups[roundTitle].push(f);
   });
 
-  return Object.entries(groups).map(([roundTitle, list]) => `
-    <div class="fixture-group-section">
-      <div class="fixture-round-header">
-        <span>🏆</span>
-        <span class="round-title-text">${escapeHtml(roundTitle)}</span>
-      </div>
-      <div class="card" style="padding:10px;">
-        <div class="fixture-list">
-          ${list.map(f => {
-            const rawRound = f.league?.round || "";
-            let legBadge = "";
-            
-            if (/[-_ ]1$|\b1st leg\b|\bida\b/i.test(rawRound)) {
-              legBadge = `<span class="leg-badge ida">IDA</span>`;
-            } else if (/[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(rawRound)) {
-              legBadge = `<span class="leg-badge volta">VOLTA</span>`;
-            } else {
-              const tA = Math.min(f.teams.home.id, f.teams.away.id);
-              const tB = Math.max(f.teams.home.id, f.teams.away.id);
-              const key = `${tA}-${tB}`;
-              if (pairOccurrences[key] > 1) {
-                pairCountSeen[key] = (pairCountSeen[key] || 0) + 1;
-                legBadge = pairCountSeen[key] === 1 
-                  ? `<span class="leg-badge ida">IDA</span>` 
-                  : `<span class="leg-badge volta">VOLTA</span>`;
-              }
-            }
+  // Ordenar as rodadas numericamente
+  const sortedGroupKeys = Object.keys(groups).sort((a, b) => extractRoundNumber(a) - extractRoundNumber(b));
 
-            const date = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-            const time = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-            const played = f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD";
-
-            return `
-              <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para ver estatísticas da partida">
-                <div class="fixture-date-col">
-                  <span class="fixture-date">${date}<br>${time}</span>
-                  ${legBadge}
-                </div>
-
-                <div class="fixture-team-item right">
-                  <span>${escapeHtml(f.teams.home.name)}</span>
-                  <img src="${f.teams.home.logo}" alt="" loading="lazy">
-                </div>
-
-                <span class="fixture-score">${played ? `${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}` : "vs"}</span>
-
-                <div class="fixture-team-item">
-                  <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                  <span>${escapeHtml(f.teams.away.name)}</span>
-                </div>
-              </a>`;
-          }).join("")}
+  return sortedGroupKeys.map(roundTitle => {
+    const list = groups[roundTitle];
+    return `
+      <div class="fixture-group-section">
+        <div class="fixture-round-header">
+          <span>🏆</span>
+          <span class="round-title-text">${escapeHtml(roundTitle)}</span>
         </div>
-      </div>
-    </div>
-  `).join("");
+        <div class="card" style="padding:10px;">
+          <div class="fixture-list">
+            ${list.map(f => {
+              const rawRound = f.league?.round || "";
+              let legBadge = "";
+              
+              // Apenas Copas exibem tags de IDA e VOLTA
+              if (isCup) {
+                if (/[-_ ]1$|\b1st leg\b|\bida\b/i.test(rawRound)) {
+                  legBadge = `<span class="leg-badge ida">IDA</span>`;
+                } else if (/[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(rawRound)) {
+                  legBadge = `<span class="leg-badge volta">VOLTA</span>`;
+                } else {
+                  const tA = Math.min(f.teams.home.id, f.teams.away.id);
+                  const tB = Math.max(f.teams.home.id, f.teams.away.id);
+                  const key = `${tA}-${tB}`;
+                  if (pairOccurrences[key] > 1) {
+                    pairCountSeen[key] = (pairCountSeen[key] || 0) + 1;
+                    legBadge = pairCountSeen[key] === 1 
+                      ? `<span class="leg-badge ida">IDA</span>` 
+                      : `<span class="leg-badge volta">VOLTA</span>`;
+                  }
+                }
+              }
+
+              const date = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+              const time = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+              const played = f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD";
+
+              return `
+                <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para ver estatísticas da partida">
+                  <div class="fixture-date-col">
+                    <span class="fixture-date">${date}<br>${time}</span>
+                    ${legBadge}
+                  </div>
+
+                  <div class="fixture-team-item right">
+                    <span>${escapeHtml(f.teams.home.name)}</span>
+                    <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                  </div>
+
+                  <span class="fixture-score">${played ? `${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}` : "vs"}</span>
+
+                  <div class="fixture-team-item">
+                    <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                    <span>${escapeHtml(f.teams.away.name)}</span>
+                  </div>
+                </a>`;
+            }).join("")}
+          </div>
+        </div>
+      </div>`;
+  }).join("");
 }
 
 async function renderLeagueTopStats(leagueId, season) {
@@ -655,7 +675,7 @@ function renderTopList(list, metricFn, leagueId, season) {
 }
 
 // ============================================================
-// View: Perfil e Estatísticas do Jogador (Priorizando Clube Atual)
+// View: Perfil do Jogador (com Total Geral + Filtros de Competição)
 // ============================================================
 async function renderPlayer(playerId, teamId, leagueId, season) {
   app.innerHTML = `<div id="player-content">${skeletonTable()}</div>`;
@@ -672,32 +692,86 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
     const p = entry.player;
     const statsList = entry.statistics || [];
 
-    // Priorizar a competição do clube atual do jogador
-    let activeStat = null;
-    if (leagueId) {
-      activeStat = statsList.find(st => st.league.id === Number(leagueId));
-    }
-    if (!activeStat && teamId) {
-      activeStat = statsList.find(st => st.team.id === Number(teamId));
-    }
-    if (!activeStat) {
-      // Priorizar liga nacional de clube com mais jogos
-      activeStat = statsList.slice().sort((a, b) => (b.games.appearences || 0) - (a.games.appearences || 0))[0] || statsList[0] || {};
-    }
+    // Calcular Total Geral da Temporada (Somatório de todas as competições)
+    const totalStats = {
+      team: { name: statsList[0]?.team?.name || "Clube", logo: statsList[0]?.team?.logo },
+      league: { id: "TOTAL", name: "Total da Temporada (Todas as Competições)" },
+      games: {
+        appearences: statsList.reduce((acc, s) => acc + (s.games?.appearences || 0), 0),
+        lineups: statsList.reduce((acc, s) => acc + (s.games?.lineups || 0), 0),
+        minutes: statsList.reduce((acc, s) => acc + (s.games?.minutes || 0), 0),
+        position: statsList[0]?.games?.position || "-",
+        number: statsList[0]?.games?.number || "-",
+        rating: (() => {
+          const rated = statsList.filter(s => parseFloat(s.games?.rating) > 0);
+          if (!rated.length) return "0";
+          const totalScore = rated.reduce((sum, s) => sum + (parseFloat(s.games.rating) * (s.games.appearences || 1)), 0);
+          const totalApps = rated.reduce((sum, s) => sum + (s.games.appearences || 1), 0);
+          return (totalScore / totalApps).toFixed(2);
+        })()
+      },
+      goals: {
+        total: statsList.reduce((acc, s) => acc + (s.goals?.total || 0), 0),
+        assists: statsList.reduce((acc, s) => acc + (s.goals?.assists || 0), 0),
+        conceded: statsList.reduce((acc, s) => acc + (s.goals?.conceded || 0), 0),
+        saves: statsList.reduce((acc, s) => acc + (s.goals?.saves || 0), 0),
+      },
+      passes: {
+        total: statsList.reduce((acc, s) => acc + (s.passes?.total || 0), 0),
+        key: statsList.reduce((acc, s) => acc + (s.passes?.key || 0), 0),
+        accuracy: (() => {
+          const withAcc = statsList.filter(s => s.passes?.accuracy && s.passes?.total);
+          if (!withAcc.length) return null;
+          const totalAccPasses = withAcc.reduce((sum, s) => sum + (s.passes.total * s.passes.accuracy), 0);
+          const totalP = withAcc.reduce((sum, s) => sum + s.passes.total, 0);
+          return totalP ? Math.round(totalAccPasses / totalP) : null;
+        })()
+      },
+      shots: {
+        total: statsList.reduce((acc, s) => acc + (s.shots?.total || 0), 0),
+        on: statsList.reduce((acc, s) => acc + (s.shots?.on || 0), 0),
+      },
+      dribbles: {
+        attempts: statsList.reduce((acc, s) => acc + (s.dribbles?.attempts || 0), 0),
+        success: statsList.reduce((acc, s) => acc + (s.dribbles?.success || 0), 0),
+      },
+      tackles: {
+        total: statsList.reduce((acc, s) => acc + (s.tackles?.total || 0), 0),
+        blocks: statsList.reduce((acc, s) => acc + (s.tackles?.blocks || 0), 0),
+        interceptions: statsList.reduce((acc, s) => acc + (s.tackles?.interceptions || 0), 0),
+      },
+      fouls: {
+        drawn: statsList.reduce((acc, s) => acc + (s.fouls?.drawn || 0), 0),
+        committed: statsList.reduce((acc, s) => acc + (s.fouls?.committed || 0), 0),
+      },
+      cards: {
+        yellow: statsList.reduce((acc, s) => acc + (s.cards?.yellow || 0), 0),
+        yellowred: statsList.reduce((acc, s) => acc + (s.cards?.yellowred || 0), 0),
+        red: statsList.reduce((acc, s) => acc + (s.cards?.red || 0), 0),
+      },
+      penalty: {
+        won: statsList.reduce((acc, s) => acc + (s.penalty?.won || 0), 0),
+        scored: statsList.reduce((acc, s) => acc + (s.penalty?.scored || 0), 0),
+        missed: statsList.reduce((acc, s) => acc + (s.penalty?.missed || 0), 0),
+      }
+    };
 
-    function renderPlayerStatsView(s) {
+    // Lista com Total Geral em primeiro lugar + competições individuais
+    const allOptions = [totalStats, ...statsList];
+
+    function renderPlayerStatsView(s, selectedIdx = 0) {
       const rating = parseFloat(s.games?.rating || "0").toFixed(2);
       
-      const compOptions = statsList.map((st, idx) => `
-        <option value="${idx}" ${st.league.id === s.league.id ? 'selected' : ''}>
-          ${escapeHtml(st.league.name)} — ${escapeHtml(st.team.name)}
+      const compOptions = allOptions.map((st, idx) => `
+        <option value="${idx}" ${idx === selectedIdx ? 'selected' : ''}>
+          ${idx === 0 ? '📊 Total Geral (Todas as Competições)' : `${escapeHtml(st.league.name)} — ${escapeHtml(st.team.name)}`}
         </option>
       `).join("");
 
       return `
         ${breadcrumbs([
           { label: "Ligas", href: "#/" },
-          { label: s.team?.name || "Clube", href: `#/time/${s.team?.id || teamId}/${s.league?.id || leagueId}/${season || 2026}` },
+          { label: s.team?.name || "Clube", href: `#/time/${s.team?.id || teamId}/${leagueId || 71}/${season || 2026}` },
           { label: p.name, href: "" }
         ])}
 
@@ -720,15 +794,13 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           </div>
         </div>
 
-        <!-- Seletor de Competição do Jogador -->
-        ${statsList.length > 1 ? `
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;background:var(--glass-bg);border:1px solid var(--glass-border);padding:10px 16px;border-radius:var(--radius);flex-wrap:wrap;">
-            <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;">COMPETIÇÃO:</span>
-            <select id="player-comp-select" style="background:var(--pitch-card);border:1px solid var(--line-strong);color:var(--chalk);padding:6px 12px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.82rem;">
-              ${compOptions}
-            </select>
-          </div>
-        ` : ""}
+        <!-- Seletor de Competição / Total Geral -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;background:var(--glass-bg);border:1px solid var(--glass-border);padding:12px 16px;border-radius:var(--radius);flex-wrap:wrap;">
+          <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;">FILTRO DE COMPETIÇÃO:</span>
+          <select id="player-comp-select" style="background:var(--pitch-card);border:1px solid var(--line-strong);color:var(--chalk);padding:6px 14px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.85rem;">
+            ${compOptions}
+          </select>
+        </div>
 
         <!-- Cards de Métricas Principais -->
         <h2 class="section-title">Estatísticas na Temporada (${escapeHtml(s.league?.name || "Geral")})</h2>
@@ -780,12 +852,12 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
       `;
     }
 
-    content.innerHTML = renderPlayerStatsView(activeStat);
+    content.innerHTML = renderPlayerStatsView(totalStats, 0);
 
     content.addEventListener("change", (e) => {
       if (e.target.id === "player-comp-select") {
         const idx = Number(e.target.value);
-        content.innerHTML = renderPlayerStatsView(statsList[idx]);
+        content.innerHTML = renderPlayerStatsView(allOptions[idx], idx);
       }
     });
   } catch (err) {
@@ -879,7 +951,7 @@ async function renderTeam(teamId, leagueId, season) {
 }
 
 // ============================================================
-// View: Time — Elenco com Jogadores Clicáveis
+// View: Time — Elenco
 // ============================================================
 async function renderSquad(teamId, leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId);
