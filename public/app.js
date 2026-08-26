@@ -486,11 +486,10 @@ async function renderLeagueFixtures(leagueId, season) {
   }
 }
 
-// Agrupador de jogos por fase e detector de Ida / Volta
+// Agrupador de jogos por fase e detector de Ida / Volta com badge junto à data
 function renderGroupedFixtures(fixtures) {
   if (!fixtures || !fixtures.length) return `<div class="card"><p style="color:var(--chalk-dim);">Nenhum jogo encontrado.</p></div>`;
 
-  // Mapear confrontos duplicados para identificar Ida e Volta caso a API não especifique
   const pairOccurrences = {};
   fixtures.forEach(f => {
     const tA = Math.min(f.teams.home.id, f.teams.away.id);
@@ -525,7 +524,6 @@ function renderGroupedFixtures(fixtures) {
             } else if (/[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(rawRound)) {
               legBadge = `<span class="leg-badge volta">VOLTA</span>`;
             } else {
-              // Heurística de par ordenado por data
               const tA = Math.min(f.teams.home.id, f.teams.away.id);
               const tB = Math.max(f.teams.home.id, f.teams.away.id);
               const key = `${tA}-${tB}`;
@@ -543,15 +541,19 @@ function renderGroupedFixtures(fixtures) {
 
             return `
               <a class="fixture-row" href="#/jogo/${f.fixture.id}">
-                <span class="fixture-date">${date}<br>${time}</span>
+                <!-- Data, Hora e Badge IDA/VOLTA juntos no lado esquerdo -->
+                <div class="fixture-date-col">
+                  <span class="fixture-date">${date}<br>${time}</span>
+                  ${legBadge}
+                </div>
+
                 <div class="fixture-team-item right">
                   <span>${escapeHtml(f.teams.home.name)}</span>
                   <img src="${f.teams.home.logo}" alt="" loading="lazy">
                 </div>
-                <div style="display:flex;align-items:center;justify-content:center;">
-                  <span class="fixture-score">${played ? `${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}` : "vs"}</span>
-                  ${legBadge}
-                </div>
+
+                <span class="fixture-score">${played ? `${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}` : "vs"}</span>
+
                 <div class="fixture-team-item">
                   <img src="${f.teams.away.logo}" alt="" loading="lazy">
                   <span>${escapeHtml(f.teams.away.name)}</span>
