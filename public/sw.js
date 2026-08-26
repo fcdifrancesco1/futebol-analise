@@ -33,12 +33,20 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
+// Sempre busca a versão mais recente da internet primeiro
 self.addEventListener("fetch", (e) => {
   if (e.request.url.includes("/api/") || e.request.url.includes("supabase.co")) {
     return;
   }
   e.respondWith(
-    caches.match(e.request).then((res) => res || fetch(e.request))
+    fetch(e.request)
+      .then((response) => {
+        // Se conectou com sucesso, atualiza o cache em segundo plano
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(e.request)) // Se estiver sem internet, usa o cache
   );
 });
 
