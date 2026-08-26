@@ -2,53 +2,88 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apuração — Análise Tática e Estatísticas de Futebol</title>
-  <meta name="description" content="Análise tática, estatísticas detalhadas, comparação direta de confrontos, cálculo de probabilidade e valor esperado de odds.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Apuração — Estatísticas e Análise Tática</title>
+  
+  <!-- PWA & Mobile Meta Tags -->
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#07111E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Apuração">
+  <link rel="apple-touch-icon" href="https://media.api-sports.io/football/leagues/71.png">
 
+  <!-- Fontes Google -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="app-wrapper">
+    <!-- Topbar (Visível no PC e simplificada no Mobile) -->
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="#/">
+          <span class="brand-crest">⚽</span>
+          <span class="brand-name">APURAÇÃO</span>
+        </a>
+        
+        <!-- Menu Desktop (Escondido no celular) -->
+        <nav class="desktop-nav">
+          <button class="tab active" data-nav="home">Ligas</button>
+          <button class="tab" data-nav="live">Ao Vivo <span class="live-indicator"></span></button>
+          <button class="tab" data-nav="compare">Comparador <span class="badge" id="compare-badge" hidden>0</span></button>
+        </nav>
 
-<header class="topbar">
-  <div class="topbar-inner">
-    <a href="#/" class="brand" data-nav="home" aria-label="Página inicial" title="Ir para o início">
-      <svg class="brand-mark" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M3 11L12 3L21 11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M5 9.5V20C5 20.5523 5.44772 21 6 21H9.5V15C9.5 14.4477 9.94772 14 10.5 14H13.5C14.0523 14 14.5 14.4477 14.5 15V21H18C18.5523 21 19 20.5523 19 20V9.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="brand-text">APURAÇÃO</span>
-    </a>
-    
-    <nav class="tabs" aria-label="Navegação principal">
-      <button class="tab active" data-nav="home">Ligas</button>
-      <button class="tab" data-nav="live">Ao Vivo</button>
-      <button class="tab" data-nav="compare">
-        Confronto
-        <span class="tab-badge" id="compare-badge" hidden>0</span>
+        <div class="quota-pill" id="quota-hint">⚡ Online</div>
+      </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="main-content">
+      <div id="app"></div>
+    </main>
+
+    <!-- Barra de Navegação Inferior Nativa (Visível APENAS no Celular) -->
+    <nav class="mobile-bottom-nav">
+      <button class="bottom-nav-item active" data-nav="home">
+        <span class="bottom-nav-icon">🏆</span>
+        <span class="bottom-nav-label">Ligas</span>
+      </button>
+      <button class="bottom-nav-item" data-nav="live">
+        <span class="bottom-nav-icon">🔴</span>
+        <span class="bottom-nav-label">Ao Vivo</span>
+      </button>
+      <button class="bottom-nav-item" data-nav="compare">
+        <span class="bottom-nav-icon">⚡</span>
+        <span class="bottom-nav-label">Comparador</span>
       </button>
     </nav>
   </div>
-</header>
 
-<main id="app" class="app">
-  <!-- Conteúdo dinâmico injetado via app.js -->
-</main>
+  <div id="toast" class="toast" hidden></div>
 
-<div class="corner-credit">
-  <span class="pulse-dot"></span>
-  <span>API-Football</span>
-  <span class="footer-dot">·</span>
-  <span id="quota-hint">Pronto</span>
-</div>
+  <script src="app.js"></script>
+  <script>
+    // Registro do Service Worker para PWA / APK
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      });
+    }
 
-<div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
-
-<script src="app.js"></script>
+    // Sincronização dos botões do Bottom Nav Mobile
+    document.querySelectorAll(".bottom-nav-item").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const nav = btn.dataset.nav;
+        if (nav === "home") location.hash = "#/";
+        if (nav === "live") location.hash = "#/aovivo";
+        if (nav === "compare") location.hash = "#/compare";
+      });
+    });
+  </script>
 </body>
 </html>
