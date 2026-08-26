@@ -1,5 +1,5 @@
 // ============================================================
-// APURAÇÃO — app.js (com Perfil de Jogador, Rodadas e Jogos Clicáveis)
+// APURAÇÃO — app.js (com Correção de Rodadas e Estatísticas do Clube)
 // ============================================================
 
 const FN_URL = "/api/football";
@@ -452,7 +452,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
 }
 
 // ============================================================
-// View: Liga — Jogos Separados por Rodadas
+// View: Liga — Jogos (Extração Segura de Rodadas sem Erro de Endpoint)
 // ============================================================
 async function renderLeagueFixtures(leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
@@ -472,25 +472,31 @@ async function renderLeagueFixtures(leagueId, season) {
 
   const content = document.getElementById("fx-content");
   try {
-    const [rounds, allFixtures] = await Promise.all([
-      apiGet("fixtures/rounds", { league: leagueId, season }, 60),
-      apiGet("fixtures", { league: leagueId, season }, 15),
-    ]);
+    // Busca todas as partidas da temporada usando apenas o endpoint permitido 'fixtures'
+    const allFixtures = await apiGet("fixtures", { league: leagueId, season }, 15);
 
     if (!allFixtures || !allFixtures.length) {
       content.innerHTML = `<div class="card"><p style="color:var(--chalk-dim);">Nenhum jogo cadastrado para esta temporada.</p></div>`;
       return;
     }
 
-    // Seletor de Rodadas para Ligas de Pontos Corridos
-    const roundOptions = (rounds || []).map(r => `
+    // Extrair lista de rodadas únicas diretamente das partidas
+    const uniqueRounds = [];
+    allFixtures.forEach(f => {
+      const r = f.league?.round;
+      if (r && !uniqueRounds.includes(r)) {
+        uniqueRounds.push(r);
+      }
+    });
+
+    const roundOptions = uniqueRounds.map(r => `
       <option value="${escapeHtml(r)}">${escapeHtml(formatRoundName(r))}</option>
     `).join("");
 
     content.innerHTML = `
-      ${rounds && rounds.length > 1 ? `
+      ${uniqueRounds.length > 1 ? `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;background:var(--glass-bg);border:1px solid var(--glass-border);padding:12px 16px;border-radius:var(--radius);">
-          <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;">IR PARA RODADA:</span>
+          <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;">FILTRAR RODADA:</span>
           <select id="select-league-round" style="background:var(--pitch-card);border:1px solid var(--line-strong);color:var(--chalk);padding:6px 12px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.82rem;">
             <option value="ALL">Todas as Rodadas</option>
             ${roundOptions}
@@ -526,7 +532,6 @@ function renderGroupedFixtures(fixtures) {
 
   const pairCountSeen = {};
 
-  // Agrupar estritamente por Rodada
   const groups = {};
   fixtures.forEach(f => {
     let roundTitle = formatRoundName(f.league?.round);
@@ -650,101 +655,139 @@ function renderTopList(list, metricFn, leagueId, season) {
 }
 
 // ============================================================
-// View: Perfil e Estatísticas do Jogador
+// View: Perfil e Estatísticas do Jogador (Priorizando Clube Atual)
 // ============================================================
 async function renderPlayer(playerId, teamId, leagueId, season) {
   app.innerHTML = `<div id="player-content">${skeletonTable()}</div>`;
   const content = document.getElementById("player-content");
 
   try {
-    const [pRes] = await Promise.all([
-      apiGet("players", { id: playerId, season: season || 2026 }, 30)
-    ]);
-
+    const pRes = await apiGet("players", { id: playerId, season: season || 2026 }, 30);
     const entry = pRes?.[0];
     if (!entry) {
-      content.innerHTML = errorBox("Estatísticas detalhadas não localizadas para este atleta.");
+      content.innerHTML = errorBox("Estatísticas não localizadas para este atleta na temporada.");
       return;
     }
 
     const p = entry.player;
-    const s = entry.statistics[0] || {};
-    const rating = parseFloat(s.games?.rating || "0").toFixed(2);
+    const statsList = entry.statistics || [];
 
-    content.innerHTML = `
-      ${breadcrumbs([
-        { label: "Ligas", href: "#/" },
-        { label: s.team?.name || "Clube", href: `#/time/${s.team?.id || teamId}/${s.league?.id || leagueId}/${season || 2026}` },
-        { label: p.name, href: "" }
-      ])}
+    // Priorizar a competição do clube atual do jogador
+    let activeStat = null;
+    if (leagueId) {
+      activeStat = statsList.find(st => st.league.id === Number(leagueId));
+    }
+    if (!activeStat && teamId) {
+      activeStat = statsList.find(st => st.team.id === Number(teamId));
+    }
+    if (!activeStat) {
+      // Priorizar liga nacional de clube com mais jogos
+      activeStat = statsList.slice().sort((a, b) => (b.games.appearences || 0) - (a.games.appearences || 0))[0] || statsList[0] || {};
+    }
 
-      <!-- Banner Principal do Atleta -->
-      <div class="player-hero">
-        <img class="player-avatar-large" src="${p.photo}" alt="">
-        <div>
-          <p class="page-eyebrow">${escapeHtml(s.team?.name || "")} · ${escapeHtml(s.games?.position || "")} ${s.games?.number ? `#${s.games.number}` : ''}</p>
-          <h1 class="page-title">${escapeHtml(p.name)}</h1>
-          <div style="display:flex;gap:14px;margin-top:8px;font-family:var(--font-mono);font-size:0.78rem;color:var(--chalk-dim);flex-wrap:wrap;">
-            <span>🎂 ${p.age ? p.age + ' anos' : '-'}</span>
-            <span>📍 ${escapeHtml(p.nationality || '-')}</span>
-            <span>📏 ${p.height || '-'}</span>
-            <span>⚖️ ${p.weight || '-'}</span>
+    function renderPlayerStatsView(s) {
+      const rating = parseFloat(s.games?.rating || "0").toFixed(2);
+      
+      const compOptions = statsList.map((st, idx) => `
+        <option value="${idx}" ${st.league.id === s.league.id ? 'selected' : ''}>
+          ${escapeHtml(st.league.name)} — ${escapeHtml(st.team.name)}
+        </option>
+      `).join("");
+
+      return `
+        ${breadcrumbs([
+          { label: "Ligas", href: "#/" },
+          { label: s.team?.name || "Clube", href: `#/time/${s.team?.id || teamId}/${s.league?.id || leagueId}/${season || 2026}` },
+          { label: p.name, href: "" }
+        ])}
+
+        <!-- Perfil Principal do Atleta -->
+        <div class="player-hero">
+          <img class="player-avatar-large" src="${p.photo}" alt="">
+          <div>
+            <p class="page-eyebrow">${escapeHtml(s.team?.name || "")} · ${escapeHtml(s.games?.position || "")} ${s.games?.number ? `#${s.games.number}` : ''}</p>
+            <h1 class="page-title">${escapeHtml(p.name)}</h1>
+            <div style="display:flex;gap:14px;margin-top:8px;font-family:var(--font-mono);font-size:0.78rem;color:var(--chalk-dim);flex-wrap:wrap;">
+              <span>🎂 ${p.age ? p.age + ' anos' : '-'}</span>
+              <span>📍 ${escapeHtml(p.nationality || '-')}</span>
+              <span>📏 ${p.height || '-'}</span>
+              <span>⚖️ ${p.weight || '-'}</span>
+            </div>
           </div>
-        </div>
-        <div class="player-rating-badge">
-          <span class="rating-num">${rating > 0 ? rating : '-'}</span>
-          <span class="rating-label">Nota Média</span>
-        </div>
-      </div>
-
-      <!-- Resumo Geral -->
-      <h2 class="section-title">Desempenho na Competição (${escapeHtml(s.league?.name || "Temporada")})</h2>
-      <div class="stat-grid">
-        <div class="stat-card">
-          <p class="stat-label">Jogos (Titular)</p>
-          <p class="stat-value">${s.games?.appearences ?? 0} <small>(${s.games?.lineups ?? 0})</small></p>
-          <div class="stat-split"><span>${s.games?.minutes ?? 0} minutos</span></div>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Gols Marcados</p>
-          <p class="stat-value" style="color:var(--gold);">${s.goals?.total ?? 0}</p>
-          <div class="stat-split"><span>Pênaltis: ${s.penalty?.scored ?? 0}</span></div>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Assistências</p>
-          <p class="stat-value">${s.goals?.assists ?? 0}</p>
-          <div class="stat-split"><span>Passes Chave: ${s.passes?.key ?? 0}</span></div>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Precisão de Passes</p>
-          <p class="stat-value">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</p>
-          <div class="stat-split"><span>Total: ${s.passes?.total ?? 0}</span></div>
-        </div>
-      </div>
-
-      <!-- Estatísticas Detalhadas de Jogo -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;">
-        <div class="card">
-          <h2 class="section-title">Finalizações & Ataque</h2>
-          <div class="fifa-stats-center" style="background:transparent;border:none;">
-            <div class="fifa-stat-row"><span>Chutes Totais</span><strong>${s.shots?.total ?? 0}</strong></div>
-            <div class="fifa-stat-row"><span>Chutes no Alvo</span><strong>${s.shots?.on ?? 0}</strong></div>
-            <div class="fifa-stat-row"><span>Dribles Certos</span><strong>${s.dribbles?.success ?? 0}</strong></div>
-            <div class="fifa-stat-row"><span>Pênaltis Sofridos</span><strong>${s.penalty?.won ?? 0}</strong></div>
+          <div class="player-rating-badge">
+            <span class="rating-num">${rating > 0 ? rating : '-'}</span>
+            <span class="rating-label">Nota Média</span>
           </div>
         </div>
 
-        <div class="card">
-          <h2 class="section-title">Defesa & Disciplina</h2>
-          <div class="fifa-stats-center" style="background:transparent;border:none;">
-            <div class="fifa-stat-row"><span>Desarmes</span><strong>${s.tackles?.total ?? 0}</strong></div>
-            <div class="fifa-stat-row"><span>Interceptações</span><strong>${s.tackles?.interceptions ?? 0}</strong></div>
-            <div class="fifa-stat-row"><span>Faltas Cometidas</span><strong>${s.fouls?.committed ?? 0}</strong></div>
-            <div class="fifa-stat-row"><span>Cartões Amarelos / Vermelhos</span><strong>🟨 ${s.cards?.yellow ?? 0} · 🟥 ${s.cards?.red ?? 0}</strong></div>
+        <!-- Seletor de Competição do Jogador -->
+        ${statsList.length > 1 ? `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;background:var(--glass-bg);border:1px solid var(--glass-border);padding:10px 16px;border-radius:var(--radius);flex-wrap:wrap;">
+            <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;">COMPETIÇÃO:</span>
+            <select id="player-comp-select" style="background:var(--pitch-card);border:1px solid var(--line-strong);color:var(--chalk);padding:6px 12px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.82rem;">
+              ${compOptions}
+            </select>
+          </div>
+        ` : ""}
+
+        <!-- Cards de Métricas Principais -->
+        <h2 class="section-title">Estatísticas na Temporada (${escapeHtml(s.league?.name || "Geral")})</h2>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <p class="stat-label">Jogos (Titular)</p>
+            <p class="stat-value">${s.games?.appearences ?? 0} <small>(${s.games?.lineups ?? 0})</small></p>
+            <div class="stat-split"><span>${s.games?.minutes ?? 0} minutos</span></div>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Gols Marcados</p>
+            <p class="stat-value" style="color:var(--gold);">${s.goals?.total ?? 0}</p>
+            <div class="stat-split"><span>Pênaltis: ${s.penalty?.scored ?? 0}</span></div>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Assistências</p>
+            <p class="stat-value">${s.goals?.assists ?? 0}</p>
+            <div class="stat-split"><span>Passes Chave: ${s.passes?.key ?? 0}</span></div>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Precisão de Passes</p>
+            <p class="stat-value">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</p>
+            <div class="stat-split"><span>Total: ${s.passes?.total ?? 0}</span></div>
           </div>
         </div>
-      </div>
-    `;
+
+        <!-- Estatísticas Detalhadas -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;">
+          <div class="card">
+            <h2 class="section-title">Finalizações & Ataque</h2>
+            <div class="fifa-stats-center" style="background:transparent;border:none;">
+              <div class="fifa-stat-row"><span>Chutes Totais</span><strong>${s.shots?.total ?? 0}</strong></div>
+              <div class="fifa-stat-row"><span>Chutes no Alvo</span><strong>${s.shots?.on ?? 0}</strong></div>
+              <div class="fifa-stat-row"><span>Dribles Certos</span><strong>${s.dribbles?.success ?? 0}</strong></div>
+              <div class="fifa-stat-row"><span>Pênaltis Sofridos</span><strong>${s.penalty?.won ?? 0}</strong></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="section-title">Defesa & Disciplina</h2>
+            <div class="fifa-stats-center" style="background:transparent;border:none;">
+              <div class="fifa-stat-row"><span>Desarmes</span><strong>${s.tackles?.total ?? 0}</strong></div>
+              <div class="fifa-stat-row"><span>Interceptações</span><strong>${s.tackles?.interceptions ?? 0}</strong></div>
+              <div class="fifa-stat-row"><span>Faltas Cometidas</span><strong>${s.fouls?.committed ?? 0}</strong></div>
+              <div class="fifa-stat-row"><span>Cartões Amarelos / Vermelhos</span><strong>🟨 ${s.cards?.yellow ?? 0} · 🟥 ${s.cards?.red ?? 0}</strong></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    content.innerHTML = renderPlayerStatsView(activeStat);
+
+    content.addEventListener("change", (e) => {
+      if (e.target.id === "player-comp-select") {
+        const idx = Number(e.target.value);
+        content.innerHTML = renderPlayerStatsView(statsList[idx]);
+      }
+    });
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
