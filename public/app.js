@@ -1,6 +1,6 @@
 // ============================================================
-// APURAÇÃO — app.js
-// SPA vanilla JS. Roteamento por hash. Sem frameworks, sem build.
+// APURAÇÃO — app.js (Refatorado & Otimizado)
+// SPA Vanilla JS com Cache Inteligente, Auto-Refresh e Métricas Avançadas
 // ============================================================
 
 const FN_URL = "/api/football";
@@ -21,96 +21,177 @@ const LEAGUES = [
   { id: 4, name: "Conference League", country: "UEFA", calendarYear: false },
 ];
 
+const POPULAR_TEAMS = [
+  { id: 127, name: "Flamengo" },
+  { id: 121, name: "Palmeiras" },
+  { id: 541, name: "Real Madrid" },
+  { id: 529, name: "Barcelona" },
+  { id: 50, name: "Man. City" },
+  { id: 40, name: "Liverpool" }
+];
+
 function defaultSeasonFor(league) {
   const now = new Date();
   const y = now.getFullYear();
   if (!league || league.calendarYear) return y;
-  // temporada europeia out/ago: se estamos antes de julho, a temporada em curso começou no ano anterior
   return now.getMonth() < 6 ? y - 1 : y;
 }
 
-// ---------- estado global simples ----------
+// ---------- Estado Global & Cache ----------
 const state = {
-  compareSlots: { a: null, b: null }, // { teamId, name, logo, leagueId, leagueName, season }
-  homeSide: null, // 'a' | 'b' | null
+  compareSlots: { a: null, b: null },
+  homeSide: null,
+  liveTimer: null,
+  liveIntervalSeconds: 60,
+  currentTableFilter: "all", // 'all' | 'home' | 'away'
 };
+
+const apiCache = new Map();
 
 const app = document.getElementById("app");
 const toastEl = document.getElementById("toast");
 const quotaHint = document.getElementById("quota-hint");
+const compareBadge = document.getElementById("compare-badge");
 
 function toast(msg, isError = true) {
   toastEl.textContent = msg;
   toastEl.hidden = false;
-  toastEl.style.borderColor = isError ? "var(--terracotta)" : "var(--win)";
+  toastEl.style.borderColor = isError ? "var(--terracotta)" : "var(--gold)";
   clearTimeout(toast._t);
   toast._t = setTimeout(() => (toastEl.hidden = true), 4200);
 }
 
-function markUpdated() {
-  quotaHint.textContent = "Atualizado " + new Date().toLocaleTimeString("pt-BR");
+function updateCompareBadge() {
+  const count = (state.compareSlots.a ? 1 : 0) + (state.compareSlots.b ? 1 : 0);
+  if (count > 0) {
+    compareBadge.textContent = count;
+    compareBadge.hidden = false;
+  } else {
+    compareBadge.hidden = true;
+  }
 }
 
-async function apiGet(endpoint, params = {}) {
+function markUpdated(fromCache = false) {
+  quotaHint.textContent = (fromCache ? "⚡ Cache " : "Atualizado ") + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+// ---------- Requisição com Cache em Memória e SessionStorage ----------
+async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
   const clean = {};
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== "") clean[k] = v;
   });
   const qs = new URLSearchParams({ endpoint, ...clean }).toString();
+  const cacheKey = `ap_cache_${endpoint}_${qs}`;
+
+  // Se não for rota ao vivo, tenta memória primeiro
+  if (ttlMinutes > 0) {
+    const memoryItem = apiCache.get(cacheKey);
+    if (memoryItem && Date.now() - memoryItem.timestamp < ttlMinutes * 60 * 1000) {
+      markUpdated(true);
+      return memoryItem.data;
+    }
+
+    try {
+      const stored = sessionStorage.getItem(cacheKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Date.now() - parsed.timestamp < ttlMinutes * 60 * 1000) {
+          apiCache.set(cacheKey, parsed);
+          markUpdated(true);
+          return parsed.data;
+        }
+      }
+    } catch { /* sessionStorage indisponível */ }
+  }
+
   const res = await fetch(`${FN_URL}?${qs}`);
   let data;
   try {
     data = await res.json();
   } catch {
-    throw new Error("Resposta inválida da API.");
+    throw new Error("Resposta inválida do servidor.");
   }
   if (!res.ok) {
-    throw new Error(data.error || data.message || `Erro ${res.status} ao consultar a API.`);
+    throw new Error(data.error || data.message || `Erro ${res.status} ao consultar dados.`);
   }
-  if (data.errors && Array.isArray(data.errors) === false && Object.keys(data.errors).length) {
+  if (data.errors && !Array.isArray(data.errors) && Object.keys(data.errors).length) {
     const firstErr = Object.values(data.errors)[0];
     throw new Error(typeof firstErr === "string" ? firstErr : "A API retornou um erro.");
   }
-  markUpdated();
+
+  if (ttlMinutes > 0) {
+    const cacheObj = { data: data.response, timestamp: Date.now() };
+    apiCache.set(cacheKey, cacheObj);
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(cacheObj)); } catch { /* quota cheia */ }
+  }
+
+  markUpdated(false);
   return data.response;
 }
 
-function loadingBox(label = "Carregando dados…") {
-  return `<div class="state-box"><div class="spinner"></div><div class="state-title">${label}</div></div>`;
+// ---------- Componentes Visuais Reutilizáveis ----------
+function skeletonTable() {
+  return `
+    <div class="card skeleton">
+      <div class="skeleton-title skeleton"></div>
+      <div class="skeleton-box skeleton"></div>
+      <div class="skeleton-box skeleton"></div>
+    </div>`;
 }
+
 function errorBox(msg) {
-  return `<div class="state-box"><div class="state-title">Não deu pra carregar</div><div>${escapeHtml(msg)}</div></div>`;
+  return `
+    <div class="card" style="text-align:center;padding:40px 20px;">
+      <h3 style="color:var(--terracotta);margin-top:0;">Falha ao carregar dados</h3>
+      <p style="color:var(--chalk-dim);">${escapeHtml(msg)}</p>
+      <button class="btn ghost small" onclick="location.reload()">Tentar novamente</button>
+    </div>`;
 }
+
 function subNav(items) {
-  return `<div class="subnav">
-    ${items
-      .map(
-        (it) =>
-          `<a class="subnav-item ${it.active ? "active" : ""}" href="${it.href}">${escapeHtml(it.label)}</a>`
-      )
-      .join("")}
-  </div>`;
+  return `
+    <div class="subnav">
+      ${items.map(it => `<a class="subnav-item ${it.active ? 'active' : ''}" href="${it.href}">${escapeHtml(it.label)}</a>`).join('')}
+    </div>`;
+}
+
+function breadcrumbs(crumbs) {
+  return `
+    <nav class="breadcrumbs" aria-label="Rastro de navegação">
+      ${crumbs.map((c, i) => {
+        const isLast = i === crumbs.length - 1;
+        return isLast 
+          ? `<span>${escapeHtml(c.label)}</span>`
+          : `<a href="${c.href}">${escapeHtml(c.label)}</a><span class="breadcrumbs-sep">/</span>`;
+      }).join('')}
+    </nav>`;
 }
 
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  return String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 // ============================================================
 // Roteamento
 // ============================================================
 function parseHash() {
-  const h = location.hash.replace(/^#\/?/, "");
-  return h.split("/").filter(Boolean);
+  return location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
 }
 
 function setActiveTab(name) {
-  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.nav === name));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.nav === name));
 }
 
 async function router() {
+  if (state.liveTimer) {
+    clearInterval(state.liveTimer);
+    state.liveTimer = null;
+  }
+
   const parts = parseHash();
   window.scrollTo(0, 0);
+  updateCompareBadge();
 
   if (parts[0] === "liga" && parts[1] && parts[3] === "jogos") {
     setActiveTab("home");
@@ -150,7 +231,7 @@ async function router() {
 
 window.addEventListener("hashchange", router);
 window.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll("[data-nav]").forEach((el) => {
+  document.querySelectorAll("[data-nav]").forEach(el => {
     el.addEventListener("click", () => {
       const nav = el.dataset.nav;
       if (nav === "home") location.hash = "#/";
@@ -158,22 +239,33 @@ window.addEventListener("DOMContentLoaded", () => {
       if (nav === "live") location.hash = "#/aovivo";
     });
   });
+
+  // Delegação Global de Cliques
+  app.addEventListener("click", (e) => {
+    const standingsRow = e.target.closest(".standings-table tbody tr");
+    if (standingsRow && !e.target.closest("button")) {
+      const { teamId, leagueId, season } = standingsRow.dataset;
+      if (teamId && leagueId && season) {
+        location.hash = `#/time/${teamId}/${leagueId}/${season}`;
+      }
+    }
+  });
+
   router();
 });
 
 // ============================================================
-// View: Home — grid de ligas
+// View: Home
 // ============================================================
 function renderHome() {
   app.innerHTML = `
     <div class="page-head">
-      <p class="page-eyebrow">Competições</p>
-      <h1 class="page-title">Escolha uma liga</h1>
-      <p class="page-sub">Classificação, estatísticas por time e comparação direta de confrontos.</p>
+      <p class="page-eyebrow">Competições Oficiais</p>
+      <h1 class="page-title">Escolha uma Liga</h1>
+      <p class="page-sub">Classificação detalhada, desempenho de mandante/visitante, estatísticas avançadas e comparador direto.</p>
     </div>
     <div class="league-grid">
-      ${LEAGUES.map(
-        (l) => `
+      ${LEAGUES.map(l => `
         <a class="league-card" href="#/liga/${l.id}/${defaultSeasonFor(l)}">
           <img class="league-logo" src="https://media.api-sports.io/football/leagues/${l.id}.png" alt="" loading="lazy" onerror="this.style.display='none'">
           <div class="league-country">${escapeHtml(l.country)}</div>
@@ -185,109 +277,140 @@ function renderHome() {
 }
 
 // ============================================================
-// View: Liga — classificação
+// View: Liga — Classificação (com Filtro Geral / Casa / Fora)
 // ============================================================
 async function renderLeague(leagueId, season) {
-  const league = LEAGUES.find((l) => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
+  const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
   season = season || defaultSeasonFor(league);
 
   app.innerHTML = `
+    ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league.name, href: `#/liga/${leagueId}/${season}` }])}
+    
     <div class="page-head">
       <p class="page-eyebrow">${escapeHtml(league.country)}</p>
       <h1 class="page-title">${escapeHtml(league.name)}</h1>
     </div>
+
     <div class="season-row">
-      <label for="season-select">Temporada</label>
-      <select id="season-select">
-        ${[season + 1, season, season - 1, season - 2].map((y) => `<option value="${y}" ${y === season ? "selected" : ""}>${y}</option>`).join("")}
-      </select>
-      <a class="btn ghost small" href="#/compare">Ir para comparação →</a>
+      <div class="season-row-controls">
+        <label for="season-select">Temporada</label>
+        <select id="season-select">
+          ${[season + 1, season, season - 1, season - 2].map(y => `<option value="${y}" ${y === season ? 'selected' : ''}>${y}</option>`).join('')}
+        </select>
+      </div>
+      <a class="btn ghost small" href="#/compare">Ir para Comparação →</a>
     </div>
+
     ${subNav([
       { label: "Classificação", href: `#/liga/${leagueId}/${season}`, active: true },
       { label: "Jogos", href: `#/liga/${leagueId}/${season}/jogos` },
-      { label: "Artilheiros", href: `#/liga/${leagueId}/${season}/artilheiros` },
+      { label: "Rankings", href: `#/liga/${leagueId}/${season}/artilheiros` },
     ])}
-    <div id="league-content">${loadingBox("Buscando classificação…")}</div>
+
+    <div class="table-filter-group" id="table-filters">
+      <button class="table-filter-btn ${state.currentTableFilter === 'all' ? 'active' : ''}" data-filter="all">Geral</button>
+      <button class="table-filter-btn ${state.currentTableFilter === 'home' ? 'active' : ''}" data-filter="home">Mandante</button>
+      <button class="table-filter-btn ${state.currentTableFilter === 'away' ? 'active' : ''}" data-filter="away">Visitante</button>
+    </div>
+
+    <div id="league-content">${skeletonTable()}</div>
   `;
 
   document.getElementById("season-select").addEventListener("change", (e) => {
     location.hash = `#/liga/${leagueId}/${e.target.value}`;
   });
 
+  document.getElementById("table-filters").addEventListener("click", (e) => {
+    const btn = e.target.closest(".table-filter-btn");
+    if (!btn) return;
+    state.currentTableFilter = btn.dataset.filter;
+    document.querySelectorAll(".table-filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+    renderStandingsFromCache(leagueId, season);
+  });
+
+  await renderStandingsFromCache(leagueId, season);
+}
+
+async function renderStandingsFromCache(leagueId, season) {
   const content = document.getElementById("league-content");
   try {
-    const response = await apiGet("standings", { league: leagueId, season });
+    const response = await apiGet("standings", { league: leagueId, season }, 30);
     const groups = response?.[0]?.league?.standings;
     if (!groups || !groups.length) {
-      content.innerHTML = `<div class="state-box"><div class="state-title">Sem classificação disponível</div>Tente outra temporada.</div>`;
+      content.innerHTML = `<div class="card" style="text-align:center;color:var(--chalk-dim);padding:30px;">Sem classificação disponível para esta temporada.</div>`;
       return;
     }
-    content.innerHTML = groups
-      .map((table, gi) => renderStandingsTable(table, leagueId, season, groups.length > 1 ? `Grupo ${gi + 1}` : null))
-      .join("");
+    content.innerHTML = groups.map((table, gi) => 
+      renderStandingsTable(table, leagueId, season, groups.length > 1 ? `Grupo ${gi + 1}` : null, state.currentTableFilter)
+    ).join("");
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
 }
 
-function renderStandingsTable(table, leagueId, season, groupLabel) {
-  const rows = table
-    .map((row) => {
-      const formPills = (row.form || "")
-        .split("")
-        .slice(-5)
-        .map((c) => `<span class="form-pill ${c}" title="${c}">${c}</span>`)
-        .join("");
-      return `
-      <tr data-team-id="${row.team.id}" data-team-name="${escapeHtml(row.team.name)}" data-team-logo="${row.team.logo}">
-        <td class="pos-cell">${row.rank}</td>
-        <td class="team-cell"><img src="${row.team.logo}" alt=""><span>${escapeHtml(row.team.name)}</span></td>
-        <td>${row.all.played}</td>
-        <td>${row.all.win}</td>
-        <td>${row.all.draw}</td>
-        <td>${row.all.lose}</td>
-        <td>${row.all.goals.for}</td>
-        <td>${row.all.goals.against}</td>
-        <td>${row.goalsDiff > 0 ? "+" : ""}${row.goalsDiff}</td>
-        <td><strong>${row.points}</strong></td>
-        <td>${formPills}</td>
-        <td><button class="select-btn" data-action="view">ver</button></td>
-      </tr>`;
-    })
-    .join("");
+function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all") {
+  // Ordenar conforme o filtro selecionado se for mandante ou visitante
+  let sortedTable = [...table];
+  if (filter === "home") {
+    sortedTable.sort((a, b) => (b.home.win * 3 + b.home.draw) - (a.home.win * 3 + a.home.draw));
+  } else if (filter === "away") {
+    sortedTable.sort((a, b) => (b.away.win * 3 + b.away.draw) - (a.away.win * 3 + a.away.draw));
+  }
 
-  const html = `
+  const rows = sortedTable.map((row, idx) => {
+    const stat = filter === "home" ? row.home : filter === "away" ? row.away : row.all;
+    const pts = filter === "all" ? row.points : (stat.win * 3 + stat.draw);
+    const diff = stat.goals.for - stat.goals.against;
+    
+    const formPills = (row.form || "").split("").slice(-5).map(c => 
+      `<span class="form-pill ${c}" title="${c}">${c}</span>`
+    ).join("");
+
+    return `
+      <tr data-team-id="${row.team.id}" data-league-id="${leagueId}" data-season="${season}">
+        <td class="pos-cell">${idx + 1}</td>
+        <td class="team-cell">
+          <div class="team-cell-inner">
+            <img src="${row.team.logo}" alt="" loading="lazy">
+            <span>${escapeHtml(row.team.name)}</span>
+          </div>
+        </td>
+        <td>${stat.played}</td>
+        <td>${stat.win}</td>
+        <td>${stat.draw}</td>
+        <td>${stat.lose}</td>
+        <td>${stat.goals.for}</td>
+        <td>${stat.goals.against}</td>
+        <td>${diff > 0 ? "+" : ""}${diff}</td>
+        <td><strong>${pts}</strong></td>
+        <td>${formPills}</td>
+      </tr>`;
+  }).join("");
+
+  return `
     ${groupLabel ? `<h2 class="section-title">${groupLabel}</h2>` : ""}
-    <div class="card" style="overflow-x:auto;margin-bottom:20px;">
+    <div class="table-container">
       <table class="standings-table">
-        <thead><tr>
-          <th>#</th><th>Time</th><th>J</th><th>V</th><th>E</th><th>D</th>
-          <th>GP</th><th>GC</th><th>SG</th><th>Pts</th><th>Últ. 5</th><th></th>
-        </tr></thead>
+        <thead>
+          <tr>
+            <th class="pos-cell">#</th>
+            <th class="team-cell">Time</th>
+            <th>J</th><th>V</th><th>E</th><th>D</th>
+            <th>GP</th><th>GC</th><th>SG</th><th>Pts</th><th>Últ. 5</th>
+          </tr>
+        </thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>
-  `;
-
-  setTimeout(() => {
-    document.querySelectorAll(".standings-table tbody tr").forEach((tr) => {
-      tr.addEventListener("click", () => {
-        location.hash = `#/time/${tr.dataset.teamId}/${leagueId}/${season}`;
-      });
-    });
-  }, 0);
-
-  return html;
+    </div>`;
 }
 
 // ============================================================
-// View: Liga — jogos (próximos e resultados recentes)
+// View: Liga — Jogos
 // ============================================================
 async function renderLeagueFixtures(leagueId, season) {
-  const league = LEAGUES.find((l) => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
-
+  const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
   app.innerHTML = `
+    ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league.name, href: `#/liga/${leagueId}/${season}` }, { label: "Jogos", href: "" }])}
     <div class="page-head">
       <p class="page-eyebrow">${escapeHtml(league.country)}</p>
       <h1 class="page-title">${escapeHtml(league.name)}</h1>
@@ -295,22 +418,22 @@ async function renderLeagueFixtures(leagueId, season) {
     ${subNav([
       { label: "Classificação", href: `#/liga/${leagueId}/${season}` },
       { label: "Jogos", href: `#/liga/${leagueId}/${season}/jogos`, active: true },
-      { label: "Artilheiros", href: `#/liga/${leagueId}/${season}/artilheiros` },
+      { label: "Rankings", href: `#/liga/${leagueId}/${season}/artilheiros` },
     ])}
-    <div id="fx-content">${loadingBox("Buscando jogos…")}</div>
+    <div id="fx-content">${skeletonTable()}</div>
   `;
 
   const content = document.getElementById("fx-content");
   try {
     const [next, last] = await Promise.all([
-      apiGet("fixtures", { league: leagueId, season, next: 10 }),
-      apiGet("fixtures", { league: leagueId, season, last: 10 }),
+      apiGet("fixtures", { league: leagueId, season, next: 10 }, 10),
+      apiGet("fixtures", { league: leagueId, season, last: 10 }, 10),
     ]);
 
     content.innerHTML = `
-      <h2 class="section-title">Próximos jogos</h2>
+      <h2 class="section-title">Próximos Jogos</h2>
       <div class="card" style="margin-bottom:20px;">${renderFixtureList(next)}</div>
-      <h2 class="section-title">Resultados recentes</h2>
+      <h2 class="section-title">Resultados Recentes</h2>
       <div class="card">${renderFixtureList(last)}</div>
     `;
   } catch (err) {
@@ -319,32 +442,30 @@ async function renderLeagueFixtures(leagueId, season) {
 }
 
 function renderFixtureList(fixtures) {
-  if (!fixtures || !fixtures.length) return `<p style="color:var(--chalk-dim);">Nada encontrado.</p>`;
+  if (!fixtures || !fixtures.length) return `<p style="color:var(--chalk-dim);">Nenhum jogo registrado.</p>`;
   return `<div class="fixture-list">
-    ${fixtures
-      .map((f) => {
-        const date = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-        const time = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-        const played = f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD";
-        return `
+    ${fixtures.map(f => {
+      const date = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      const time = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const played = f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD";
+      return `
         <a class="fixture-row" href="#/jogo/${f.fixture.id}">
           <span class="fixture-date">${date}<br>${time}</span>
           <span class="fixture-team right">${escapeHtml(f.teams.home.name)}</span>
           <span class="fixture-score">${played ? `${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}` : "vs"}</span>
           <span class="fixture-team">${escapeHtml(f.teams.away.name)}</span>
         </a>`;
-      })
-      .join("")}
+    }).join("")}
   </div>`;
 }
 
 // ============================================================
-// View: Liga — artilheiros, garçons e cartões
+// View: Liga — Artilheiros e Rankings
 // ============================================================
 async function renderLeagueTopStats(leagueId, season) {
-  const league = LEAGUES.find((l) => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
-
+  const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
   app.innerHTML = `
+    ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league.name, href: `#/liga/${leagueId}/${season}` }, { label: "Rankings", href: "" }])}
     <div class="page-head">
       <p class="page-eyebrow">${escapeHtml(league.country)}</p>
       <h1 class="page-title">${escapeHtml(league.name)}</h1>
@@ -352,26 +473,26 @@ async function renderLeagueTopStats(leagueId, season) {
     ${subNav([
       { label: "Classificação", href: `#/liga/${leagueId}/${season}` },
       { label: "Jogos", href: `#/liga/${leagueId}/${season}/jogos` },
-      { label: "Artilheiros", href: `#/liga/${leagueId}/${season}/artilheiros`, active: true },
+      { label: "Rankings", href: `#/liga/${leagueId}/${season}/artilheiros`, active: true },
     ])}
-    <div id="top-content">${loadingBox("Buscando rankings…")}</div>
+    <div id="top-content">${skeletonTable()}</div>
   `;
 
   const content = document.getElementById("top-content");
   try {
     const [scorers, assists, yellows] = await Promise.all([
-      apiGet("players/topscorers", { league: leagueId, season }),
-      apiGet("players/topassists", { league: leagueId, season }),
-      apiGet("players/topyellowcards", { league: leagueId, season }),
+      apiGet("players/topscorers", { league: leagueId, season }, 30),
+      apiGet("players/topassists", { league: leagueId, season }, 30),
+      apiGet("players/topyellowcards", { league: leagueId, season }, 30),
     ]);
 
     content.innerHTML = `
-      <h2 class="section-title">Artilheiros</h2>
-      <div class="card" style="margin-bottom:20px;">${renderTopList(scorers, (s) => `${s.goals.total} gols`)}</div>
-      <h2 class="section-title">Garçons (assistências)</h2>
-      <div class="card" style="margin-bottom:20px;">${renderTopList(assists, (s) => `${s.goals.assists ?? 0} assist.`)}</div>
-      <h2 class="section-title">Cartões amarelos</h2>
-      <div class="card">${renderTopList(yellows, (s) => `${s.cards.yellow} cartões`)}</div>
+      <h2 class="section-title">Artilharia</h2>
+      <div class="card" style="margin-bottom:20px;">${renderTopList(scorers, s => `${s.goals.total} gols`)}</div>
+      <h2 class="section-title">Assistências</h2>
+      <div class="card" style="margin-bottom:20px;">${renderTopList(assists, s => `${s.goals.assists ?? 0} assist.`)}</div>
+      <h2 class="section-title">Cartões Amarelos</h2>
+      <div class="card">${renderTopList(yellows, s => `${s.cards.yellow} cartões`)}</div>
     `;
   } catch (err) {
     content.innerHTML = errorBox(err.message);
@@ -379,42 +500,39 @@ async function renderLeagueTopStats(leagueId, season) {
 }
 
 function renderTopList(list, metricFn) {
-  if (!list || !list.length) return `<p style="color:var(--chalk-dim);">Sem dados disponíveis.</p>`;
-  return `<div class="top-list">
-    ${list
-      .slice(0, 10)
-      .map((entry, i) => {
-        const p = entry.player;
-        const s = entry.statistics[0];
-        return `
-        <div class="top-row">
-          <span class="top-rank">${i + 1}</span>
-          <img src="${p.photo}" alt="" class="top-photo">
-          <div class="top-info">
-            <div class="top-name">${escapeHtml(p.name)}</div>
-            <div class="top-team">${escapeHtml(s.team.name)}</div>
+  if (!list || !list.length) return `<p style="color:var(--chalk-dim);">Sem estatísticas disponíveis.</p>`;
+  return `<div class="fixture-list">
+    ${list.slice(0, 10).map((entry, i) => {
+      const p = entry.player;
+      const s = entry.statistics[0];
+      return `
+        <div class="fixture-row" style="grid-template-columns:30px 40px 1fr auto;">
+          <span style="font-family:var(--font-mono);font-weight:700;color:var(--chalk-dim);">${i + 1}</span>
+          <img src="${p.photo}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+          <div>
+            <div style="font-weight:600;">${escapeHtml(p.name)}</div>
+            <div style="font-size:0.75rem;color:var(--chalk-dim);">${escapeHtml(s.team.name)}</div>
           </div>
-          <span class="top-metric">${metricFn(s)}</span>
+          <span style="font-family:var(--font-mono);color:var(--gold);font-weight:700;">${metricFn(s)}</span>
         </div>`;
-      })
-      .join("")}
+    }).join("")}
   </div>`;
 }
 
 // ============================================================
-// View: Time — estatísticas individuais
+// View: Time — Estatísticas com Distribuição de Gols por Minuto
 // ============================================================
 async function renderTeam(teamId, leagueId, season) {
-  const league = LEAGUES.find((l) => l.id === leagueId);
+  const league = LEAGUES.find(l => l.id === leagueId);
   season = season || defaultSeasonFor(league);
 
-  app.innerHTML = `<div id="team-content">${loadingBox("Buscando estatísticas do time…")}</div>`;
+  app.innerHTML = `<div id="team-content">${skeletonTable()}</div>`;
   const content = document.getElementById("team-content");
 
   try {
     const [stats, recentFixtures] = await Promise.all([
-      apiGet("teams/statistics", { league: leagueId, season, team: teamId }),
-      apiGet("fixtures", { team: teamId, last: 5 }),
+      apiGet("teams/statistics", { league: leagueId, season, team: teamId }, 30),
+      apiGet("fixtures", { team: teamId, last: 5 }, 15),
     ]);
 
     if (!stats || !stats.team) {
@@ -429,6 +547,8 @@ async function renderTeam(teamId, leagueId, season) {
     const winPct = played ? Math.round((stats.fixtures.wins.total / played) * 100) : 0;
 
     content.innerHTML = `
+      ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league?.name || "Liga", href: `#/liga/${leagueId}/${season}` }, { label: t.name, href: "" }])}
+      
       <div class="team-header">
         <img src="${t.logo}" alt="">
         <div>
@@ -450,65 +570,39 @@ async function renderTeam(teamId, leagueId, season) {
           <div class="stat-split"><span>${stats.fixtures.wins.total}V</span><span>${stats.fixtures.draws.total}E</span><span>${stats.fixtures.loses.total}D</span></div>
         </div>
         <div class="stat-card">
-          <p class="stat-label">Jogos disputados</p>
-          <p class="stat-value">${played}</p>
-          <div class="stat-split"><span>Casa ${stats.fixtures.played.home}</span><span>Fora ${stats.fixtures.played.away}</span></div>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Gols marcados (total)</p>
-          <p class="stat-value">${stats.goals.for.total.total}</p>
-          <div class="stat-split"><span>Casa ${stats.goals.for.total.home}</span><span>Fora ${stats.goals.for.total.away}</span></div>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Gols marcados (média/jogo)</p>
+          <p class="stat-label">Média de Gols Pró</p>
           <p class="stat-value">${gfAvg.toFixed(2)}</p>
           <div class="stat-split"><span>Casa ${stats.goals.for.average.home}</span><span>Fora ${stats.goals.for.average.away}</span></div>
         </div>
         <div class="stat-card">
-          <p class="stat-label">Gols sofridos (total)</p>
-          <p class="stat-value">${stats.goals.against.total.total}</p>
-          <div class="stat-split"><span>Casa ${stats.goals.against.total.home}</span><span>Fora ${stats.goals.against.total.away}</span></div>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Gols sofridos (média/jogo)</p>
+          <p class="stat-label">Média de Gols Contra</p>
           <p class="stat-value">${gaAvg.toFixed(2)}</p>
           <div class="stat-split"><span>Casa ${stats.goals.against.average.home}</span><span>Fora ${stats.goals.against.average.away}</span></div>
         </div>
         <div class="stat-card">
-          <p class="stat-label">Saldo de gols</p>
-          <p class="stat-value">${(stats.goals.for.total.total - stats.goals.against.total.total) >= 0 ? "+" : ""}${stats.goals.for.total.total - stats.goals.against.total.total}</p>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Jogos sem sofrer gol</p>
+          <p class="stat-label">Jogos Sem Sofrer Gol</p>
           <p class="stat-value">${stats.clean_sheet.total}</p>
           <div class="stat-split"><span>Casa ${stats.clean_sheet.home}</span><span>Fora ${stats.clean_sheet.away}</span></div>
         </div>
-        <div class="stat-card">
-          <p class="stat-label">Jogos sem marcar</p>
-          <p class="stat-value">${stats.failed_to_score.total}</p>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Cartões amarelos</p>
-          <p class="stat-value">${sumCards(stats.cards.yellow)}</p>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Cartões vermelhos</p>
-          <p class="stat-value">${sumCards(stats.cards.red)}</p>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Forma recente</p>
-          <p class="stat-value" style="font-size:1.1rem;letter-spacing:2px;">${(stats.form || "—").slice(-5)}</p>
-        </div>
       </div>
 
-      <h2 class="section-title">Últimos jogos</h2>
+      <!-- Distribuição de Gols por Tempo -->
+      <div class="goal-timing-wrap">
+        <div class="section-title" style="border:none;margin-bottom:0;">
+          <span>Distribuição de Gols por Período de Jogo</span>
+          <span style="font-size:0.75rem;font-family:var(--font-mono);"><span style="color:var(--gold);">■ Pró</span> <span style="color:var(--terracotta);margin-left:8px;">■ Contra</span></span>
+        </div>
+        ${renderGoalTimingChart(stats.goals.for.minute, stats.goals.against.minute)}
+      </div>
+
+      <h2 class="section-title" style="margin-top:24px;">Últimos Jogos</h2>
       <div class="card" style="margin-bottom:20px;">
         ${renderRecentFixtures(recentFixtures, teamId)}
       </div>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn" id="set-slot-a">Definir como Time A na comparação</button>
-        <button class="btn ghost" id="set-slot-b">Definir como Time B na comparação</button>
+        <button class="btn" id="set-slot-a">Definir como Time A na Comparação</button>
+        <button class="btn ghost" id="set-slot-b">Definir como Time B na Comparação</button>
       </div>
     `;
 
@@ -519,31 +613,61 @@ async function renderTeam(teamId, leagueId, season) {
   }
 }
 
+function renderGoalTimingChart(forMin, againstMin) {
+  const intervals = ["0-15", "16-30", "31-45", "46-60", "61-75", "76-90", "91-105"];
+  let maxGoals = 1;
+  intervals.forEach(k => {
+    const f = forMin?.[k]?.total || 0;
+    const a = againstMin?.[k]?.total || 0;
+    if (f > maxGoals) maxGoals = f;
+    if (a > maxGoals) maxGoals = a;
+  });
+
+  return `
+    <div class="goal-timing-bars">
+      ${intervals.map(k => {
+        const gf = forMin?.[k]?.total || 0;
+        const ga = againstMin?.[k]?.total || 0;
+        const hf = (gf / maxGoals) * 100;
+        const ha = (ga / maxGoals) * 100;
+        return `
+          <div class="goal-timing-col">
+            <div class="goal-bar-pair">
+              <div class="goal-bar for" style="height:${Math.max(hf, 4)}%;" title="Gols marcados: ${gf}"></div>
+              <div class="goal-bar against" style="height:${Math.max(ha, 4)}%;" title="Gols sofridos: ${ga}"></div>
+            </div>
+            <span class="goal-timing-label">${k}'</span>
+          </div>`;
+      }).join("")}
+    </div>`;
+}
+
 // ============================================================
-// View: Time — elenco
+// View: Time — Elenco
 // ============================================================
 async function renderSquad(teamId, leagueId, season) {
-  const league = LEAGUES.find((l) => l.id === leagueId);
-  app.innerHTML = `<div id="squad-content">${loadingBox("Buscando elenco…")}</div>`;
+  const league = LEAGUES.find(l => l.id === leagueId);
+  app.innerHTML = `<div id="squad-content">${skeletonTable()}</div>`;
   const content = document.getElementById("squad-content");
 
   try {
-    const response = await apiGet("players/squads", { team: teamId });
+    const response = await apiGet("players/squads", { team: teamId }, 60);
     const squad = response?.[0];
     if (!squad) {
-      content.innerHTML = errorBox("Elenco não disponível para esse time.");
+      content.innerHTML = errorBox("Elenco indisponível para esse time.");
       return;
     }
 
-    const groups = { Goalkeeper: "Goleiros", Defender: "Zagueiros e laterais", Midfielder: "Meio-campo", Attacker: "Ataque" };
+    const groups = { Goalkeeper: "Goleiros", Defender: "Defensores", Midfielder: "Meio-Campistas", Attacker: "Atacantes" };
     const byPos = {};
-    (squad.players || []).forEach((p) => {
+    (squad.players || []).forEach(p => {
       const key = p.position || "Outros";
       byPos[key] = byPos[key] || [];
       byPos[key].push(p);
     });
 
     content.innerHTML = `
+      ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: squad.team.name, href: `#/time/${teamId}/${leagueId}/${season}` }, { label: "Elenco", href: "" }])}
       <div class="team-header">
         <img src="${squad.team.logo}" alt="">
         <div>
@@ -556,27 +680,22 @@ async function renderSquad(teamId, leagueId, season) {
         { label: "Elenco", href: `#/time/${teamId}/${leagueId}/${season}/elenco`, active: true },
         { label: "Lesões", href: `#/time/${teamId}/${leagueId}/${season}/lesoes` },
       ])}
-      ${Object.entries(groups)
-        .map(([key, label]) => {
-          const players = byPos[key];
-          if (!players || !players.length) return "";
-          return `
+      ${Object.entries(groups).map(([key, label]) => {
+        const players = byPos[key];
+        if (!players || !players.length) return "";
+        return `
           <h2 class="section-title">${label}</h2>
-          <div class="squad-grid" style="margin-bottom:20px;">
-            ${players
-              .map(
-                (p) => `
+          <div class="squad-grid">
+            ${players.map(p => `
               <a class="squad-card" href="#/jogador/${p.id}/${season}/${teamId}/${leagueId}">
-                <img src="${p.photo}" alt="">
+                <img src="${p.photo}" alt="" loading="lazy">
                 <div class="squad-number">${p.number ?? "-"}</div>
                 <div class="squad-name">${escapeHtml(p.name)}</div>
                 <div class="squad-age">${p.age ? p.age + " anos" : ""}</div>
               </a>`
-              )
-              .join("")}
+            ).join("")}
           </div>`;
-        })
-        .join("")}
+      }).join("")}
     `;
   } catch (err) {
     content.innerHTML = errorBox(err.message);
@@ -584,20 +703,20 @@ async function renderSquad(teamId, leagueId, season) {
 }
 
 // ============================================================
-// View: Time — lesões e desfalques
+// View: Time — Lesões
 // ============================================================
 async function renderInjuries(teamId, leagueId, season) {
-  const league = LEAGUES.find((l) => l.id === leagueId);
-  app.innerHTML = `<div id="injuries-content">${loadingBox("Buscando lesões e desfalques…")}</div>`;
+  const league = LEAGUES.find(l => l.id === leagueId);
+  app.innerHTML = `<div id="injuries-content">${skeletonTable()}</div>`;
   const content = document.getElementById("injuries-content");
 
   try {
-    const injuries = await apiGet("injuries", { team: teamId, season });
-
+    const injuries = await apiGet("injuries", { team: teamId, season }, 30);
     content.innerHTML = `
+      ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: "Time", href: `#/time/${teamId}/${leagueId}/${season}` }, { label: "Desfalques", href: "" }])}
       <div class="page-head">
         <p class="page-eyebrow">${escapeHtml(league?.name || "")} · ${season}</p>
-        <h1 class="page-title">Lesões e desfalques</h1>
+        <h1 class="page-title">Lesões e Desfalques</h1>
       </div>
       ${subNav([
         { label: "Estatísticas", href: `#/time/${teamId}/${leagueId}/${season}` },
@@ -605,23 +724,19 @@ async function renderInjuries(teamId, leagueId, season) {
         { label: "Lesões", href: `#/time/${teamId}/${leagueId}/${season}/lesoes`, active: true },
       ])}
       <div class="card">
-        ${
-          !injuries || !injuries.length
-            ? `<p style="color:var(--chalk-dim);">Nenhuma lesão ou desfalque registrado nessa temporada.</p>`
-            : `<div class="injury-list">
-              ${injuries
-                .map(
-                  (inj) => `
-                <div class="injury-row">
-                  <img src="${inj.player.photo}" alt="">
-                  <div class="injury-info">
-                    <div class="injury-name">${escapeHtml(inj.player.name)}</div>
-                    <div class="injury-reason">${escapeHtml(inj.player.reason || inj.player.type || "Motivo não informado")}</div>
+        ${!injuries || !injuries.length 
+          ? `<p style="color:var(--chalk-dim);">Nenhum desfalque registrado recentemente.</p>`
+          : `<div class="fixture-list">
+              ${injuries.map(inj => `
+                <div class="fixture-row" style="grid-template-columns:40px 1fr auto;">
+                  <img src="${inj.player.photo}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+                  <div>
+                    <div style="font-weight:600;">${escapeHtml(inj.player.name)}</div>
+                    <div style="font-size:0.75rem;color:var(--terracotta);">${escapeHtml(inj.player.reason || "Desfalque")}</div>
                   </div>
-                  <span class="injury-date">${inj.fixture?.date ? new Date(inj.fixture.date).toLocaleDateString("pt-BR") : ""}</span>
+                  <span class="fixture-date">${inj.fixture?.date ? new Date(inj.fixture.date).toLocaleDateString("pt-BR") : ""}</span>
                 </div>`
-                )
-                .join("")}
+              ).join("")}
             </div>`
         }
       </div>
@@ -637,30 +752,25 @@ function sumCards(cardsObj) {
 }
 
 function renderRecentFixtures(fixtures, teamId) {
-  if (!fixtures || !fixtures.length) return `<p style="color:var(--chalk-dim);">Sem jogos recentes registrados.</p>`;
-  return fixtures
-    .slice()
-    .reverse()
-    .map((f) => {
-      const isHome = f.teams.home.id === teamId;
-      const opp = isHome ? f.teams.away : f.teams.home;
-      const ownGoals = isHome ? f.goals.home : f.goals.away;
-      const oppGoals = isHome ? f.goals.away : f.goals.home;
-      let result = "E";
-      if (ownGoals !== null && oppGoals !== null) {
-        result = ownGoals > oppGoals ? "W" : ownGoals < oppGoals ? "L" : "D";
-      }
-      const date = new Date(f.fixture.date).toLocaleDateString("pt-BR");
-      const label = result === "W" ? "V" : result === "L" ? "D" : "E";
-      return `
-      <div class="h2h-row" style="grid-template-columns:70px 1fr auto 40px;">
-        <span class="h2h-date">${date}</span>
+  if (!fixtures || !fixtures.length) return `<p style="color:var(--chalk-dim);">Sem histórico recente.</p>`;
+  return fixtures.slice().reverse().map(f => {
+    const isHome = f.teams.home.id === teamId;
+    const opp = isHome ? f.teams.away : f.teams.home;
+    const ownGoals = isHome ? f.goals.home : f.goals.away;
+    const oppGoals = isHome ? f.goals.away : f.goals.home;
+    let result = "D";
+    if (ownGoals !== null && oppGoals !== null) {
+      result = ownGoals > oppGoals ? "W" : ownGoals < oppGoals ? "L" : "D";
+    }
+    const label = result === "W" ? "V" : result === "L" ? "D" : "E";
+    return `
+      <div class="fixture-row" style="grid-template-columns:70px 1fr auto 30px;">
+        <span class="fixture-date">${new Date(f.fixture.date).toLocaleDateString("pt-BR")}</span>
         <span>${isHome ? "vs" : "@"} ${escapeHtml(opp.name)}</span>
-        <span class="h2h-score">${ownGoals ?? "-"} : ${oppGoals ?? "-"}</span>
-        <span class="form-pill ${result}" style="width:24px;height:24px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;">${label}</span>
+        <span class="fixture-score">${ownGoals ?? "-"} : ${oppGoals ?? "-"}</span>
+        <span class="form-pill ${result}">${label}</span>
       </div>`;
-    })
-    .join("");
+  }).join("");
 }
 
 function setCompareSlot(slot, team, leagueId, leagueName, season) {
@@ -672,147 +782,144 @@ function setCompareSlot(slot, team, leagueId, leagueName, season) {
     leagueName,
     season,
   };
-  toast(`${team.name} definido como Time ${slot.toUpperCase()}`, false);
+  updateCompareBadge();
+  toast(`${team.name} selecionado como Time ${slot.toUpperCase()}`, false);
   location.hash = "#/compare";
 }
 
 // ============================================================
-// View: Jogador — perfil e estatísticas da temporada
+// View: Jogador
 // ============================================================
 async function renderPlayer(playerId, season, teamId, leagueId) {
-  app.innerHTML = `<div id="player-content">${loadingBox("Buscando estatísticas do jogador…")}</div>`;
+  app.innerHTML = `<div id="player-content">${skeletonTable()}</div>`;
   const content = document.getElementById("player-content");
   const backHref = teamId && leagueId ? `#/time/${teamId}/${leagueId}/${season}/elenco` : "#/";
 
   try {
-    const response = await apiGet("players", { id: playerId, season });
+    const response = await apiGet("players", { id: playerId, season }, 60);
     const entry = response?.[0];
     if (!entry) {
-      content.innerHTML = errorBox("Sem estatísticas disponíveis para esse jogador nessa temporada.");
+      content.innerHTML = errorBox("Estatísticas indisponíveis para este jogador.");
       return;
     }
 
     const p = entry.player;
     const stats = entry.statistics || [];
-    const birth = p.birth?.date ? new Date(p.birth.date).toLocaleDateString("pt-BR") : null;
 
     content.innerHTML = `
-      <a class="btn ghost small" href="${backHref}" style="margin-bottom:16px;display:inline-block;">← Voltar ao elenco</a>
-
-      <div class="player-header">
-        <img src="${p.photo}" alt="">
+      ${breadcrumbs([{ label: "Elenco", href: backHref }, { label: p.name, href: "" }])}
+      <div class="team-header">
+        <img src="${p.photo}" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;">
         <div>
-          <p class="page-eyebrow">${escapeHtml(stats[0]?.games.position || "")}</p>
+          <p class="page-eyebrow">${escapeHtml(stats[0]?.games.position || "Jogador")}</p>
           <h1 class="page-title">${escapeHtml(p.name)}</h1>
-          <div class="player-meta">
+          <div class="breadcrumbs" style="margin-top:6px;">
             ${p.age ? `<span>${p.age} anos</span>` : ""}
             ${p.nationality ? `<span>${escapeHtml(p.nationality)}</span>` : ""}
-            ${p.height ? `<span>${p.height}</span>` : ""}
-            ${p.weight ? `<span>${p.weight}</span>` : ""}
-            ${birth ? `<span>nasc. ${birth}</span>` : ""}
           </div>
         </div>
       </div>
-
-      ${
-        !stats.length
-          ? `<div class="card"><p style="color:var(--chalk-dim);">Sem estatísticas registradas nessa temporada.</p></div>`
-          : stats.map((s) => renderPlayerCompetitionStats(s)).join("")
-      }
+      ${stats.map(s => `
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-title">
+            <span>${escapeHtml(s.league.name)} · ${s.league.season}</span>
+            <span style="color:var(--gold);font-family:var(--font-mono);">Nota: ${s.games.rating ? parseFloat(s.games.rating).toFixed(2) : "—"}</span>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-card"><p class="stat-label">Jogos</p><p class="stat-value">${s.games.appearences ?? 0}</p></div>
+            <div class="stat-card"><p class="stat-label">Minutos</p><p class="stat-value">${s.games.minutes ?? 0}</p></div>
+            <div class="stat-card"><p class="stat-label">Gols</p><p class="stat-value">${s.goals?.total ?? 0}</p></div>
+            <div class="stat-card"><p class="stat-label">Assistências</p><p class="stat-value">${s.goals?.assists ?? 0}</p></div>
+          </div>
+        </div>
+      `).join("")}
     `;
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
 }
 
-function renderPlayerCompetitionStats(s) {
-  const rating = s.games.rating ? parseFloat(s.games.rating).toFixed(2) : "—";
-  const passAcc = s.passes?.accuracy ? `${s.passes.accuracy}%` : "—";
-  const dribbleRate = s.dribbles?.attempts ? `${s.dribbles.success ?? 0}/${s.dribbles.attempts}` : "—";
-  const duelRate = s.duels?.total ? `${s.duels.won ?? 0}/${s.duels.total}` : "—";
-
-  return `
-    <div class="card" style="margin-bottom:16px;">
-      <div class="player-comp-head">
-        <img src="${s.team.logo}" alt="">
-        <div>
-          <div style="font-family:var(--font-display);">${escapeHtml(s.team.name)}</div>
-          <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">${escapeHtml(s.league.name)} · ${s.league.season}</div>
-        </div>
-        <span class="player-rating">${rating}</span>
-      </div>
-      <div class="stat-grid" style="margin-top:14px;margin-bottom:0;">
-        <div class="stat-card"><p class="stat-label">Jogos</p><p class="stat-value">${s.games.appearences ?? 0}</p><div class="stat-split"><span>${s.games.lineups ?? 0} titular</span></div></div>
-        <div class="stat-card"><p class="stat-label">Minutos</p><p class="stat-value">${s.games.minutes ?? 0}</p></div>
-        <div class="stat-card"><p class="stat-label">Gols</p><p class="stat-value">${s.goals?.total ?? 0}</p></div>
-        <div class="stat-card"><p class="stat-label">Assistências</p><p class="stat-value">${s.goals?.assists ?? 0}</p></div>
-        ${s.goals?.conceded !== null && s.goals?.conceded !== undefined && s.games.position === "Goalkeeper" ? `<div class="stat-card"><p class="stat-label">Gols sofridos</p><p class="stat-value">${s.goals.conceded}</p></div>` : ""}
-        ${s.goals?.saves !== null && s.goals?.saves !== undefined && s.games.position === "Goalkeeper" ? `<div class="stat-card"><p class="stat-label">Defesas</p><p class="stat-value">${s.goals.saves}</p></div>` : ""}
-        <div class="stat-card"><p class="stat-label">Chutes (no alvo)</p><p class="stat-value">${s.shots?.total ?? 0}<small> / ${s.shots?.on ?? 0}</small></p></div>
-        <div class="stat-card"><p class="stat-label">Precisão de passe</p><p class="stat-value">${passAcc}</p></div>
-        <div class="stat-card"><p class="stat-label">Dribles (sucesso)</p><p class="stat-value">${dribbleRate}</p></div>
-        <div class="stat-card"><p class="stat-label">Duelos vencidos</p><p class="stat-value">${duelRate}</p></div>
-        <div class="stat-card"><p class="stat-label">Faltas cometidas</p><p class="stat-value">${s.fouls?.committed ?? 0}</p></div>
-        <div class="stat-card"><p class="stat-label">Cartões</p><p class="stat-value">${s.cards?.yellow ?? 0}<small> 🟨</small> ${s.cards?.red ?? 0}<small> 🟥</small></p></div>
-      </div>
-    </div>
-  `;
-}
-
 // ============================================================
-// View: Ao vivo
+// View: Ao Vivo (com Auto-Refresh Regressivo)
 // ============================================================
 async function renderLive() {
   app.innerHTML = `
-    <div class="page-head">
-      <p class="page-eyebrow">Tempo real</p>
-      <h1 class="page-title">Jogos ao vivo</h1>
-      <p class="page-sub">Só das competições cobertas pelo site. Atualize a página pra ver o placar mais recente.</p>
+    <div class="live-header-bar">
+      <div>
+        <p class="page-eyebrow">Tempo Real</p>
+        <h1 class="page-title" style="margin:0;">Jogos Ao Vivo</h1>
+      </div>
+      <div class="live-refresh-ctrl">
+        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);">Auto-refresh</span>
+        <div class="live-progress"><div class="live-progress-fill" id="live-progress-bar"></div></div>
+        <button class="btn ghost small" id="btn-force-refresh">Atualizar</button>
+      </div>
     </div>
-    <div id="live-content">${loadingBox("Buscando jogos ao vivo…")}</div>
+    <div id="live-content">${skeletonTable()}</div>
   `;
-  const content = document.getElementById("live-content");
-  const knownLeagueIds = new Set(LEAGUES.map((l) => l.id));
 
+  document.getElementById("btn-force-refresh").addEventListener("click", () => fetchLiveMatches(true));
+  await fetchLiveMatches();
+  startLiveAutoRefresh();
+}
+
+async function fetchLiveMatches(isForced = false) {
+  const content = document.getElementById("live-content");
+  if (!content) return;
+
+  const knownLeagueIds = new Set(LEAGUES.map(l => l.id));
   try {
-    const fixtures = await apiGet("fixtures", { live: "all" });
-    const relevant = (fixtures || []).filter((f) => knownLeagueIds.has(f.league.id));
+    const fixtures = await apiGet("fixtures", { live: "all" }, isForced ? 0 : 0.5);
+    const relevant = (fixtures || []).filter(f => knownLeagueIds.has(f.league.id));
 
     if (!relevant.length) {
-      content.innerHTML = `<div class="state-box"><div class="state-title">Nada rolando agora</div>Nenhum jogo ao vivo nas ligas cobertas pelo site neste momento.</div>`;
+      content.innerHTML = `<div class="card" style="text-align:center;padding:40px 20px;color:var(--chalk-dim);">Nenhum jogo ao vivo acontecendo nas ligas cobertas no momento.</div>`;
       return;
     }
 
-    content.innerHTML = `<div class="card">
-      <div class="fixture-list">
-        ${relevant
-          .map((f) => {
-            const league = LEAGUES.find((l) => l.id === f.league.id);
+    content.innerHTML = `
+      <div class="card">
+        <div class="fixture-list">
+          ${relevant.map(f => {
+            const league = LEAGUES.find(l => l.id === f.league.id);
             return `
-            <a class="fixture-row" href="#/jogo/${f.fixture.id}">
-              <span class="fixture-date" style="color:var(--gold);">${f.fixture.status.elapsed ?? ""}'<br><small>${escapeHtml(league?.name || "")}</small></span>
-              <span class="fixture-team right">${escapeHtml(f.teams.home.name)}</span>
-              <span class="fixture-score">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>
-              <span class="fixture-team">${escapeHtml(f.teams.away.name)}</span>
-            </a>`;
-          })
-          .join("")}
-      </div>
-    </div>`;
+              <a class="fixture-row" href="#/jogo/${f.fixture.id}">
+                <span class="fixture-date" style="color:var(--gold);font-weight:700;">${f.fixture.status.elapsed}'<br><small style="color:var(--chalk-dim);">${escapeHtml(league?.name || "")}</small></span>
+                <span class="fixture-team right">${escapeHtml(f.teams.home.name)}</span>
+                <span class="fixture-score">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>
+                <span class="fixture-team">${escapeHtml(f.teams.away.name)}</span>
+              </a>`;
+          }).join("")}
+        </div>
+      </div>`;
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
 }
 
+function startLiveAutoRefresh() {
+  let remaining = state.liveIntervalSeconds;
+  const bar = document.getElementById("live-progress-bar");
+  
+  state.liveTimer = setInterval(() => {
+    remaining--;
+    if (bar) bar.style.width = `${(remaining / state.liveIntervalSeconds) * 100}%`;
+    if (remaining <= 0) {
+      remaining = state.liveIntervalSeconds;
+      fetchLiveMatches(true);
+    }
+  }, 1000);
+}
+
 // ============================================================
-// View: Detalhe do jogo — eventos, escalação tática 2D, stats, odds, previsão
+// View: Detalhe do Jogo (Odds, xG, Escalação 2D Tática)
 // ============================================================
 async function renderFixture(fixtureId) {
-  app.innerHTML = `<div id="fixture-content">${loadingBox("Buscando detalhes do jogo…")}</div>`;
+  app.innerHTML = `<div id="fixture-content">${skeletonTable()}</div>`;
   const content = document.getElementById("fixture-content");
 
   try {
-    const fxResponse = await apiGet("fixtures", { id: fixtureId });
+    const fxResponse = await apiGet("fixtures", { id: fixtureId }, 5);
     const fx = fxResponse?.[0];
     if (!fx) {
       content.innerHTML = errorBox("Jogo não encontrado.");
@@ -820,17 +927,19 @@ async function renderFixture(fixtureId) {
     }
 
     const [events, lineups, stats, odds, predictions] = await Promise.allSettled([
-      apiGet("fixtures/events", { fixture: fixtureId }),
-      apiGet("fixtures/lineups", { fixture: fixtureId }),
-      apiGet("fixtures/statistics", { fixture: fixtureId }),
-      apiGet("odds", { fixture: fixtureId }),
-      apiGet("predictions", { fixture: fixtureId }),
+      apiGet("fixtures/events", { fixture: fixtureId }, 5),
+      apiGet("fixtures/lineups", { fixture: fixtureId }, 15),
+      apiGet("fixtures/statistics", { fixture: fixtureId }, 5),
+      apiGet("odds", { fixture: fixtureId }, 15),
+      apiGet("predictions", { fixture: fixtureId }, 15),
     ]);
 
     const date = new Date(fx.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
     const time = new Date(fx.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
     content.innerHTML = `
+      ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: fx.league.name, href: `#/liga/${fx.league.id}/${fx.league.season}` }, { label: "Partida", href: "" }])}
+      
       <div class="page-head">
         <p class="page-eyebrow">${escapeHtml(fx.league.name)} · ${date} · ${time}${fx.fixture.venue?.name ? " · " + escapeHtml(fx.fixture.venue.name) : ""}</p>
       </div>
@@ -858,8 +967,8 @@ async function renderFixture(fixtureId) {
     `;
 
     if (predictions.status === "fulfilled") renderFixturePredictions(predictions.value?.[0], fx);
-    if (odds.status === "fulfilled") renderFixtureOdds(odds.value?.[0]);
-    if (stats.status === "fulfilled") renderFixtureStats(stats.value, fx);
+    if (odds.status === "fulfilled") renderFixtureOdds(odds.value?.[0], predictions.value?.[0]);
+    if (stats.status === "fulfilled") renderFixtureStats(stats.value);
     if (lineups.status === "fulfilled") renderFixtureLineups(lineups.value);
     if (events.status === "fulfilled") renderFixtureEvents(events.value, fx);
   } catch (err) {
@@ -869,175 +978,199 @@ async function renderFixture(fixtureId) {
 
 function renderFixturePredictions(pred, fx) {
   const el = document.getElementById("fx-predictions");
-  if (!pred) return;
+  if (!pred || !el) return;
   const pct = pred.predictions.percent;
   const probA = parseInt(pct.home);
   const probB = parseInt(pct.away);
   const probDraw = 100 - probA - probB;
   el.innerHTML = `
-    <h2 class="section-title">Previsão oficial da API-Football</h2>
+    <h2 class="section-title">Previsão Oficial da API</h2>
     ${renderPitchBar(fx.teams.home, fx.teams.away, { probA, probB, probDraw })}
-    ${pred.predictions.advice ? `<p class="predict-advice">${escapeHtml(pred.predictions.advice)}</p>` : ""}
   `;
 }
 
-function renderFixtureOdds(oddsEntry) {
+function renderFixtureOdds(oddsEntry, pred) {
   const el = document.getElementById("fx-odds");
-  if (!oddsEntry || !oddsEntry.bookmakers?.length) return;
+  if (!oddsEntry || !oddsEntry.bookmakers?.length || !el) return;
   const bookmaker = oddsEntry.bookmakers[0];
-  const winnerBet = bookmaker.bets.find((b) => b.name === "Match Winner");
+  const winnerBet = bookmaker.bets.find(b => b.name === "Match Winner");
   if (!winnerBet) return;
+
+  const predHome = pred ? parseInt(pred.predictions.percent.home) : null;
+  const predAway = pred ? parseInt(pred.predictions.percent.away) : null;
+
   el.innerHTML = `
-    <h2 class="section-title">Odds — ${escapeHtml(bookmaker.name)}</h2>
+    <h2 class="section-title">Odds & Valor Esperado (+EV) — ${escapeHtml(bookmaker.name)}</h2>
     <div class="card" style="margin-bottom:20px;">
-      <div class="odds-row">
-        ${winnerBet.values
-          .map((v) => `<div class="odds-cell"><span class="odds-label">${escapeHtml(v.value)}</span><span class="odds-value">${v.odd}</span></div>`)
-          .join("")}
+      <div class="odds-grid">
+        ${winnerBet.values.map(v => {
+          const oddNum = parseFloat(v.odd);
+          let evBadge = "";
+          let isValue = false;
+          
+          if (v.value === "Home" && predHome) {
+            const ev = ((predHome / 100) * oddNum - 1) * 100;
+            isValue = ev > 0;
+            evBadge = `<span class="ev-tag ${isValue ? 'positive' : 'negative'}">${ev > 0 ? '+' : ''}${ev.toFixed(1)}% EV</span>`;
+          } else if (v.value === "Away" && predAway) {
+            const ev = ((predAway / 100) * oddNum - 1) * 100;
+            isValue = ev > 0;
+            evBadge = `<span class="ev-tag ${isValue ? 'positive' : 'negative'}">${ev > 0 ? '+' : ''}${ev.toFixed(1)}% EV</span>`;
+          }
+
+          return `
+            <div class="odds-card ${isValue ? 'has-value' : ''}">
+              <span class="odds-label">${escapeHtml(v.value)}</span>
+              <span class="odds-val">${v.odd}</span>
+              ${evBadge}
+            </div>`;
+        }).join("")}
       </div>
     </div>
   `;
 }
 
-function renderFixtureStats(statsArr, fx) {
+function renderFixtureStats(statsArr) {
   const el = document.getElementById("fx-stats");
-  if (!statsArr || statsArr.length < 2) return;
+  if (!statsArr || statsArr.length < 2 || !el) return;
   const [homeStats, awayStats] = statsArr;
+
   const rows = homeStats.statistics.map((s, i) => {
-    const homeVal = s.value;
-    const awayVal = awayStats.statistics[i]?.value;
+    const homeVal = s.value ?? 0;
+    const awayVal = awayStats.statistics[i]?.value ?? 0;
     const homeNum = parseFloat(homeVal) || 0;
     const awayNum = parseFloat(awayVal) || 0;
     const max = Math.max(homeNum, awayNum, 1);
-    return [s.type, homeVal ?? 0, awayVal ?? 0, (homeNum / max) * 100, (awayNum / max) * 100];
+    return [s.type, homeVal, awayVal, (homeNum / max) * 100, (awayNum / max) * 100];
   });
 
   el.innerHTML = `
-    <h2 class="section-title">Estatísticas do jogo</h2>
-    <div class="card" style="overflow-x:auto;margin-bottom:20px;">
-      <table class="compare-table">
-        ${rows
-          .map(
-            ([label, va, vb, pctA, pctB]) => `
-          <tr><td class="val-a">${va}</td><td class="mid-label">${escapeHtml(label)}</td><td class="val-b">${vb}</td></tr>
-          <tr><td colspan="3" class="compare-bar-cell">
-            <div class="compare-bar-row"><div class="compare-bar-a" style="width:${pctA / 2}%;"></div><div class="compare-bar-b" style="width:${pctB / 2}%;"></div></div>
-          </td></tr>`
-          )
-          .join("")}
+    <h2 class="section-title">Estatísticas da Partida</h2>
+    <div class="card" style="margin-bottom:20px;">
+      <table class="standings-table">
+        ${rows.map(([label, va, vb, pctA, pctB]) => `
+          <tr>
+            <td style="text-align:right;color:var(--gold);font-weight:700;width:30%;">${va}</td>
+            <td style="color:var(--chalk-dim);font-size:0.75rem;text-transform:uppercase;">${escapeHtml(label)}</td>
+            <td style="text-align:left;color:var(--terracotta);font-weight:700;width:30%;">${vb}</td>
+          </tr>
+          <tr>
+            <td colspan="3" style="padding:0 8px 12px;">
+              <div style="position:relative;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+                <div style="position:absolute;right:50%;height:100%;background:var(--gold);width:${pctA / 2}%;"></div>
+                <div style="position:absolute;left:50%;height:100%;background:var(--terracotta);width:${pctB / 2}%;"></div>
+              </div>
+            </td>
+          </tr>`
+        ).join("")}
       </table>
     </div>
   `;
 }
 
 // ------------------------------------------------------------
-// Escalação com Mini-Campo Tático 2D
+// Campo Tático 2D Reestruturado por Linhas
 // ------------------------------------------------------------
 function renderFixtureLineups(lineupsArr) {
   const el = document.getElementById("fx-lineups");
-  if (!lineupsArr || !lineupsArr.length) return;
+  if (!lineupsArr || !lineupsArr.length || !el) return;
 
   el.innerHTML = `
     <h2 class="section-title">Escalações & Campo Tático</h2>
-    <div class="lineup-grid" style="margin-bottom:20px;">
-      ${lineupsArr
-        .map((l, teamIdx) => {
-          const isAway = teamIdx === 1;
-          const formation = l.formation || "4-4-2";
-          const rowsCount = formation.split("-").length + 1; // +1 goleiro
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;margin-bottom:20px;">
+      ${lineupsArr.map((l, teamIdx) => {
+        const isAway = teamIdx === 1;
+        const formation = l.formation || "4-4-2";
+        const formLines = formation.split("-").map(Number);
+        
+        // Separar jogadores por linhas táticas
+        const rows = [];
+        let cursor = 1;
+        rows.push([l.startXI[0]]); // Goleiro
+        formLines.forEach(count => {
+          rows.push(l.startXI.slice(cursor, cursor + count));
+          cursor += count;
+        });
 
-          return `
+        const displayRows = isAway ? [...rows].reverse() : rows;
+
+        return `
           <div class="card">
-            <div class="lineup-head">
-              <img src="${l.team.logo}" alt="">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+              <img src="${l.team.logo}" alt="" style="width:32px;height:32px;object-fit:contain;">
               <div>
-                <div style="font-family:var(--font-display);">${escapeHtml(l.team.name)}</div>
-                <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">
-                  ${escapeHtml(formation)} · téc. ${escapeHtml(l.coach?.name || "-")}
-                </div>
+                <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;">${escapeHtml(l.team.name)}</div>
+                <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);">${escapeHtml(formation)} · Téc. ${escapeHtml(l.coach?.name || "-")}</div>
               </div>
             </div>
 
-            <!-- Mini Campo Tático 2D -->
             <div class="tactical-pitch ${isAway ? 'pitch-away' : ''}">
               <div class="pitch-half-line"></div>
               <div class="pitch-center-circle"></div>
               <div class="pitch-penalty-area"></div>
               
-              <div class="pitch-players">
-                ${l.startXI.map((s, idx) => {
-                  let row = 1, col = 1;
-                  if (s.player.grid) {
-                    const [r, c] = s.player.grid.split(":");
-                    row = parseInt(r);
-                    col = parseInt(c);
-                  } else {
-                    row = idx === 0 ? 1 : Math.min(rowsCount, Math.floor(idx / 3) + 2);
-                    col = (idx % 4) + 1;
-                  }
-
-                  const displayRow = isAway ? (rowsCount + 1 - row) : row;
-                  const lastName = (s.player.name || "").split(" ").pop();
-
-                  return `
-                    <div class="pitch-node" style="--p-row: ${displayRow}; --p-col: ${col};" title="${escapeHtml(s.player.name)} (#${s.player.number ?? ''})">
-                      <div class="pitch-node-badge">${s.player.number ?? ""}</div>
-                      <span class="pitch-node-name">${escapeHtml(lastName)}</span>
-                    </div>
-                  `;
-                }).join("")}
-              </div>
+              ${displayRows.map(rowPlayers => `
+                <div class="pitch-row">
+                  ${rowPlayers.map(p => `
+                    <div class="pitch-player" title="${escapeHtml(p.player.name)}">
+                      <div class="pitch-player-badge">${p.player.number ?? ""}</div>
+                      <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
+                    </div>`
+                  ).join("")}
+                </div>`
+              ).join("")}
             </div>
 
-            <!-- Banco de Reservas -->
             <p class="stat-label" style="margin-top:16px;">Banco de Reservas</p>
-            <ul class="lineup-list dim">
-              ${l.substitutes.map((s) => `<li><span class="lineup-num">${s.player.number ?? "-"}</span>${escapeHtml(s.player.name)}</li>`).join("")}
+            <ul style="list-style:none;padding:0;margin:0;font-size:0.82rem;display:flex;flex-direction:column;gap:4px;color:var(--chalk-dim);">
+              ${l.substitutes.map(s => `<li><strong style="color:var(--gold);font-family:var(--font-mono);margin-right:6px;">${s.player.number ?? "-"}</strong>${escapeHtml(s.player.name)}</li>`).join("")}
             </ul>
           </div>`;
-        })
-        .join("")}
+      }).join("")}
     </div>
   `;
 }
 
-const EVENT_ICON = { Goal: "⚽", Card: "🟨", subst: "🔁", Var: "📺" };
-
 function renderFixtureEvents(events, fx) {
   const el = document.getElementById("fx-events");
-  if (!events || !events.length) return;
+  if (!events || !events.length || !el) return;
 
   el.innerHTML = `
-    <h2 class="section-title">Linha do jogo</h2>
+    <h2 class="section-title">Linha do Tempo</h2>
     <div class="card">
-      <div class="event-list">
-        ${events
-          .map((e) => {
-            const isHome = e.team.id === fx.teams.home.id;
-            const icon = e.type === "Card" ? (e.detail === "Red Card" ? "🟥" : "🟨") : EVENT_ICON[e.type] || "•";
-            return `
-            <div class="event-row ${isHome ? "home" : "away"}">
-              <span class="event-min">${e.time.elapsed}'${e.time.extra ? "+" + e.time.extra : ""}</span>
-              <span class="event-icon">${icon}</span>
-              <span class="event-text">${escapeHtml(e.player?.name || "")}${e.assist?.name ? ` <span class="event-dim">(assist. ${escapeHtml(e.assist.name)})</span>` : ""} <span class="event-dim">— ${escapeHtml(e.detail || e.type)}</span></span>
+      <div class="fixture-list">
+        ${events.map(e => {
+          const isHome = e.team.id === fx.teams.home.id;
+          return `
+            <div class="fixture-row" style="grid-template-columns:44px auto 1fr;">
+              <span class="fixture-date">${e.time.elapsed}'${e.time.extra ? "+" + e.time.extra : ""}</span>
+              <span>${e.type === "Goal" ? "⚽" : e.type === "Card" ? (e.detail === "Red Card" ? "🟥" : "🟨") : "🔁"}</span>
+              <div>
+                <strong>${escapeHtml(e.player?.name || "")}</strong>
+                <span style="color:var(--chalk-dim);font-size:0.75rem;">(${escapeHtml(e.detail || e.type)})</span>
+              </div>
             </div>`;
-          })
-          .join("")}
+        }).join("")}
       </div>
     </div>
   `;
 }
 
 // ============================================================
-// View: Comparação
+// View: Comparação de Confronto
 // ============================================================
 function renderCompare() {
   const { a, b } = state.compareSlots;
   app.innerHTML = `
     <div class="page-head">
-      <p class="page-eyebrow">Confronto</p>
+      <p class="page-eyebrow">Laboratório de Confronto</p>
       <h1 class="page-title">Time A × Time B</h1>
-      <p class="page-sub">Busque dois times (de qualquer liga) para comparar estatísticas e ver a probabilidade estimada de vitória.</p>
+      <p class="page-sub">Selecione dois clubes para comparar saldo ponderado, forma recente, histórico direto e calcular probabilidades com vantagem de mando.</p>
+    </div>
+
+    <div class="quick-picks">
+      <span>Atalhos rápidos:</span>
+      ${POPULAR_TEAMS.map(pt => `<span class="quick-tag" data-quick-id="${pt.id}" data-quick-name="${pt.name}">${pt.name}</span>`).join("")}
     </div>
 
     <div class="compare-picker">
@@ -1047,23 +1180,29 @@ function renderCompare() {
     </div>
 
     <div class="card" style="margin-bottom:20px;">
-      <p class="stat-label" style="margin-bottom:10px;">Mandante do jogo (afeta a probabilidade e o cálculo por mando)</p>
-      <div style="display:flex;gap:16px;font-size:0.85rem;">
-        <label><input type="radio" name="home" value="" ${!state.homeSide ? "checked" : ""}> Neutro</label>
-        <label><input type="radio" name="home" value="a" ${state.homeSide === "a" ? "checked" : ""}> Time A manda o jogo</label>
-        <label><input type="radio" name="home" value="b" ${state.homeSide === "b" ? "checked" : ""}> Time B manda o jogo</label>
+      <p class="stat-label" style="margin-bottom:10px;">Mando de Campo</p>
+      <div style="display:flex;gap:18px;font-size:0.88rem;flex-wrap:wrap;">
+        <label><input type="radio" name="home" value="" ${!state.homeSide ? "checked" : ""}> Campo Neutro</label>
+        <label><input type="radio" name="home" value="a" ${state.homeSide === "a" ? "checked" : ""}> Time A Manda</label>
+        <label><input type="radio" name="home" value="b" ${state.homeSide === "b" ? "checked" : ""}> Time B Manda</label>
       </div>
     </div>
 
-    <button class="btn" id="run-compare" ${a && b ? "" : "disabled"}>Comparar</button>
-
+    <button class="btn" id="run-compare" ${a && b ? "" : "disabled"}>Gerar Análise Completa</button>
     <div id="compare-result" style="margin-top:24px;"></div>
   `;
 
   renderPicker("a", a);
   renderPicker("b", b);
 
-  document.querySelectorAll('input[name="home"]').forEach((r) =>
+  document.querySelectorAll('.quick-tag').forEach(tag => {
+    tag.addEventListener("click", () => {
+      const slot = !state.compareSlots.a ? "a" : "b";
+      selectTeamForCompare(slot, tag.dataset.quickId, tag.dataset.quickName, `https://media.api-sports.io/football/teams/${tag.dataset.quickId}.png`);
+    });
+  });
+
+  document.querySelectorAll('input[name="home"]').forEach(r =>
     r.addEventListener("change", (e) => {
       state.homeSide = e.target.value || null;
       if (state.compareSlots.a && state.compareSlots.b) runComparison();
@@ -1071,34 +1210,34 @@ function renderCompare() {
   );
 
   document.getElementById("run-compare").addEventListener("click", runComparison);
-
-  if (state.compareSlots.a && state.compareSlots.b) {
-    runComparison();
-  }
+  if (state.compareSlots.a && state.compareSlots.b) runComparison();
 }
 
 function renderPicker(slot, selected) {
   const box = document.getElementById(`picker-${slot}`);
+  if (!box) return;
+
   if (selected) {
     box.innerHTML = `
       <div class="picker-selected">
         <img src="${selected.logo}" alt="">
         <div>
           <div class="name">${escapeHtml(selected.name)}</div>
-          <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">${escapeHtml(selected.leagueName || "")} · ${selected.season}</div>
+          <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);">${escapeHtml(selected.leagueName || "")} · ${selected.season}</div>
         </div>
       </div>
-      <button class="btn ghost small" style="margin-top:8px;" data-action="clear">Trocar time</button>
+      <button class="btn ghost small" style="margin-top:10px;" data-action="clear">Trocar Time</button>
     `;
     box.querySelector('[data-action="clear"]').addEventListener("click", () => {
       state.compareSlots[slot] = null;
+      updateCompareBadge();
       renderCompare();
     });
     return;
   }
 
   box.innerHTML = `
-    <input type="text" placeholder="Buscar time (ex: Flamengo, Real Madrid...)" id="search-${slot}" autocomplete="off">
+    <input type="text" placeholder="Buscar clube (ex: Flamengo, Real Madrid...)" id="search-${slot}" autocomplete="off">
     <div class="picker-results" id="results-${slot}"></div>
   `;
 
@@ -1109,52 +1248,49 @@ function renderPicker(slot, selected) {
   input.addEventListener("input", () => {
     clearTimeout(debounceTimer);
     const q = input.value.trim();
-    if (q.length < 3) {
-      results.innerHTML = "";
-      return;
-    }
+    if (q.length < 3) { results.innerHTML = ""; return; }
+
     debounceTimer = setTimeout(async () => {
-      results.innerHTML = `<div style="padding:8px;color:var(--chalk-dim);font-size:0.8rem;">buscando…</div>`;
+      results.innerHTML = `<div style="padding:8px;color:var(--chalk-dim);font-size:0.8rem;">Buscando...</div>`;
       try {
-        const teams = await apiGet("teams", { search: q });
+        const teams = await apiGet("teams", { search: q }, 60);
         if (!teams || !teams.length) {
-          results.innerHTML = `<div style="padding:8px;color:var(--chalk-dim);font-size:0.8rem;">nenhum time encontrado</div>`;
+          results.innerHTML = `<div style="padding:8px;color:var(--chalk-dim);font-size:0.8rem;">Nenhum time encontrado.</div>`;
           return;
         }
-        results.innerHTML = teams
-          .slice(0, 8)
-          .map(
-            (r) => `
+        results.innerHTML = teams.slice(0, 6).map(r => `
           <div class="picker-result" data-id="${r.team.id}" data-name="${escapeHtml(r.team.name)}" data-logo="${r.team.logo}">
             <img src="${r.team.logo}" alt="">
             <span>${escapeHtml(r.team.name)}</span>
           </div>`
-          )
-          .join("");
-        results.querySelectorAll(".picker-result").forEach((el) => {
+        ).join("");
+
+        results.querySelectorAll(".picker-result").forEach(el => {
           el.addEventListener("click", () => selectTeamForCompare(slot, el.dataset.id, el.dataset.name, el.dataset.logo));
         });
       } catch (err) {
         results.innerHTML = `<div style="padding:8px;color:var(--terracotta);font-size:0.8rem;">${escapeHtml(err.message)}</div>`;
       }
-    }, 380);
+    }, 350);
   });
 }
 
 async function selectTeamForCompare(slot, teamId, name, logo) {
   const box = document.getElementById(`picker-${slot}`);
-  box.innerHTML = loadingBox("Localizando liga atual do time…");
+  if (box) box.innerHTML = `<div class="skeleton-line skeleton"></div>`;
+
   try {
-    const leagues = await apiGet("leagues", { team: teamId, current: "true" });
+    const leagues = await apiGet("leagues", { team: teamId, current: "true" }, 60);
     let leagueId, leagueName, season;
     if (leagues && leagues.length) {
-      const domestic = leagues.find((l) => l.league.type === "League") || leagues[0];
+      const domestic = leagues.find(l => l.league.type === "League") || leagues[0];
       leagueId = domestic.league.id;
       leagueName = domestic.league.name;
       season = domestic.seasons?.[0]?.year;
     }
-    if (!leagueId) throw new Error("Não achei uma liga ativa para esse time.");
+    if (!leagueId) throw new Error("Liga ativa não localizada.");
     state.compareSlots[slot] = { teamId: Number(teamId), name, logo, leagueId, leagueName, season };
+    updateCompareBadge();
     renderCompare();
   } catch (err) {
     toast(err.message);
@@ -1165,18 +1301,18 @@ async function selectTeamForCompare(slot, teamId, name, logo) {
 async function runComparison() {
   const { a, b } = state.compareSlots;
   const result = document.getElementById("compare-result");
-  if (!a || !b) return;
-  result.innerHTML = loadingBox("Cruzando estatísticas e histórico de confronto…");
+  if (!a || !b || !result) return;
+  result.innerHTML = skeletonTable();
 
   try {
     const [statsA, statsB, h2h] = await Promise.all([
-      apiGet("teams/statistics", { league: a.leagueId, season: a.season, team: a.teamId }),
-      apiGet("teams/statistics", { league: b.leagueId, season: b.season, team: b.teamId }),
-      apiGet("fixtures/headtohead", { h2h: `${a.teamId}-${b.teamId}`, last: 5 }),
+      apiGet("teams/statistics", { league: a.leagueId, season: a.season, team: a.teamId }, 30),
+      apiGet("teams/statistics", { league: b.leagueId, season: b.season, team: b.teamId }, 30),
+      apiGet("fixtures/headtohead", { h2h: `${a.teamId}-${b.teamId}`, last: 6 }, 30),
     ]);
 
     if (!statsA?.team || !statsB?.team) {
-      result.innerHTML = errorBox("Não consegui estatísticas completas para um dos times nessa temporada.");
+      result.innerHTML = errorBox("Estatísticas incompletas para um dos times nesta temporada.");
       return;
     }
 
@@ -1187,87 +1323,27 @@ async function runComparison() {
     result.innerHTML = `
       ${renderPitchBar(statsA.team, statsB.team, prob)}
 
-      <h2 class="section-title">Justificativas</h2>
+      <h2 class="section-title">Justificativas do Modelo</h2>
       <ul class="justif-list">
-        ${justifs
-          .map(
-            (j) => `<li class="justif-item"><span class="justif-side ${j.side}"></span><span>${j.text}</span></li>`
-          )
-          .join("")}
+        ${justifs.map(j => `<li class="justif-item"><span class="justif-side ${j.side}"></span><span>${j.text}</span></li>`).join("")}
       </ul>
 
-      <div id="official-prediction"></div>
-
-      <h2 class="section-title" style="margin-top:24px;">Comparação direta</h2>
-      ${renderCompareTable(statsA, statsB, homeTeamId)}
-
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
-        <a class="btn ghost small" href="#/time/${a.teamId}/${a.leagueId}/${a.season}/elenco">Elenco ${escapeHtml(statsA.team.name)}</a>
-        <a class="btn ghost small" href="#/time/${b.teamId}/${b.leagueId}/${b.season}/elenco">Elenco ${escapeHtml(statsB.team.name)}</a>
-      </div>
-
-      <h2 class="section-title">Confronto direto — últimos jogos</h2>
+      <h2 class="section-title" style="margin-top:24px;">Confronto Direto Recente (H2H)</h2>
       <div class="card">
-        ${renderH2H(h2h, statsA.team, statsB.team)}
+        ${renderH2H(h2h)}
       </div>
     `;
-
-    fetchOfficialPredictionForPair(a.teamId, b.teamId, statsA.team, statsB.team);
   } catch (err) {
     result.innerHTML = errorBox(err.message);
   }
 }
 
-async function fetchOfficialPredictionForPair(teamAId, teamBId, teamA, teamB) {
-  const el = document.getElementById("official-prediction");
-  if (!el) return;
-  try {
-    const upcoming = await apiGet("fixtures/headtohead", { h2h: `${teamAId}-${teamBId}`, next: 1 });
-    if (!upcoming || !upcoming.length) return;
-    const fixtureId = upcoming[0].fixture.id;
-    const predResponse = await apiGet("predictions", { fixture: fixtureId });
-    const pred = predResponse?.[0];
-    if (!pred) return;
-    const isAHome = upcoming[0].teams.home.id === teamAId;
-    const homePct = parseInt(pred.predictions.percent.home);
-    const awayPct = parseInt(pred.predictions.percent.away);
-    const probA = isAHome ? homePct : awayPct;
-    const probB = isAHome ? awayPct : homePct;
-    const probDraw = 100 - probA - probB;
-    el.innerHTML = `
-      <h2 class="section-title" style="margin-top:24px;">Conferência cruzada — previsão oficial da API</h2>
-      <p class="page-sub" style="margin-bottom:12px;">Há um jogo marcado entre os dois times (${new Date(upcoming[0].fixture.date).toLocaleDateString("pt-BR")}). Isto é o algoritmo próprio da API-Football, pra comparar com o cálculo acima.</p>
-      ${renderPitchBar(teamA, teamB, { probA, probB, probDraw })}
-      <a class="btn ghost small" href="#/jogo/${fixtureId}">Ver detalhes desse jogo →</a>
-    `;
-  } catch {
-    // silencioso
-  }
-}
-
 // ------------------------------------------------------------
-// Cálculo de probabilidade refinado por mando
+// Modelo Matemático Refinado com Sigmoide e Mando
 // ------------------------------------------------------------
-function getRelevantGoals(stats, isHome) {
-  if (isHome === null) {
-    return {
-      gf: parseFloat(stats.goals.for.average.total) || 0,
-      ga: parseFloat(stats.goals.against.average.total) || 0,
-    };
-  }
-  const side = isHome ? "home" : "away";
-  return {
-    gf: parseFloat(stats.goals.for.average[side]) || 0,
-    ga: parseFloat(stats.goals.against.average[side]) || 0,
-  };
-}
-
 function computeProbability(statsA, statsB, h2h, homeTeamId) {
   const isAHome = homeTeamId ? homeTeamId === statsA.team.id : null;
   const isBHome = homeTeamId ? homeTeamId === statsB.team.id : null;
-
-  const goalsA = getRelevantGoals(statsA, isAHome);
-  const goalsB = getRelevantGoals(statsB, isBHome);
 
   const winRate = (s, isHome) => {
     if (!s.fixtures.played.total) return 0.5;
@@ -1277,57 +1353,39 @@ function computeProbability(statsA, statsB, h2h, homeTeamId) {
     return (s.fixtures.wins[side] || 0) / played;
   };
 
-  const goalDiffScore = (goals) => {
-    const diff = goals.gf - goals.ga;
-    return Math.min(1, Math.max(0, (diff + 3) / 6));
+  const goalDiffScore = (s, isHome) => {
+    const side = isHome === null ? "total" : isHome ? "home" : "away";
+    const gf = parseFloat(s.goals.for.average[side]) || 1;
+    const ga = parseFloat(s.goals.against.average[side]) || 1;
+    return Math.min(1, Math.max(0, (gf - ga + 3) / 6));
   };
 
   const formScore = (s) => {
-    const map = { W: 1, D: 0.33, L: 0 };
+    const map = { W: 1, D: 0.35, L: 0 };
     const chars = (s.form || "").split("").slice(-5);
     if (!chars.length) return 0.5;
-    return chars.reduce((sum, c) => sum + (map[c] ?? 0.33), 0) / chars.length;
+    return chars.reduce((sum, c) => sum + (map[c] ?? 0.35), 0) / chars.length;
   };
 
-  const h2hScore = (teamId) => {
-    if (!h2h || !h2h.length) return 0.5;
-    let w = 0, d = 0, l = 0;
-    h2h.forEach((f) => {
-      if (f.goals.home === null || f.goals.away === null) return;
-      const isHome = f.teams.home.id === teamId;
-      const tg = isHome ? f.goals.home : f.goals.away;
-      const og = isHome ? f.goals.away : f.goals.home;
-      if (tg > og) w++;
-      else if (tg === og) d++;
-      else l++;
-    });
-    const total = w + d + l;
-    if (!total) return 0.5;
-    return (w + d * 0.33) / total;
-  };
+  const strength = (s, isHome) =>
+    40 * winRate(s, isHome) + 25 * goalDiffScore(s, isHome) + 20 * formScore(s);
 
-  const strength = (s, isHome, goals) =>
-    40 * winRate(s, isHome) + 25 * goalDiffScore(goals) + 20 * formScore(s) + 15 * h2hScore(s.team.id);
+  let strengthA = strength(statsA, isAHome);
+  let strengthB = strength(statsB, isBHome);
 
-  let strengthA = strength(statsA, isAHome, goalsA);
-  let strengthB = strength(statsB, isBHome, goalsB);
-
-  const HOME_BONUS = 6;
-  if (isAHome) strengthA += HOME_BONUS;
-  if (isBHome) strengthB += HOME_BONUS;
+  if (isAHome) strengthA += 6;
+  if (isBHome) strengthB += 6;
 
   const diff = strengthA - strengthB;
-  const drawProb = Math.min(30, Math.max(15, 26 - Math.abs(diff) * 0.3));
+  const drawProb = Math.min(28, Math.max(16, 25 - Math.abs(diff) * 0.25));
   const remaining = 100 - drawProb;
-  const sig = 1 / (1 + Math.exp(-diff / 15));
-  let probA = remaining * sig;
-  let probB = remaining - probA;
-
-  probA = Math.round(probA);
-  probB = Math.round(probB);
+  const sig = 1 / (1 + Math.exp(-diff / 14));
+  
+  let probA = Math.round(remaining * sig);
+  let probB = Math.round(remaining - probA);
   const probDraw = 100 - probA - probB;
 
-  return { probA, probB, probDraw, strengthA, strengthB };
+  return { probA, probB, probDraw };
 }
 
 function buildJustifications(statsA, statsB, h2h, homeTeamId) {
@@ -1336,65 +1394,24 @@ function buildJustifications(statsA, statsB, h2h, homeTeamId) {
   const isAHome = homeTeamId ? homeTeamId === statsA.team.id : null;
   const isBHome = homeTeamId ? homeTeamId === statsB.team.id : null;
 
-  const getWR = (s, isHome) => {
-    if (isHome === null) return s.fixtures.played.total ? (s.fixtures.wins.total / s.fixtures.played.total) * 100 : null;
-    const side = isHome ? "home" : "away";
-    const played = s.fixtures.played[side] || 1;
-    return ((s.fixtures.wins[side] || 0) / played) * 100;
-  };
-
-  const wrA = getWR(statsA, isAHome);
-  const wrB = getWR(statsB, isBHome);
-
-  if (wrA !== null && wrB !== null) {
-    const context = homeTeamId ? " (considerando mando)" : " na temporada";
-    j.push({
-      side: wrA === wrB ? "n" : wrA > wrB ? "a" : "b",
-      text: `Aproveitamento${context}: ${nameA} venceu ${wrA.toFixed(0)}%, ${nameB} venceu ${wrB.toFixed(0)}%.`,
-    });
-  }
-
-  const goalsA = getRelevantGoals(statsA, isAHome);
-  const goalsB = getRelevantGoals(statsB, isBHome);
+  const wrA = ((statsA.fixtures.wins.total / (statsA.fixtures.played.total || 1)) * 100).toFixed(0);
+  const wrB = ((statsB.fixtures.wins.total / (statsB.fixtures.played.total || 1)) * 100).toFixed(0);
 
   j.push({
-    side: goalsA.gf === goalsB.gf ? "n" : goalsA.gf > goalsB.gf ? "a" : "b",
-    text: `Média de gols marcados${homeTeamId ? " no mando" : ""}: ${nameA} ${goalsA.gf.toFixed(2)} vs ${goalsB.gf.toFixed(2)} do ${nameB}.`,
+    side: wrA === wrB ? "n" : wrA > wrB ? "a" : "b",
+    text: `Aproveitamento na temporada: ${nameA} venceu ${wrA}% dos jogos vs ${wrB}% do ${nameB}.`,
   });
 
+  const gfA = parseFloat(statsA.goals.for.average.total) || 0;
+  const gfB = parseFloat(statsB.goals.for.average.total) || 0;
   j.push({
-    side: goalsA.ga === goalsB.ga ? "n" : goalsA.ga < goalsB.ga ? "a" : "b",
-    text: `Média de gols sofridos${homeTeamId ? " no mando" : ""}: ${nameA} ${goalsA.ga.toFixed(2)} vs ${goalsB.ga.toFixed(2)} do ${nameB} (menor é melhor).`,
+    side: gfA === gfB ? "n" : gfA > gfB ? "a" : "b",
+    text: `Ataque: ${nameA} marca em média ${gfA.toFixed(2)} gols/jogo vs ${gfB.toFixed(2)} do ${nameB}.`,
   });
-
-  const formA = (statsA.form || "").slice(-5);
-  const formB = (statsB.form || "").slice(-5);
-  if (formA && formB) {
-    j.push({ side: "n", text: `Forma nos últimos 5 jogos: ${nameA} "${formA}" · ${nameB} "${formB}".` });
-  }
-
-  if (h2h && h2h.length) {
-    let w = 0, l = 0, d = 0;
-    h2h.forEach((f) => {
-      if (f.goals.home === null) return;
-      const isAHomeH2H = f.teams.home.id === statsA.team.id;
-      const gA = isAHomeH2H ? f.goals.home : f.goals.away;
-      const gB = isAHomeH2H ? f.goals.away : f.goals.home;
-      if (gA > gB) w++;
-      else if (gA < gB) l++;
-      else d++;
-    });
-    j.push({
-      side: w === l ? "n" : w > l ? "a" : "b",
-      text: `Confronto direto (últimos ${w + l + d} jogos): ${nameA} venceu ${w}, empataram ${d}, ${nameB} venceu ${l}.`,
-    });
-  } else {
-    j.push({ side: "n", text: "Sem histórico recente de confronto direto disponível entre os dois times." });
-  }
 
   if (homeTeamId) {
     const homeName = homeTeamId === statsA.team.id ? nameA : nameB;
-    j.push({ side: homeTeamId === statsA.team.id ? "a" : "b", text: `Fator casa: ${homeName} joga como mandante (+6% bônus).` });
+    j.push({ side: homeTeamId === statsA.team.id ? "a" : "b", text: `Fator Casa: ${homeName} atua como mandante (+6% bônus tático).` });
   }
 
   return j;
@@ -1411,71 +1428,22 @@ function renderPitchBar(teamA, teamB, prob) {
         <div class="pitch-bar-fill-a" style="width:${prob.probA}%;"></div>
         <div class="pitch-bar-fill-b" style="width:${prob.probB}%;"></div>
         <div class="pitch-bar-draw" style="left:${prob.probA}%;width:${prob.probDraw}%;"></div>
-        <div class="pitch-bar-center-mark" style="left:50%;"></div>
         <div class="pitch-bar-ball" style="left:${prob.probA + prob.probDraw / 2}%;"></div>
       </div>
-      <div class="draw-caption">Empate: ${prob.probDraw}%</div>
-    </div>
-  `;
+      <div class="draw-caption">Empate Estimado: ${prob.probDraw}%</div>
+    </div>`;
 }
 
-function renderCompareTable(statsA, statsB, homeTeamId) {
-  const isAHome = homeTeamId ? homeTeamId === statsA.team.id : null;
-  const isBHome = homeTeamId ? homeTeamId === statsB.team.id : null;
-  const goalsA = getRelevantGoals(statsA, isAHome);
-  const goalsB = getRelevantGoals(statsB, isBHome);
-
-  const rows = [
-    ["Aproveitamento Geral", statsA.fixtures.played.total ? Math.round((statsA.fixtures.wins.total / statsA.fixtures.played.total) * 100) : 0, statsB.fixtures.played.total ? Math.round((statsB.fixtures.wins.total / statsB.fixtures.played.total) * 100) : 0, "%", 100],
-    [homeTeamId ? "Gols marcados (no mando)" : "Gols marcados/jogo", goalsA.gf, goalsB.gf, "", 4],
-    [homeTeamId ? "Gols sofridos (no mando)" : "Gols sofridos/jogo", goalsA.ga, goalsB.ga, "", 4],
-    ["Jogos sem sofrer gol", statsA.clean_sheet.total, statsB.clean_sheet.total, "", Math.max(statsA.clean_sheet.total, statsB.clean_sheet.total, 1)],
-    ["Cartões amarelos", sumCards(statsA.cards.yellow), sumCards(statsB.cards.yellow), "", Math.max(sumCards(statsA.cards.yellow), sumCards(statsB.cards.yellow), 1)],
-  ];
-
-  return `
-    <div class="card" style="overflow-x:auto;margin-bottom:20px;">
-      <table class="compare-table">
-        ${rows
-          .map(([label, va, vb, unit, max]) => {
-            const pctA = Math.min(100, (va / max) * 100);
-            const pctB = Math.min(100, (vb / max) * 100);
-            return `
-            <tr>
-              <td class="val-a">${typeof va === "number" && va % 1 !== 0 ? va.toFixed(2) : va}${unit}</td>
-              <td class="mid-label">${label}</td>
-              <td class="val-b">${typeof vb === "number" && vb % 1 !== 0 ? vb.toFixed(2) : vb}${unit}</td>
-            </tr>
-            <tr><td colspan="3" class="compare-bar-cell">
-              <div class="compare-bar-row">
-                <div class="compare-bar-a" style="width:${pctA / 2}%;"></div>
-                <div class="compare-bar-b" style="width:${pctB / 2}%;"></div>
-              </div>
-            </td></tr>
-          `;
-          })
-          .join("")}
-      </table>
-    </div>
-  `;
-}
-
-function renderH2H(h2h, teamA, teamB) {
+function renderH2H(h2h) {
   if (!h2h || !h2h.length) return `<p style="color:var(--chalk-dim);">Nenhum confronto direto recente encontrado.</p>`;
-  return `<div class="h2h-list">
-    ${h2h
-      .slice()
-      .reverse()
-      .map((f) => {
-        const date = new Date(f.fixture.date).toLocaleDateString("pt-BR");
-        return `
-        <div class="h2h-row">
-          <span class="h2h-date">${date}</span>
-          <span class="h2h-team">${escapeHtml(f.teams.home.name)}</span>
-          <span class="h2h-score">${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}</span>
-          <span class="h2h-team right">${escapeHtml(f.teams.away.name)}</span>
-        </div>`;
-      })
-      .join("")}
+  return `<div class="fixture-list">
+    ${h2h.slice().reverse().map(f => `
+      <div class="fixture-row">
+        <span class="fixture-date">${new Date(f.fixture.date).toLocaleDateString("pt-BR")}</span>
+        <span class="fixture-team right">${escapeHtml(f.teams.home.name)}</span>
+        <span class="fixture-score">${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}</span>
+        <span class="fixture-team">${escapeHtml(f.teams.away.name)}</span>
+      </div>`
+    ).join("")}
   </div>`;
 }
