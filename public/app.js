@@ -1,5 +1,5 @@
 // ============================================================
-// APURAÇÃO — app.js (com Detecção de Gols, Cartões e Substituições)
+// APURAÇÃO — app.js (com Aba Ao Vivo Dinâmica, Gols no Placar e Voltar)
 // ============================================================
 
 const FN_URL = "/api/football";
@@ -76,7 +76,7 @@ function markUpdated(fromCache = false) {
   quotaHint.textContent = (fromCache ? "⚡ Cache " : "Atualizado ") + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-// ---------- Requisição com Cache em Memória e SessionStorage ----------
+// ---------- Requisições com Cache ----------
 async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
   const clean = {};
   Object.entries(params).forEach(([k, v]) => {
@@ -102,7 +102,7 @@ async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
           return parsed.data;
         }
       }
-    } catch { /* sessionStorage indisponível */ }
+    } catch { /* sessionStorage */ }
   }
 
   const res = await fetch(`${FN_URL}?${qs}`);
@@ -123,14 +123,14 @@ async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
   if (ttlMinutes > 0) {
     const cacheObj = { data: data.response, timestamp: Date.now() };
     apiCache.set(cacheKey, cacheObj);
-    try { sessionStorage.setItem(cacheKey, JSON.stringify(cacheObj)); } catch { /* quota cheia */ }
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(cacheObj)); } catch { /* quota */ }
   }
 
   markUpdated(false);
   return data.response;
 }
 
-// ---------- Formatador de Fases e Detecção de Ida/Volta ----------
+// ---------- Utilitários Visuais ----------
 function formatRoundName(r) {
   if (!r) return "Partidas";
   let s = String(r);
@@ -201,16 +201,22 @@ function subNav(items) {
     </div>`;
 }
 
+// Breadcrumbs com Botão de Voltar Integrado
 function breadcrumbs(crumbs) {
   return `
-    <nav class="breadcrumbs" aria-label="Rastro de navegação">
-      ${crumbs.map((c, i) => {
-        const isLast = i === crumbs.length - 1;
-        return isLast 
-          ? `<span>${escapeHtml(c.label)}</span>`
-          : `<a href="${c.href}">${escapeHtml(c.label)}</a><span class="breadcrumbs-sep">/</span>`;
-      }).join('')}
-    </nav>`;
+    <div class="breadcrumbs-bar">
+      <nav class="breadcrumbs" aria-label="Rastro de navegação">
+        ${crumbs.map((c, i) => {
+          const isLast = i === crumbs.length - 1;
+          return isLast 
+            ? `<span>${escapeHtml(c.label)}</span>`
+            : `<a href="${c.href}">${escapeHtml(c.label)}</a><span class="breadcrumbs-sep">/</span>`;
+        }).join('')}
+      </nav>
+      <button class="btn-back" onclick="window.history.length > 1 ? history.back() : location.hash = '#/'" title="Retornar à tela anterior">
+        ← Voltar
+      </button>
+    </div>`;
 }
 
 function escapeHtml(s) {
@@ -256,11 +262,7 @@ async function router() {
   } else if (parts[0] === "time" && parts[1] && parts[2]) {
     setActiveTab("home");
     await renderTeam(Number(parts[1]), Number(parts[2]), parts[3] ? Number(parts[3]) : undefined);
-  } else if (parts[0] === "jogador" && parts[1]) {
-    setActiveTab("home");
-    await renderPlayer(Number(parts[1]), Number(parts[2]), Number(parts[3]), Number(parts[4]));
   } else if (parts[0] === "jogo" && parts[1]) {
-    setActiveTab("home");
     await renderFixture(Number(parts[1]));
   } else if (parts[0] === "aovivo") {
     setActiveTab("live");
@@ -321,7 +323,7 @@ function renderHome() {
 }
 
 // ============================================================
-// View: Liga — Classificação (Geral / Casa / Fora)
+// View: Liga — Classificação
 // ============================================================
 async function renderLeague(leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
@@ -496,7 +498,6 @@ function renderGroupedFixtures(fixtures) {
   });
 
   const pairCountSeen = {};
-
   const groups = {};
   fixtures.forEach(f => {
     let roundTitle = formatRoundName(f.league?.round);
@@ -927,7 +928,7 @@ function startLiveAutoRefresh(refreshFn) {
 }
 
 // ============================================================
-// View: Detalhe do Jogo (COM GOLS, CARTÕES E SUBSTITUIÇÕES NO CAMPO)
+// View: Detalhe do Jogo (COM GOLS NO PLACAR E ABA AO VIVO SINCRONIZADA)
 // ============================================================
 async function renderFixture(fixtureId, isSilentRefresh = false) {
   if (!isSilentRefresh) {
@@ -959,9 +960,17 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     const time = new Date(fx.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     
     const isLive = ["1H", "2H", "HT", "ET", "P", "LIVE"].includes(fx.fixture.status.short);
+    
+    // Atualizar aba no cabeçalho conforme o status do jogo
+    setActiveTab(isLive ? "live" : "home");
+
     const statusText = isLive 
       ? `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${fx.fixture.status.elapsed ?? ""}' (${fx.fixture.status.long})</span>` 
       : escapeHtml(fx.fixture.status.long);
+
+    // Separar gols de cada equipe para exibir abaixo dos nomes
+    const homeGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.home.id);
+    const awayGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.away.id);
 
     content.innerHTML = `
       ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: fx.league.name, href: `#/liga/${fx.league.id}/${fx.league.season}` }, { label: "Partida", href: "" }])}
@@ -979,35 +988,63 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         ` : ""}
       </div>
 
-      <!-- Placar Principal -->
-      <div class="fixture-hero" style="display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);padding:22px;margin-bottom:22px;text-align:center;">
-        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-family:var(--font-display);">
+      <!-- Placar Principal com Gols e Minutos -->
+      <div class="fixture-hero">
+        <div class="hero-team-block">
           <img src="${fx.teams.home.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
-          <span style="font-size:1.15rem;">${escapeHtml(fx.teams.home.name)}</span>
+          <span style="font-size:1.15rem;font-family:var(--font-display);font-weight:600;">${escapeHtml(fx.teams.home.name)}</span>
+          
+          <!-- Gols do Time Mandante -->
+          ${homeGoals.length ? `
+            <div class="hero-goals-list">
+              ${homeGoals.map(g => `
+                <div class="hero-goal-item">
+                  <span>⚽</span>
+                  <span>${escapeHtml(g.player?.name || "")}</span>
+                  <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${g.detail === 'Penalty' ? ' (P)' : g.detail === 'Own Goal' ? ' (GC)' : ''}</span>
+                </div>
+              `).join("")}
+            </div>
+          ` : ""}
         </div>
+
         <div>
           <div style="font-family:var(--font-mono);font-size:2.4rem;font-weight:700;letter-spacing:4px;">
             ${fx.goals.home ?? "-"} : ${fx.goals.away ?? "-"}
           </div>
           <div style="font-size:0.75rem;text-transform:uppercase;margin-top:6px;">${statusText}</div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-family:var(--font-display);">
+
+        <div class="hero-team-block">
           <img src="${fx.teams.away.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
-          <span style="font-size:1.15rem;">${escapeHtml(fx.teams.away.name)}</span>
+          <span style="font-size:1.15rem;font-family:var(--font-display);font-weight:600;">${escapeHtml(fx.teams.away.name)}</span>
+          
+          <!-- Gols do Time Visitante -->
+          ${awayGoals.length ? `
+            <div class="hero-goals-list">
+              ${awayGoals.map(g => `
+                <div class="hero-goal-item">
+                  <span>⚽</span>
+                  <span>${escapeHtml(g.player?.name || "")}</span>
+                  <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${g.detail === 'Penalty' ? ' (P)' : g.detail === 'Own Goal' ? ' (GC)' : ''}</span>
+                </div>
+              `).join("")}
+            </div>
+          ` : ""}
         </div>
       </div>
 
-      <!-- 1. Estatísticas do Jogo em Tempo Real -->
+      <!-- Estatísticas do Jogo em Tempo Real -->
       <div id="fixture-stats-section" style="margin-bottom:24px;">
         ${renderLiveMatchStats(statsArr, fx)}
       </div>
 
-      <!-- 2. Campo Tático 2D com Gols, Cartões e Substituições -->
+      <!-- Campo Tático 2D com Gols, Cartões e Substituições -->
       <div id="fixture-lineups-section" style="margin-bottom:24px;">
         ${renderFixtureLineups(lineupsArr, events)}
       </div>
 
-      <!-- 3. Previsão Oficial -->
+      <!-- Previsão Oficial -->
       ${pred ? `
         <div style="margin-bottom:24px;">
           <h2 class="section-title">Previsão Oficial da API</h2>
@@ -1021,7 +1058,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         </div>
       ` : ""}
 
-      <!-- 4. Linha do Tempo e Eventos -->
+      <!-- Linha do Tempo e Eventos -->
       <div id="fixture-events-section">
         ${renderFixtureEvents(events, fx)}
       </div>
@@ -1053,6 +1090,8 @@ function renderLiveMatchStats(statsArr, fx) {
     "Shots on Goal": "Chutes no Gol",
     "Shots off Goal": "Chutes para Fora",
     "Blocked Shots": "Chutes Bloqueados",
+    "Shots insidebox": "Finalizações na Área",
+    "Shots outsidebox": "Finalizações Fora da Área",
     "Corner Kicks": "Escanteios",
     "Offsides": "Impedimentos",
     "Fouls": "Faltas Cometidas",
@@ -1118,22 +1157,18 @@ function renderFixtureLineups(lineupsArr, events = []) {
       </div>`;
   }
 
-  // Mapear eventos por jogador (Gols, Cartões, Entradas e Saídas)
   const playerEventsMap = {};
 
   events.forEach(e => {
     const min = e.time?.elapsed ?? 0;
     
-    // Gols
     if (e.type === "Goal" && e.detail !== "Missed Penalty") {
       const pid = e.player?.id;
       if (pid) {
         playerEventsMap[pid] = playerEventsMap[pid] || { goals: 0, yellows: 0, reds: 0 };
         playerEventsMap[pid].goals += 1;
       }
-    }
-    // Cartões
-    else if (e.type === "Card") {
+    } else if (e.type === "Card") {
       const pid = e.player?.id;
       if (pid) {
         playerEventsMap[pid] = playerEventsMap[pid] || { goals: 0, yellows: 0, reds: 0 };
@@ -1143,11 +1178,9 @@ function renderFixtureLineups(lineupsArr, events = []) {
           playerEventsMap[pid].reds += 1;
         }
       }
-    }
-    // Substituições
-    else if (e.type === "subst") {
-      const pOutId = e.player?.id; // Quem saiu
-      const pInId = e.assist?.id;  // Quem entrou
+    } else if (e.type === "subst") {
+      const pOutId = e.player?.id;
+      const pInId = e.assist?.id;
       if (pOutId) {
         playerEventsMap[pOutId] = playerEventsMap[pOutId] || { goals: 0, yellows: 0, reds: 0 };
         playerEventsMap[pOutId].subOut = min;
@@ -1159,37 +1192,16 @@ function renderFixtureLineups(lineupsArr, events = []) {
     }
   });
 
-  // Função auxiliar para gerar badges de eventos do jogador
   function generateEventBadges(pid) {
     const ev = playerEventsMap[pid];
     if (!ev) return "";
 
     const badges = [];
-
-    // Gols (⚽ ou ⚽x2, ⚽x3)
-    if (ev.goals > 0) {
-      badges.push(`<span class="event-pill goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `x${ev.goals}` : ''}</span>`);
-    }
-
-    // Cartão Amarelo
-    if (ev.yellows > 0) {
-      badges.push(`<span class="event-pill yellow" title="Cartão Amarelo">🟨${ev.yellows > 1 ? `x${ev.yellows}` : ''}</span>`);
-    }
-
-    // Cartão Vermelho
-    if (ev.reds > 0) {
-      badges.push(`<span class="event-pill red" title="Cartão Vermelho">🟥</span>`);
-    }
-
-    // Saiu (🔻 Minuto)
-    if (ev.subOut) {
-      badges.push(`<span class="event-pill sub-out" title="Substituído aos ${ev.subOut}'">🔻${ev.subOut}'</span>`);
-    }
-
-    // Entrou (🔺 Minuto)
-    if (ev.subIn) {
-      badges.push(`<span class="event-pill sub-in" title="Entrou aos ${ev.subIn}'">🔺${ev.subIn}'</span>`);
-    }
+    if (ev.goals > 0) badges.push(`<span class="event-pill goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `x${ev.goals}` : ''}</span>`);
+    if (ev.yellows > 0) badges.push(`<span class="event-pill yellow" title="Cartão Amarelo">🟨${ev.yellows > 1 ? `x${ev.yellows}` : ''}</span>`);
+    if (ev.reds > 0) badges.push(`<span class="event-pill red" title="Cartão Vermelho">🟥</span>`);
+    if (ev.subOut) badges.push(`<span class="event-pill sub-out" title="Substituído aos ${ev.subOut}'">🔻${ev.subOut}'</span>`);
+    if (ev.subIn) badges.push(`<span class="event-pill sub-in" title="Entrou aos ${ev.subIn}'">🔺${ev.subIn}'</span>`);
 
     return badges.join("");
   }
@@ -1204,7 +1216,7 @@ function renderFixtureLineups(lineupsArr, events = []) {
         
         const rows = [];
         let cursor = 1;
-        rows.push([l.startXI[0]]); // Goleiro
+        rows.push([l.startXI[0]]);
         formLines.forEach(count => {
           rows.push(l.startXI.slice(cursor, cursor + count));
           cursor += count;
