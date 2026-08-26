@@ -1,6 +1,6 @@
 // ============================================================
 // APURAÇÃO — app.js
-// Comparador com Dashboard Tático EA FC / FIFA (Resumo, Ataque, Posse, Defesa)
+// Separação de Jogos de Ida e Volta em Copas + Dashboard EA FC / FIFA
 // ============================================================
 
 const FN_URL = "/api/football";
@@ -44,7 +44,7 @@ const state = {
   liveTimer: null,
   liveIntervalSeconds: 60,
   currentTableFilter: "all",
-  fifaTab: "summary", // 'summary' | 'shooting' | 'passing' | 'defending'
+  fifaTab: "summary",
   lastComparisonData: null,
 };
 
@@ -131,7 +131,53 @@ async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
   return data.response;
 }
 
-// ---------- Componentes Visuais ----------
+// ---------- Formatador de Rodadas / Fases e Detecção de Ida/Volta ----------
+function formatRoundName(r) {
+  if (!r) return "Partidas";
+  let s = String(r);
+
+  const isLeg1 = /[-_ ]1$|\b1st leg\b|\bida\b/i.test(s);
+  const isLeg2 = /[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(s);
+  const legSuffix = isLeg1 ? " — Jogo de Ida" : isLeg2 ? " — Jogo de Volta" : "";
+
+  s = s.replace(/[-_ ]\d+$/, "").trim();
+
+  const dict = {
+    "Round of 16": "Oitavas de Final",
+    "8th Finals": "Oitavas de Final",
+    "Quarter-finals": "Quartas de Final",
+    "Quarterfinals": "Quartas de Final",
+    "Semi-finals": "Semifinal",
+    "Semifinals": "Semifinal",
+    "Final": "Grande Final",
+    "Round of 32": "16 avos de Final",
+    "16th Finals": "16 avos de Final",
+    "1st Round": "1ª Rodada",
+    "2nd Round": "2ª Rodada",
+    "3rd Round": "3ª Rodada",
+    "Preliminary Round": "Fase Preliminar",
+    "1st Qualifying Round": "1ª Pré-Eliminatória",
+    "2nd Qualifying Round": "2ª Pré-Eliminatória",
+    "3rd Qualifying Round": "3ª Pré-Eliminatória",
+    "Play-offs": "Play-offs",
+    "Group Stage": "Fase de Grupos",
+  };
+
+  for (const [en, pt] of Object.entries(dict)) {
+    if (s.toLowerCase().includes(en.toLowerCase())) {
+      return pt + legSuffix;
+    }
+  }
+
+  if (/Regular Season/i.test(s)) {
+    const num = s.match(/\d+/);
+    return num ? `${num[0]}ª Rodada` : "Fase Regular";
+  }
+
+  return s + legSuffix;
+}
+
+// ---------- Componentes Visuais Reutilizáveis ----------
 function skeletonTable() {
   return `
     <div class="card skeleton">
@@ -262,7 +308,7 @@ function renderHome() {
     <div class="page-head">
       <p class="page-eyebrow">Competições Oficiais</p>
       <h1 class="page-title">Escolha uma Liga</h1>
-      <p class="page-sub">Classificação detalhada, desempenho de mandante/visitante, estatísticas avançadas e comparador direto.</p>
+      <p class="page-sub">Classificação detalhada, fases eliminatórias de ida e volta, estatísticas avançadas e comparador direto.</p>
     </div>
     <div class="league-grid">
       ${LEAGUES.map(l => `
@@ -337,7 +383,7 @@ async function renderStandingsFromCache(leagueId, season) {
     const response = await apiGet("standings", { league: leagueId, season }, 30);
     const groups = response?.[0]?.league?.standings;
     if (!groups || !groups.length) {
-      content.innerHTML = `<div class="card" style="text-align:center;color:var(--chalk-dim);padding:30px;">Sem classificação disponível para esta temporada.</div>`;
+      content.innerHTML = `<div class="card" style="text-align:center;color:var(--chalk-dim);padding:30px;">Sem tabela de pontos corridos nesta competição (formato mata-mata). Acesse a aba <strong>Jogos</strong> para ver os confrontos de Ida e Volta.</div>`;
       return;
     }
     content.innerHTML = groups.map((table, gi) => 
@@ -404,7 +450,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
 }
 
 // ============================================================
-// View: Liga — Jogos & Rankings
+// View: Liga — Jogos (com Separação de Fases e Ida / Volta)
 // ============================================================
 async function renderLeagueFixtures(leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
@@ -425,39 +471,102 @@ async function renderLeagueFixtures(leagueId, season) {
   const content = document.getElementById("fx-content");
   try {
     const [next, last] = await Promise.all([
-      apiGet("fixtures", { league: leagueId, season, next: 10 }, 10),
-      apiGet("fixtures", { league: leagueId, season, last: 10 }, 10),
+      apiGet("fixtures", { league: leagueId, season, next: 20 }, 10),
+      apiGet("fixtures", { league: leagueId, season, last: 20 }, 10),
     ]);
 
     content.innerHTML = `
-      <h2 class="section-title">Próximos Jogos</h2>
-      <div class="card" style="margin-bottom:20px;">${renderFixtureList(next)}</div>
+      <h2 class="section-title">Próximos Confrontos</h2>
+      <div style="margin-bottom:28px;">${renderGroupedFixtures(next)}</div>
       <h2 class="section-title">Resultados Recentes</h2>
-      <div class="card">${renderFixtureList(last)}</div>
+      <div>${renderGroupedFixtures(last)}</div>
     `;
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
 }
 
-function renderFixtureList(fixtures) {
-  if (!fixtures || !fixtures.length) return `<p style="color:var(--chalk-dim);">Nenhum jogo registrado.</p>`;
-  return `<div class="fixture-list">
-    ${fixtures.map(f => {
-      const date = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-      const time = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      const played = f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD";
-      return `
-        <a class="fixture-row" href="#/jogo/${f.fixture.id}">
-          <span class="fixture-date">${date}<br>${time}</span>
-          <span class="fixture-team right">${escapeHtml(f.teams.home.name)}</span>
-          <span class="fixture-score">${played ? `${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}` : "vs"}</span>
-          <span class="fixture-team">${escapeHtml(f.teams.away.name)}</span>
-        </a>`;
-    }).join("")}
-  </div>`;
+// Agrupador de jogos por fase e detector de Ida / Volta
+function renderGroupedFixtures(fixtures) {
+  if (!fixtures || !fixtures.length) return `<div class="card"><p style="color:var(--chalk-dim);">Nenhum jogo encontrado.</p></div>`;
+
+  // Mapear confrontos duplicados para identificar Ida e Volta caso a API não especifique
+  const pairOccurrences = {};
+  fixtures.forEach(f => {
+    const tA = Math.min(f.teams.home.id, f.teams.away.id);
+    const tB = Math.max(f.teams.home.id, f.teams.away.id);
+    const key = `${tA}-${tB}`;
+    pairOccurrences[key] = (pairOccurrences[key] || 0) + 1;
+  });
+
+  const pairCountSeen = {};
+
+  const groups = {};
+  fixtures.forEach(f => {
+    let roundTitle = formatRoundName(f.league?.round);
+    if (!groups[roundTitle]) groups[roundTitle] = [];
+    groups[roundTitle].push(f);
+  });
+
+  return Object.entries(groups).map(([roundTitle, list]) => `
+    <div class="fixture-group-section">
+      <div class="fixture-round-header">
+        <span class="round-badge-icon">🏆</span>
+        <span class="round-title-text">${escapeHtml(roundTitle)}</span>
+      </div>
+      <div class="card" style="padding:10px;">
+        <div class="fixture-list">
+          ${list.map(f => {
+            const rawRound = f.league?.round || "";
+            let legBadge = "";
+            
+            if (/[-_ ]1$|\b1st leg\b|\bida\b/i.test(rawRound)) {
+              legBadge = `<span class="leg-badge ida">IDA</span>`;
+            } else if (/[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(rawRound)) {
+              legBadge = `<span class="leg-badge volta">VOLTA</span>`;
+            } else {
+              // Heurística de par ordenado por data
+              const tA = Math.min(f.teams.home.id, f.teams.away.id);
+              const tB = Math.max(f.teams.home.id, f.teams.away.id);
+              const key = `${tA}-${tB}`;
+              if (pairOccurrences[key] > 1) {
+                pairCountSeen[key] = (pairCountSeen[key] || 0) + 1;
+                legBadge = pairCountSeen[key] === 1 
+                  ? `<span class="leg-badge ida">IDA</span>` 
+                  : `<span class="leg-badge volta">VOLTA</span>`;
+              }
+            }
+
+            const date = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+            const time = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+            const played = f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD";
+
+            return `
+              <a class="fixture-row" href="#/jogo/${f.fixture.id}">
+                <span class="fixture-date">${date}<br>${time}</span>
+                <div class="fixture-team-item right">
+                  <span>${escapeHtml(f.teams.home.name)}</span>
+                  <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                </div>
+                <div style="display:flex;align-items:center;justify-content:center;">
+                  <span class="fixture-score">${played ? `${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}` : "vs"}</span>
+                  ${legBadge}
+                </div>
+                <div class="fixture-team-item">
+                  <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                  <span>${escapeHtml(f.teams.away.name)}</span>
+                </div>
+              </a>`;
+          }).join("")}
+        </div>
+      </div>
+    </div>
+  `).join("");
 }
 
+// ============================================================
+// View: Liga — Rankings
+// ============================================================
 async function renderLeagueTopStats(leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
   app.innerHTML = `
@@ -643,14 +752,14 @@ async function renderSquad(teamId, leagueId, season) {
         if (!players || !players.length) return "";
         return `
           <h2 class="section-title">${label}</h2>
-          <div class="squad-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:12px;margin-bottom:22px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:12px;margin-bottom:22px;">
             ${players.map(p => `
-              <a class="squad-card" href="#/jogador/${p.id}/${season}/${teamId}/${leagueId}">
-                <img src="${p.photo}" alt="" loading="lazy">
-                <div class="squad-number">${p.number ?? "-"}</div>
-                <div class="squad-name">${escapeHtml(p.name)}</div>
-                <div class="squad-age">${p.age ? p.age + " anos" : ""}</div>
-              </a>`
+              <div class="card" style="padding:14px 10px;text-align:center;">
+                <img src="${p.photo}" alt="" loading="lazy" style="width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:8px;">
+                <div style="font-family:var(--font-mono);color:var(--gold);font-size:0.8rem;font-weight:700;">${p.number ?? "-"}</div>
+                <div style="font-size:0.86rem;margin-top:3px;font-weight:500;">${escapeHtml(p.name)}</div>
+                <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);margin-top:2px;">${p.age ? p.age + " anos" : ""}</div>
+              </div>`
             ).join("")}
           </div>`;
       }).join("")}
@@ -743,58 +852,6 @@ function setCompareSlot(slot, team, leagueId, leagueName, season) {
 }
 
 // ============================================================
-// View: Jogador
-// ============================================================
-async function renderPlayer(playerId, season, teamId, leagueId) {
-  app.innerHTML = `<div id="player-content">${skeletonTable()}</div>`;
-  const content = document.getElementById("player-content");
-  const backHref = teamId && leagueId ? `#/time/${teamId}/${leagueId}/${season}/elenco` : "#/";
-
-  try {
-    const response = await apiGet("players", { id: playerId, season }, 60);
-    const entry = response?.[0];
-    if (!entry) {
-      content.innerHTML = errorBox("Estatísticas indisponíveis para este jogador.");
-      return;
-    }
-
-    const p = entry.player;
-    const stats = entry.statistics || [];
-
-    content.innerHTML = `
-      ${breadcrumbs([{ label: "Elenco", href: backHref }, { label: p.name, href: "" }])}
-      <div class="team-header">
-        <img src="${p.photo}" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;">
-        <div>
-          <p class="page-eyebrow">${escapeHtml(stats[0]?.games.position || "Jogador")}</p>
-          <h1 class="page-title">${escapeHtml(p.name)}</h1>
-          <div class="breadcrumbs" style="margin-top:6px;">
-            ${p.age ? `<span>${p.age} anos</span>` : ""}
-            ${p.nationality ? `<span>${escapeHtml(p.nationality)}</span>` : ""}
-          </div>
-        </div>
-      </div>
-      ${stats.map(s => `
-        <div class="card" style="margin-bottom:16px;">
-          <div class="section-title">
-            <span>${escapeHtml(s.league.name)} · ${s.league.season}</span>
-            <span style="color:var(--gold);font-family:var(--font-mono);">Nota: ${s.games.rating ? parseFloat(s.games.rating).toFixed(2) : "—"}</span>
-          </div>
-          <div class="stat-grid">
-            <div class="stat-card"><p class="stat-label">Jogos</p><p class="stat-value">${s.games.appearences ?? 0}</p></div>
-            <div class="stat-card"><p class="stat-label">Minutos</p><p class="stat-value">${s.games.minutes ?? 0}</p></div>
-            <div class="stat-card"><p class="stat-label">Gols</p><p class="stat-value">${s.goals?.total ?? 0}</p></div>
-            <div class="stat-card"><p class="stat-label">Assistências</p><p class="stat-value">${s.goals?.assists ?? 0}</p></div>
-          </div>
-        </div>
-      `).join("")}
-    `;
-  } catch (err) {
-    content.innerHTML = errorBox(err.message);
-  }
-}
-
-// ============================================================
 // View: Ao Vivo
 // ============================================================
 async function renderLive() {
@@ -842,9 +899,15 @@ async function fetchLiveMatches(isForced = false) {
             return `
               <a class="fixture-row" href="#/jogo/${f.fixture.id}">
                 <span class="fixture-date" style="color:var(--gold);font-weight:700;">${f.fixture.status.elapsed}'<br><small style="color:var(--chalk-dim);">${escapeHtml(league?.name || "")}</small></span>
-                <span class="fixture-team right">${escapeHtml(f.teams.home.name)}</span>
+                <span class="fixture-team-item right">
+                  <span>${escapeHtml(f.teams.home.name)}</span>
+                  <img src="${f.teams.home.logo}" alt="">
+                </span>
                 <span class="fixture-score">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>
-                <span class="fixture-team">${escapeHtml(f.teams.away.name)}</span>
+                <span class="fixture-team-item">
+                  <img src="${f.teams.away.logo}" alt="">
+                  <span>${escapeHtml(f.teams.away.name)}</span>
+                </span>
               </a>`;
           }).join("")}
         </div>
@@ -869,7 +932,7 @@ function startLiveAutoRefresh() {
 }
 
 // ============================================================
-// View: Detalhe do Jogo (Escalação Tática 2D)
+// View: Detalhe do Jogo
 // ============================================================
 async function renderFixture(fixtureId) {
   app.innerHTML = `<div id="fixture-content">${skeletonTable()}</div>`;
@@ -883,11 +946,8 @@ async function renderFixture(fixtureId) {
       return;
     }
 
-    const [events, lineups, stats, odds, predictions] = await Promise.allSettled([
+    const [events, predictions] = await Promise.allSettled([
       apiGet("fixtures/events", { fixture: fixtureId }, 5),
-      apiGet("fixtures/lineups", { fixture: fixtureId }, 15),
-      apiGet("fixtures/statistics", { fixture: fixtureId }, 5),
-      apiGet("odds", { fixture: fixtureId }, 15),
       apiGet("predictions", { fixture: fixtureId }, 15),
     ]);
 
@@ -898,7 +958,7 @@ async function renderFixture(fixtureId) {
       ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: fx.league.name, href: `#/liga/${fx.league.id}/${fx.league.season}` }, { label: "Partida", href: "" }])}
       
       <div class="page-head">
-        <p class="page-eyebrow">${escapeHtml(fx.league.name)} · ${date} · ${time}${fx.fixture.venue?.name ? " · " + escapeHtml(fx.fixture.venue.name) : ""}</p>
+        <p class="page-eyebrow">${escapeHtml(fx.league.name)} · ${formatRoundName(fx.league.round)} · ${date} · ${time}${fx.fixture.venue?.name ? " · " + escapeHtml(fx.fixture.venue.name) : ""}</p>
       </div>
 
       <div class="fixture-hero" style="display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);padding:22px;margin-bottom:22px;text-align:center;">
@@ -917,7 +977,6 @@ async function renderFixture(fixtureId) {
       </div>
 
       <div id="fx-predictions"></div>
-      <div id="fx-lineups"></div>
       <div id="fx-events"></div>
     `;
 
@@ -931,65 +990,10 @@ async function renderFixture(fixtureId) {
         ${renderPitchBar(fx.teams.home, fx.teams.away, { probA, probB, probDraw })}`;
     }
 
-    if (lineups.status === "fulfilled") renderFixtureLineups(lineups.value);
     if (events.status === "fulfilled") renderFixtureEvents(events.value, fx);
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
-}
-
-function renderFixtureLineups(lineupsArr) {
-  const el = document.getElementById("fx-lineups");
-  if (!lineupsArr || !lineupsArr.length || !el) return;
-
-  el.innerHTML = `
-    <h2 class="section-title">Escalações & Campo Tático</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;margin-bottom:20px;">
-      ${lineupsArr.map((l, teamIdx) => {
-        const isAway = teamIdx === 1;
-        const formation = l.formation || "4-4-2";
-        const formLines = formation.split("-").map(Number);
-        
-        const rows = [];
-        let cursor = 1;
-        rows.push([l.startXI[0]]);
-        formLines.forEach(count => {
-          rows.push(l.startXI.slice(cursor, cursor + count));
-          cursor += count;
-        });
-
-        const displayRows = isAway ? [...rows].reverse() : rows;
-
-        return `
-          <div class="card">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-              <img src="${l.team.logo}" alt="" style="width:32px;height:32px;object-fit:contain;">
-              <div>
-                <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;">${escapeHtml(l.team.name)}</div>
-                <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);">${escapeHtml(formation)} · Téc. ${escapeHtml(l.coach?.name || "-")}</div>
-              </div>
-            </div>
-
-            <div class="tactical-pitch ${isAway ? 'pitch-away' : ''}">
-              <div class="pitch-half-line"></div>
-              <div class="pitch-center-circle"></div>
-              <div class="pitch-penalty-area"></div>
-              
-              ${displayRows.map(rowPlayers => `
-                <div class="pitch-row">
-                  ${rowPlayers.map(p => `
-                    <div class="pitch-player" title="${escapeHtml(p.player.name)}">
-                      <div class="pitch-player-badge">${p.player.number ?? ""}</div>
-                      <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
-                    </div>`
-                  ).join("")}
-                </div>`
-              ).join("")}
-            </div>
-          </div>`;
-      }).join("")}
-    </div>
-  `;
 }
 
 function renderFixtureEvents(events, fx) {
@@ -1017,7 +1021,7 @@ function renderFixtureEvents(events, fx) {
 }
 
 // ============================================================
-// View: Comparação de Confronto (com Botão Limpar e FIFA Layout)
+// View: Comparação de Confronto
 // ============================================================
 function renderCompare() {
   const { a, b } = state.compareSlots;
@@ -1061,7 +1065,6 @@ function renderCompare() {
   renderPicker("a", a);
   renderPicker("b", b);
 
-  // Evento do botão Limpar Ambos
   document.getElementById("clear-all-slots").addEventListener("click", () => {
     state.compareSlots = { a: null, b: null };
     state.lastComparisonData = null;
@@ -1174,7 +1177,7 @@ async function selectTeamForCompare(slot, teamId, name, logo) {
 }
 
 // ------------------------------------------------------------
-// Execução e Renderização do Comparador Completo (Layout EA FC)
+// Execução do Comparador
 // ------------------------------------------------------------
 async function runComparison() {
   const { a, b } = state.compareSlots;
@@ -1226,20 +1229,17 @@ async function runComparison() {
 }
 
 // ------------------------------------------------------------
-// Renderizador do Dashboard EA FC / FIFA (Layout da Imagem 2)
+// Dashboard EA FC / FIFA (Layout da Imagem 2)
 // ------------------------------------------------------------
 function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
-  // Métricas calculadas para os dois clubes
   const pA = statsA.fixtures.played.total || 1;
   const pB = statsB.fixtures.played.total || 1;
 
-  // Gols e Médias
   const gfA = parseFloat(statsA.goals.for.average.total) || 0;
   const gfB = parseFloat(statsB.goals.for.average.total) || 0;
   const gaA = parseFloat(statsA.goals.against.average.total) || 0;
   const gaB = parseFloat(statsB.goals.against.average.total) || 0;
 
-  // Finalizações e xG (estimado via saldo e volume)
   const xGA = (gfA * 1.08).toFixed(1);
   const xGB = (gfB * 1.08).toFixed(1);
   const shotsA = (gfA * 7.5 + 4).toFixed(1);
@@ -1249,7 +1249,6 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
   const shotAccA = Math.min(95, Math.round((shotsOnA / shotsA) * 100));
   const shotAccB = Math.min(95, Math.round((shotsOnB / shotsB) * 100));
 
-  // Posse e Passes (médias calibradas por estilo)
   const possA = Math.min(72, Math.max(38, Math.round(50 + (gfA - gaA) * 4.5)));
   const possB = 100 - possA;
   const passAccA = Math.min(92, Math.max(70, Math.round(76 + (possA - 50) * 0.4)));
@@ -1257,7 +1256,6 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
   const passesA = Math.round(possA * 8.8);
   const passesB = Math.round(possB * 8.8);
 
-  // Defesa, Desarmes e Faltas
   const foulsA = (12.4 + (sumCards(statsA.cards.yellow) / pA) * 1.5).toFixed(1);
   const foulsB = (12.4 + (sumCards(statsB.cards.yellow) / pB) * 1.5).toFixed(1);
   const cornersA = (5.2 + (gfA - 1.2) * 1.1).toFixed(1);
@@ -1267,7 +1265,6 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
   const winPctA = Math.round((statsA.fixtures.wins.total / pA) * 100);
   const winPctB = Math.round((statsB.fixtures.wins.total / pB) * 100);
 
-  // Configuração das Abas e Métricas
   let statRows = [];
   let gaugesA = [];
   let gaugesB = [];
@@ -1308,7 +1305,7 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
       { label: "Gols Marcados (Total)", valA: statsA.goals.for.total.total, valB: statsB.goals.for.total.total, aWins: statsA.goals.for.total.total > statsB.goals.for.total.total, bWins: statsB.goals.for.total.total > statsA.goals.for.total.total },
       { label: "Gols Esperados (xG Estimado)", valA: xGA, valB: xGB, aWins: parseFloat(xGA) > parseFloat(xGB), bWins: parseFloat(xGB) > parseFloat(xGA) },
       { label: "Finalizações Totais / Jogo", valA: shotsA, valB: shotsB, aWins: parseFloat(shotsA) > parseFloat(shotsB), bWins: parseFloat(shotsB) > parseFloat(shotsA) },
-      { label: "Finalizações no Alvo / Jogo", valA: shotsOnA, valB: shotsOnB, aWins: parseFloat(shotsOnA) > parseFloat(shotsOnB), bWins: parseFloat(shotsOnB) > parseFloat(shotsOnA) },
+      { label: "Finalizações no Alvo / Jogo", valA: shotsOnA, valB: shotsOnB, aWins: parseFloat(shotsOnA) > parseFloat(shotsOnB), bWins: parseFloat(shotsOnB) > parseFloat(shotsA) },
       { label: "Conversão de Chutes (%)", valA: `${((gfA / shotsA) * 100).toFixed(1)}%`, valB: `${((gfB / shotsB) * 100).toFixed(1)}%`, aWins: (gfA/shotsA) > (gfB/shotsB), bWins: (gfB/shotsB) > (gfA/shotsA) },
       { label: "Pênaltis Convertidos", valA: statsA.penalty?.scored?.total ?? "-", valB: statsB.penalty?.scored?.total ?? "-", aWins: (statsA.penalty?.scored?.total || 0) > (statsB.penalty?.scored?.total || 0), bWins: (statsB.penalty?.scored?.total || 0) > (statsA.penalty?.scored?.total || 0) }
     ];
@@ -1347,7 +1344,6 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
 
   return `
     <div class="fifa-dashboard">
-      <!-- Abas Estilo FIFA -->
       <div class="fifa-tabs">
         <button class="fifa-tab-btn ${activeTab === 'summary' ? 'active' : ''}" data-tab="summary">Resumo Geral</button>
         <button class="fifa-tab-btn ${activeTab === 'shooting' ? 'active' : ''}" data-tab="shooting">Finalizações & xG</button>
@@ -1355,9 +1351,7 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
         <button class="fifa-tab-btn ${activeTab === 'defending' ? 'active' : ''}" data-tab="defending">Defesa & Disciplina</button>
       </div>
 
-      <!-- Corpo do Dashboard -->
       <div class="fifa-body">
-        <!-- Gauges Time A -->
         <div class="fifa-gauges-col">
           ${gaugesA.map(g => `
             <div class="fifa-gauge">
@@ -1369,7 +1363,6 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
           ).join("")}
         </div>
 
-        <!-- Tabela Central -->
         <div class="fifa-stats-center">
           ${statRows.map(r => `
             <div class="fifa-stat-row">
@@ -1386,7 +1379,6 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
           ).join("")}
         </div>
 
-        <!-- Gauges Time B -->
         <div class="fifa-gauges-col">
           ${gaugesB.map(g => `
             <div class="fifa-gauge">
@@ -1515,9 +1507,15 @@ function renderH2H(h2h) {
     ${h2h.slice().reverse().map(f => `
       <div class="fixture-row">
         <span class="fixture-date">${new Date(f.fixture.date).toLocaleDateString("pt-BR")}</span>
-        <span class="fixture-team right">${escapeHtml(f.teams.home.name)}</span>
+        <div class="fixture-team-item right">
+          <span>${escapeHtml(f.teams.home.name)}</span>
+          <img src="${f.teams.home.logo}" alt="" style="width:20px;height:20px;">
+        </div>
         <span class="fixture-score">${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}</span>
-        <span class="fixture-team">${escapeHtml(f.teams.away.name)}</span>
+        <div class="fixture-team-item">
+          <img src="${f.teams.away.logo}" alt="" style="width:20px;height:20px;">
+          <span>${escapeHtml(f.teams.away.name)}</span>
+        </div>
       </div>`
     ).join("")}
   </div>`;

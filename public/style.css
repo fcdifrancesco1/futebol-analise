@@ -1,5 +1,5 @@
 /* ============================================================
-   APURAÇÃO — Design System & Tokens (com Dashboard FIFA/EA FC)
+   APURAÇÃO — Design System & Tokens (com Separação de Ida/Volta e FIFA Dashboard)
    ============================================================ */
 :root {
   --pitch-dark: #071F17;
@@ -18,6 +18,9 @@
   --terracotta: #E26847;
   --terracotta-soft: rgba(226, 104, 71, 0.18);
   --terracotta-glow: rgba(226, 104, 71, 0.35);
+  
+  --cyan-soft: rgba(77, 171, 247, 0.18);
+  --cyan: #4dabf7;
   
   --win: #72C787;
   --loss: #E26847;
@@ -232,7 +235,7 @@ button { font-family: inherit; cursor: pointer; }
 .btn.danger { background: rgba(226, 104, 71, 0.15); border: 1px solid var(--terracotta); color: var(--terracotta); }
 .btn.danger:hover { background: var(--terracotta); color: #fff; }
 
-/* ---------- Filtros de Classificação (Geral / Casa / Fora) ---------- */
+/* ---------- Filtros de Classificação ---------- */
 .table-filter-group {
   display: inline-flex; background: rgba(0, 0, 0, 0.35);
   padding: 3px; border-radius: var(--radius-sm); border: 1px solid var(--line);
@@ -341,7 +344,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .draw-caption { text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--chalk-dim); margin-top: 8px; }
 
-/* ---------- Comparação: Seletor de Confronto e Rápidos ---------- */
+/* ---------- Comparação: Seletor de Confronto ---------- */
 .compare-header-row {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
@@ -386,7 +389,51 @@ button { font-family: inherit; cursor: pointer; }
 .quick-tag:hover { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); }
 
 /* ============================================================
-   NOVO: DASHBOARD DE ESTATÍSTICAS EA FC / FIFA (LAYOUT DA IMAGEM 2)
+   SEPARAÇÃO DE COPA: JOGOS DE IDA E VOLTA
+   ============================================================ */
+.fixture-group-section {
+  margin-bottom: 22px;
+}
+.fixture-round-header {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line);
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+.round-badge-icon { font-size: 0.95rem; }
+.round-title-text {
+  font-family: var(--font-display); font-size: 0.95rem; font-weight: 600;
+  letter-spacing: 0.04em; color: var(--gold); text-transform: uppercase;
+}
+
+/* Badges de Ida e Volta */
+.leg-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700;
+  padding: 2px 7px; border-radius: 4px; letter-spacing: 0.04em;
+  text-transform: uppercase; margin-left: 6px;
+}
+.leg-badge.ida {
+  background: var(--gold-soft); border: 1px solid var(--gold); color: var(--gold);
+}
+.leg-badge.volta {
+  background: var(--cyan-soft); border: 1px solid var(--cyan); color: var(--cyan);
+}
+
+/* Linha de Partida Aprimorada com Escudos */
+.fixture-team-item {
+  display: flex; align-items: center; gap: 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fixture-team-item img {
+  width: 22px; height: 22px; object-fit: contain; flex-shrink: 0;
+}
+.fixture-team-item.right {
+  justify-content: flex-end;
+}
+
+/* ============================================================
+   DASHBOARD DE ESTATÍSTICAS EA FC / FIFA (LAYOUT DA IMAGEM 2)
    ============================================================ */
 .fifa-dashboard {
   background: rgba(5, 22, 16, 0.88);
@@ -397,7 +444,6 @@ button { font-family: inherit; cursor: pointer; }
   margin-bottom: 24px;
 }
 
-/* Abas estilo EA FC */
 .fifa-tabs {
   display: flex; justify-content: center; gap: 4px;
   background: rgba(0, 0, 0, 0.45);
@@ -417,7 +463,6 @@ button { font-family: inherit; cursor: pointer; }
   border-bottom: 2px solid var(--gold);
 }
 
-/* Grid de 3 Colunas: Gauges A | Stats Centrais | Gauges B */
 .fifa-body {
   display: grid;
   grid-template-columns: 200px 1fr 200px;
@@ -425,7 +470,6 @@ button { font-family: inherit; cursor: pointer; }
   align-items: center;
 }
 
-/* Coluna de Gauges Circulares */
 .fifa-gauges-col {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 20px;
@@ -459,7 +503,6 @@ button { font-family: inherit; cursor: pointer; }
   line-height: 1.2;
 }
 
-/* Tabela Central de Métricas */
 .fifa-stats-center {
   display: flex; flex-direction: column;
   gap: 3px; background: rgba(0, 0, 0, 0.22);
@@ -494,52 +537,6 @@ button { font-family: inherit; cursor: pointer; }
   flex: 1; text-align: center;
   font-family: var(--font-body); font-size: 0.8rem; font-weight: 500;
   color: var(--chalk-dim); letter-spacing: 0.02em; padding: 0 10px;
-}
-
-/* Mini Campo Tático 2D */
-.tactical-pitch {
-  position: relative; width: 100%; height: 420px;
-  background: radial-gradient(circle at center, rgba(16, 58, 43, 0.95), rgba(7, 28, 20, 0.98)),
-              repeating-linear-gradient(180deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 35px, transparent 35px, transparent 70px);
-  border: 2px solid var(--line-strong); border-radius: var(--radius);
-  margin-top: 14px; overflow: hidden; box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6);
-  padding: 16px 12px; display: flex; flex-direction: column; justify-content: space-between;
-}
-.pitch-half-line {
-  position: absolute; top: 50%; left: 0; right: 0; height: 1px;
-  background: var(--line-strong); border-top: 1px dashed rgba(246, 243, 235, 0.2);
-}
-.pitch-center-circle {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 80px; height: 80px; border: 1px solid var(--line-strong); border-radius: 50%;
-}
-.pitch-penalty-area {
-  position: absolute; bottom: 0; left: 24%; right: 24%; height: 64px;
-  border: 1px solid var(--line-strong); border-bottom: none;
-}
-.pitch-away .pitch-penalty-area { top: 0; bottom: auto; border-top: none; border-bottom: 1px solid var(--line-strong); }
-
-.pitch-row {
-  display: flex; justify-content: space-around; align-items: center;
-  position: relative; z-index: 2; width: 100%;
-}
-.pitch-player {
-  display: flex; flex-direction: column; align-items: center;
-  cursor: pointer; transition: transform .18s ease;
-}
-.pitch-player:hover { transform: scale(1.18); z-index: 10; }
-.pitch-player-badge {
-  width: 28px; height: 28px; background: var(--pitch-card);
-  border: 2px solid var(--gold); color: var(--chalk); border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
-}
-.pitch-away .pitch-player-badge { border-color: var(--terracotta); }
-.pitch-player-name {
-  margin-top: 3px; font-family: var(--font-body); font-size: 0.68rem;
-  color: var(--chalk); background: rgba(5, 18, 13, 0.85);
-  padding: 1px 6px; border-radius: 4px; white-space: nowrap;
 }
 
 /* Skeletons */
@@ -583,14 +580,13 @@ button { font-family: inherit; cursor: pointer; }
 
 .fixture-list { display: flex; flex-direction: column; gap: 4px; }
 .fixture-row {
-  display: grid; grid-template-columns: 60px 1fr auto 1fr; gap: 10px; align-items: center;
-  padding: 11px 10px; border-radius: var(--radius-sm); font-size: 0.88rem; transition: background .12s;
+  display: grid; grid-template-columns: 65px 1fr auto 1fr; gap: 10px; align-items: center;
+  padding: 11px 12px; border-radius: var(--radius-sm); font-size: 0.88rem; transition: background .12s;
+  background: rgba(0, 0, 0, 0.18);
 }
-.fixture-row:hover { background: rgba(255, 255, 255, 0.04); }
-.fixture-date { font-family: var(--font-mono); font-size: 0.7rem; color: var(--chalk-dim); line-height: 1.3; }
-.fixture-team { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fixture-team.right { text-align: right; }
-.fixture-score { font-family: var(--font-mono); font-weight: 700; color: var(--gold); font-size: 1rem; }
+.fixture-row:hover { background: rgba(255, 255, 255, 0.05); }
+.fixture-date { font-family: var(--font-mono); font-size: 0.72rem; color: var(--chalk-dim); line-height: 1.3; }
+.fixture-score { font-family: var(--font-mono); font-weight: 700; color: var(--gold); font-size: 1rem; padding: 0 10px; }
 
 /* Responsividade */
 @media (max-width: 860px) {
@@ -606,7 +602,7 @@ button { font-family: inherit; cursor: pointer; }
   .compare-picker { grid-template-columns: 1fr; }
   .compare-vs { margin: -6px 0; }
   .page-title { font-size: 1.65rem; }
-  .tactical-pitch { height: 360px; }
+  .fixture-row { grid-template-columns: 50px 1fr auto 1fr; font-size: 0.82rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
