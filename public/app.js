@@ -31,7 +31,7 @@ function defaultSeasonFor(league) {
 
 // ---------- estado global simples ----------
 const state = {
-  compareSlots: { a: null, b: null }, // { teamId, name, logo, leagueId, leagueName, season, contexts:[] }
+  compareSlots: { a: null, b: null }, // { teamId, name, logo, leagueId, leagueName, season }
   homeSide: null, // 'a' | 'b' | null
 };
 
@@ -101,8 +101,7 @@ function escapeHtml(s) {
 // ============================================================
 function parseHash() {
   const h = location.hash.replace(/^#\/?/, "");
-  const parts = h.split("/").filter(Boolean);
-  return parts;
+  return h.split("/").filter(Boolean);
 }
 
 function setActiveTab(name) {
@@ -152,7 +151,7 @@ async function router() {
 window.addEventListener("hashchange", router);
 window.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-nav]").forEach((el) => {
-    el.addEventListener("click", (e) => {
+    el.addEventListener("click", () => {
       const nav = el.dataset.nav;
       if (nav === "home") location.hash = "#/";
       if (nav === "compare") location.hash = "#/compare";
@@ -238,7 +237,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel) {
       const formPills = (row.form || "")
         .split("")
         .slice(-5)
-        .map((c) => `<span class="form-pill ${c}" title="${c}"></span>`)
+        .map((c) => `<span class="form-pill ${c}" title="${c}">${c}</span>`)
         .join("");
       return `
       <tr data-team-id="${row.team.id}" data-team-name="${escapeHtml(row.team.name)}" data-team-logo="${row.team.logo}">
@@ -271,7 +270,6 @@ function renderStandingsTable(table, leagueId, season, groupLabel) {
     </div>
   `;
 
-  // adiar o binding de clique pra depois de inserir no DOM (feito no chamador via delegação)
   setTimeout(() => {
     document.querySelectorAll(".standings-table tbody tr").forEach((tr) => {
       tr.addEventListener("click", () => {
@@ -645,21 +643,21 @@ function renderRecentFixtures(fixtures, teamId) {
     .reverse()
     .map((f) => {
       const isHome = f.teams.home.id === teamId;
-      const own = isHome ? f.teams.home : f.teams.away;
       const opp = isHome ? f.teams.away : f.teams.home;
       const ownGoals = isHome ? f.goals.home : f.goals.away;
       const oppGoals = isHome ? f.goals.away : f.goals.home;
-      let result = "—";
+      let result = "E";
       if (ownGoals !== null && oppGoals !== null) {
-        result = ownGoals > oppGoals ? "V" : ownGoals < oppGoals ? "D" : "E";
+        result = ownGoals > oppGoals ? "W" : ownGoals < oppGoals ? "L" : "D";
       }
       const date = new Date(f.fixture.date).toLocaleDateString("pt-BR");
+      const label = result === "W" ? "V" : result === "L" ? "D" : "E";
       return `
       <div class="h2h-row" style="grid-template-columns:70px 1fr auto 40px;">
         <span class="h2h-date">${date}</span>
         <span>${isHome ? "vs" : "@"} ${escapeHtml(opp.name)}</span>
         <span class="h2h-score">${ownGoals ?? "-"} : ${oppGoals ?? "-"}</span>
-        <span class="form-pill ${result === "V" ? "W" : result === "D" ? "L" : "D"}" style="width:22px;height:22px;border-radius:5px;font-size:0;display:inline-block;"></span>
+        <span class="form-pill ${result}" style="width:24px;height:24px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;">${label}</span>
       </div>`;
     })
     .join("");
@@ -807,7 +805,7 @@ async function renderLive() {
 }
 
 // ============================================================
-// View: Detalhe do jogo — eventos, escalação, estatísticas, odds, previsão
+// View: Detalhe do jogo — eventos, escalação tática 2D, stats, odds, previsão
 // ============================================================
 async function renderFixture(fixtureId) {
   app.innerHTML = `<div id="fixture-content">${loadingBox("Buscando detalhes do jogo…")}</div>`;
@@ -932,34 +930,72 @@ function renderFixtureStats(statsArr, fx) {
   `;
 }
 
+// ------------------------------------------------------------
+// Escalação com Mini-Campo Tático 2D
+// ------------------------------------------------------------
 function renderFixtureLineups(lineupsArr) {
   const el = document.getElementById("fx-lineups");
   if (!lineupsArr || !lineupsArr.length) return;
 
   el.innerHTML = `
-    <h2 class="section-title">Escalações</h2>
+    <h2 class="section-title">Escalações & Campo Tático</h2>
     <div class="lineup-grid" style="margin-bottom:20px;">
       ${lineupsArr
-        .map(
-          (l) => `
-        <div class="card">
-          <div class="lineup-head">
-            <img src="${l.team.logo}" alt="">
-            <div>
-              <div style="font-family:var(--font-display);">${escapeHtml(l.team.name)}</div>
-              <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">${escapeHtml(l.formation || "")} · téc. ${escapeHtml(l.coach?.name || "-")}</div>
+        .map((l, teamIdx) => {
+          const isAway = teamIdx === 1;
+          const formation = l.formation || "4-4-2";
+          const rowsCount = formation.split("-").length + 1; // +1 goleiro
+
+          return `
+          <div class="card">
+            <div class="lineup-head">
+              <img src="${l.team.logo}" alt="">
+              <div>
+                <div style="font-family:var(--font-display);">${escapeHtml(l.team.name)}</div>
+                <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">
+                  ${escapeHtml(formation)} · téc. ${escapeHtml(l.coach?.name || "-")}
+                </div>
+              </div>
             </div>
-          </div>
-          <p class="stat-label" style="margin-top:12px;">Titulares</p>
-          <ul class="lineup-list">
-            ${l.startXI.map((s) => `<li><span class="lineup-num">${s.player.number ?? ""}</span>${escapeHtml(s.player.name)} <span class="lineup-pos">${escapeHtml(s.player.pos || "")}</span></li>`).join("")}
-          </ul>
-          <p class="stat-label" style="margin-top:12px;">Banco</p>
-          <ul class="lineup-list dim">
-            ${l.substitutes.map((s) => `<li><span class="lineup-num">${s.player.number ?? ""}</span>${escapeHtml(s.player.name)}</li>`).join("")}
-          </ul>
-        </div>`
-        )
+
+            <!-- Mini Campo Tático 2D -->
+            <div class="tactical-pitch ${isAway ? 'pitch-away' : ''}">
+              <div class="pitch-half-line"></div>
+              <div class="pitch-center-circle"></div>
+              <div class="pitch-penalty-area"></div>
+              
+              <div class="pitch-players">
+                ${l.startXI.map((s, idx) => {
+                  let row = 1, col = 1;
+                  if (s.player.grid) {
+                    const [r, c] = s.player.grid.split(":");
+                    row = parseInt(r);
+                    col = parseInt(c);
+                  } else {
+                    row = idx === 0 ? 1 : Math.min(rowsCount, Math.floor(idx / 3) + 2);
+                    col = (idx % 4) + 1;
+                  }
+
+                  const displayRow = isAway ? (rowsCount + 1 - row) : row;
+                  const lastName = (s.player.name || "").split(" ").pop();
+
+                  return `
+                    <div class="pitch-node" style="--p-row: ${displayRow}; --p-col: ${col};" title="${escapeHtml(s.player.name)} (#${s.player.number ?? ''})">
+                      <div class="pitch-node-badge">${s.player.number ?? ""}</div>
+                      <span class="pitch-node-name">${escapeHtml(lastName)}</span>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+
+            <!-- Banco de Reservas -->
+            <p class="stat-label" style="margin-top:16px;">Banco de Reservas</p>
+            <ul class="lineup-list dim">
+              ${l.substitutes.map((s) => `<li><span class="lineup-num">${s.player.number ?? "-"}</span>${escapeHtml(s.player.name)}</li>`).join("")}
+            </ul>
+          </div>`;
+        })
         .join("")}
     </div>
   `;
@@ -1011,7 +1047,7 @@ function renderCompare() {
     </div>
 
     <div class="card" style="margin-bottom:20px;">
-      <p class="stat-label" style="margin-bottom:10px;">Mandante do jogo (opcional — afeta a probabilidade)</p>
+      <p class="stat-label" style="margin-bottom:10px;">Mandante do jogo (afeta a probabilidade e o cálculo por mando)</p>
       <div style="display:flex;gap:16px;font-size:0.85rem;">
         <label><input type="radio" name="home" value="" ${!state.homeSide ? "checked" : ""}> Neutro</label>
         <label><input type="radio" name="home" value="a" ${state.homeSide === "a" ? "checked" : ""}> Time A manda o jogo</label>
@@ -1028,7 +1064,10 @@ function renderCompare() {
   renderPicker("b", b);
 
   document.querySelectorAll('input[name="home"]').forEach((r) =>
-    r.addEventListener("change", (e) => (state.homeSide = e.target.value || null))
+    r.addEventListener("change", (e) => {
+      state.homeSide = e.target.value || null;
+      if (state.compareSlots.a && state.compareSlots.b) runComparison();
+    })
   );
 
   document.getElementById("run-compare").addEventListener("click", runComparison);
@@ -1109,7 +1148,6 @@ async function selectTeamForCompare(slot, teamId, name, logo) {
     const leagues = await apiGet("leagues", { team: teamId, current: "true" });
     let leagueId, leagueName, season;
     if (leagues && leagues.length) {
-      // prioriza liga doméstica (tem 'standings' no formato de liga nacional) — fallback pra primeira
       const domestic = leagues.find((l) => l.league.type === "League") || leagues[0];
       leagueId = domestic.league.id;
       leagueName = domestic.league.name;
@@ -1161,7 +1199,7 @@ async function runComparison() {
       <div id="official-prediction"></div>
 
       <h2 class="section-title" style="margin-top:24px;">Comparação direta</h2>
-      ${renderCompareTable(statsA, statsB)}
+      ${renderCompareTable(statsA, statsB, homeTeamId)}
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
         <a class="btn ghost small" href="#/time/${a.teamId}/${a.leagueId}/${a.season}/elenco">Elenco ${escapeHtml(statsA.team.name)}</a>
@@ -1174,7 +1212,6 @@ async function runComparison() {
       </div>
     `;
 
-    // conferência cruzada opcional: previsão oficial da API se houver jogo marcado entre os dois
     fetchOfficialPredictionForPair(a.teamId, b.teamId, statsA.team, statsB.team);
   } catch (err) {
     result.innerHTML = errorBox(err.message);
@@ -1204,32 +1241,57 @@ async function fetchOfficialPredictionForPair(teamAId, teamBId, teamA, teamB) {
       <a class="btn ghost small" href="#/jogo/${fixtureId}">Ver detalhes desse jogo →</a>
     `;
   } catch {
-    // silencioso — conferência cruzada é opcional, não deve quebrar a tela de comparação
+    // silencioso
   }
 }
 
 // ------------------------------------------------------------
-// Cálculo de probabilidade (modelo transparente, não caixa-preta)
+// Cálculo de probabilidade refinado por mando
 // ------------------------------------------------------------
+function getRelevantGoals(stats, isHome) {
+  if (isHome === null) {
+    return {
+      gf: parseFloat(stats.goals.for.average.total) || 0,
+      ga: parseFloat(stats.goals.against.average.total) || 0,
+    };
+  }
+  const side = isHome ? "home" : "away";
+  return {
+    gf: parseFloat(stats.goals.for.average[side]) || 0,
+    ga: parseFloat(stats.goals.against.average[side]) || 0,
+  };
+}
+
 function computeProbability(statsA, statsB, h2h, homeTeamId) {
-  const winRate = (s) => (s.fixtures.played.total ? s.fixtures.wins.total / s.fixtures.played.total : 0.5);
-  const goalDiffScore = (s) => {
-    const gf = parseFloat(s.goals.for.average.total) || 0;
-    const ga = parseFloat(s.goals.against.average.total) || 0;
-    const diff = gf - ga;
+  const isAHome = homeTeamId ? homeTeamId === statsA.team.id : null;
+  const isBHome = homeTeamId ? homeTeamId === statsB.team.id : null;
+
+  const goalsA = getRelevantGoals(statsA, isAHome);
+  const goalsB = getRelevantGoals(statsB, isBHome);
+
+  const winRate = (s, isHome) => {
+    if (!s.fixtures.played.total) return 0.5;
+    if (isHome === null) return s.fixtures.wins.total / s.fixtures.played.total;
+    const side = isHome ? "home" : "away";
+    const played = s.fixtures.played[side] || 1;
+    return (s.fixtures.wins[side] || 0) / played;
+  };
+
+  const goalDiffScore = (goals) => {
+    const diff = goals.gf - goals.ga;
     return Math.min(1, Math.max(0, (diff + 3) / 6));
   };
+
   const formScore = (s) => {
     const map = { W: 1, D: 0.33, L: 0 };
     const chars = (s.form || "").split("").slice(-5);
     if (!chars.length) return 0.5;
     return chars.reduce((sum, c) => sum + (map[c] ?? 0.33), 0) / chars.length;
   };
+
   const h2hScore = (teamId) => {
     if (!h2h || !h2h.length) return 0.5;
-    let w = 0,
-      d = 0,
-      l = 0;
+    let w = 0, d = 0, l = 0;
     h2h.forEach((f) => {
       if (f.goals.home === null || f.goals.away === null) return;
       const isHome = f.teams.home.id === teamId;
@@ -1244,14 +1306,15 @@ function computeProbability(statsA, statsB, h2h, homeTeamId) {
     return (w + d * 0.33) / total;
   };
 
-  const strength = (s) => 40 * winRate(s) + 25 * goalDiffScore(s) + 20 * formScore(s) + 15 * h2hScore(s.team.id);
+  const strength = (s, isHome, goals) =>
+    40 * winRate(s, isHome) + 25 * goalDiffScore(goals) + 20 * formScore(s) + 15 * h2hScore(s.team.id);
 
-  let strengthA = strength(statsA);
-  let strengthB = strength(statsB);
+  let strengthA = strength(statsA, isAHome, goalsA);
+  let strengthB = strength(statsB, isBHome, goalsB);
 
   const HOME_BONUS = 6;
-  if (homeTeamId === statsA.team.id) strengthA += HOME_BONUS;
-  if (homeTeamId === statsB.team.id) strengthB += HOME_BONUS;
+  if (isAHome) strengthA += HOME_BONUS;
+  if (isBHome) strengthB += HOME_BONUS;
 
   const diff = strengthA - strengthB;
   const drawProb = Math.min(30, Math.max(15, 26 - Math.abs(diff) * 0.3));
@@ -1269,30 +1332,39 @@ function computeProbability(statsA, statsB, h2h, homeTeamId) {
 
 function buildJustifications(statsA, statsB, h2h, homeTeamId) {
   const j = [];
-  const nameA = statsA.team.name,
-    nameB = statsB.team.name;
+  const nameA = statsA.team.name, nameB = statsB.team.name;
+  const isAHome = homeTeamId ? homeTeamId === statsA.team.id : null;
+  const isBHome = homeTeamId ? homeTeamId === statsB.team.id : null;
 
-  const wrA = statsA.fixtures.played.total ? (statsA.fixtures.wins.total / statsA.fixtures.played.total) * 100 : null;
-  const wrB = statsB.fixtures.played.total ? (statsB.fixtures.wins.total / statsB.fixtures.played.total) * 100 : null;
+  const getWR = (s, isHome) => {
+    if (isHome === null) return s.fixtures.played.total ? (s.fixtures.wins.total / s.fixtures.played.total) * 100 : null;
+    const side = isHome ? "home" : "away";
+    const played = s.fixtures.played[side] || 1;
+    return ((s.fixtures.wins[side] || 0) / played) * 100;
+  };
+
+  const wrA = getWR(statsA, isAHome);
+  const wrB = getWR(statsB, isBHome);
+
   if (wrA !== null && wrB !== null) {
+    const context = homeTeamId ? " (considerando mando)" : " na temporada";
     j.push({
       side: wrA === wrB ? "n" : wrA > wrB ? "a" : "b",
-      text: `Aproveitamento na temporada: ${nameA} venceu ${wrA.toFixed(0)}% dos jogos, ${nameB} venceu ${wrB.toFixed(0)}%.`,
+      text: `Aproveitamento${context}: ${nameA} venceu ${wrA.toFixed(0)}%, ${nameB} venceu ${wrB.toFixed(0)}%.`,
     });
   }
 
-  const gfA = parseFloat(statsA.goals.for.average.total) || 0;
-  const gfB = parseFloat(statsB.goals.for.average.total) || 0;
+  const goalsA = getRelevantGoals(statsA, isAHome);
+  const goalsB = getRelevantGoals(statsB, isBHome);
+
   j.push({
-    side: gfA === gfB ? "n" : gfA > gfB ? "a" : "b",
-    text: `Média de gols marcados por jogo: ${nameA} ${gfA.toFixed(2)} contra ${gfB.toFixed(2)} do ${nameB}.`,
+    side: goalsA.gf === goalsB.gf ? "n" : goalsA.gf > goalsB.gf ? "a" : "b",
+    text: `Média de gols marcados${homeTeamId ? " no mando" : ""}: ${nameA} ${goalsA.gf.toFixed(2)} vs ${goalsB.gf.toFixed(2)} do ${nameB}.`,
   });
 
-  const gaA = parseFloat(statsA.goals.against.average.total) || 0;
-  const gaB = parseFloat(statsB.goals.against.average.total) || 0;
   j.push({
-    side: gaA === gaB ? "n" : gaA < gaB ? "a" : "b",
-    text: `Média de gols sofridos por jogo: ${nameA} ${gaA.toFixed(2)} contra ${gaB.toFixed(2)} do ${nameB} (menor é melhor).`,
+    side: goalsA.ga === goalsB.ga ? "n" : goalsA.ga < goalsB.ga ? "a" : "b",
+    text: `Média de gols sofridos${homeTeamId ? " no mando" : ""}: ${nameA} ${goalsA.ga.toFixed(2)} vs ${goalsB.ga.toFixed(2)} do ${nameB} (menor é melhor).`,
   });
 
   const formA = (statsA.form || "").slice(-5);
@@ -1302,14 +1374,12 @@ function buildJustifications(statsA, statsB, h2h, homeTeamId) {
   }
 
   if (h2h && h2h.length) {
-    let w = 0,
-      l = 0,
-      d = 0;
+    let w = 0, l = 0, d = 0;
     h2h.forEach((f) => {
       if (f.goals.home === null) return;
-      const isAHome = f.teams.home.id === statsA.team.id;
-      const gA = isAHome ? f.goals.home : f.goals.away;
-      const gB = isAHome ? f.goals.away : f.goals.home;
+      const isAHomeH2H = f.teams.home.id === statsA.team.id;
+      const gA = isAHomeH2H ? f.goals.home : f.goals.away;
+      const gB = isAHomeH2H ? f.goals.away : f.goals.home;
       if (gA > gB) w++;
       else if (gA < gB) l++;
       else d++;
@@ -1324,7 +1394,7 @@ function buildJustifications(statsA, statsB, h2h, homeTeamId) {
 
   if (homeTeamId) {
     const homeName = homeTeamId === statsA.team.id ? nameA : nameB;
-    j.push({ side: homeTeamId === statsA.team.id ? "a" : "b", text: `Fator casa: ${homeName} manda o jogo.` });
+    j.push({ side: homeTeamId === statsA.team.id ? "a" : "b", text: `Fator casa: ${homeName} joga como mandante (+6% bônus).` });
   }
 
   return j;
@@ -1349,11 +1419,16 @@ function renderPitchBar(teamA, teamB, prob) {
   `;
 }
 
-function renderCompareTable(statsA, statsB) {
+function renderCompareTable(statsA, statsB, homeTeamId) {
+  const isAHome = homeTeamId ? homeTeamId === statsA.team.id : null;
+  const isBHome = homeTeamId ? homeTeamId === statsB.team.id : null;
+  const goalsA = getRelevantGoals(statsA, isAHome);
+  const goalsB = getRelevantGoals(statsB, isBHome);
+
   const rows = [
-    ["Aproveitamento", statsA.fixtures.played.total ? Math.round((statsA.fixtures.wins.total / statsA.fixtures.played.total) * 100) : 0, statsB.fixtures.played.total ? Math.round((statsB.fixtures.wins.total / statsB.fixtures.played.total) * 100) : 0, "%", 100],
-    ["Gols marcados/jogo", parseFloat(statsA.goals.for.average.total) || 0, parseFloat(statsB.goals.for.average.total) || 0, "", 4],
-    ["Gols sofridos/jogo", parseFloat(statsA.goals.against.average.total) || 0, parseFloat(statsB.goals.against.average.total) || 0, "", 4],
+    ["Aproveitamento Geral", statsA.fixtures.played.total ? Math.round((statsA.fixtures.wins.total / statsA.fixtures.played.total) * 100) : 0, statsB.fixtures.played.total ? Math.round((statsB.fixtures.wins.total / statsB.fixtures.played.total) * 100) : 0, "%", 100],
+    [homeTeamId ? "Gols marcados (no mando)" : "Gols marcados/jogo", goalsA.gf, goalsB.gf, "", 4],
+    [homeTeamId ? "Gols sofridos (no mando)" : "Gols sofridos/jogo", goalsA.ga, goalsB.ga, "", 4],
     ["Jogos sem sofrer gol", statsA.clean_sheet.total, statsB.clean_sheet.total, "", Math.max(statsA.clean_sheet.total, statsB.clean_sheet.total, 1)],
     ["Cartões amarelos", sumCards(statsA.cards.yellow), sumCards(statsB.cards.yellow), "", Math.max(sumCards(statsA.cards.yellow), sumCards(statsB.cards.yellow), 1)],
   ];
