@@ -3,7 +3,6 @@
    ============================================================ */
 
 :root {
-  /* Cores Principais */
   --bg-app: #07111E;
   --pitch-card: #0D1B2A;
   --pitch-card-elevated: #132238;
@@ -58,15 +57,13 @@ body {
   padding-bottom: 30px;
 }
 
-/* ============================================================
-   Topbar Desktop & Container
-   ============================================================ */
 .app-wrapper {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
+/* Topbar */
 .topbar {
   position: sticky;
   top: 0;
@@ -178,10 +175,219 @@ body {
 }
 
 /* ============================================================
+   Sininho e Central de Notificações
+   ============================================================ */
+.btn-notification-bell {
+  position: relative;
+  background: var(--pitch-card);
+  border: 1px solid var(--line-strong);
+  color: var(--chalk);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-notification-bell:hover {
+  background: var(--gold-soft);
+  border-color: var(--gold);
+}
+.bell-icon { font-size: 1.1rem; }
+.bell-status-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 8px #10B981;
+}
+
+/* Modal de Notificações */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.notif-modal-card {
+  background: var(--pitch-card);
+  border: 1px solid var(--pitch-border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-pitch);
+  padding: 20px;
+}
+
+.notif-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--line-faint);
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.btn-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--chalk-dim);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.notif-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-faint);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+}
+
+.notif-checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.notif-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line-faint);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.notif-fav-search-wrap {
+  position: relative;
+  margin-bottom: 10px;
+}
+.notif-fav-search-wrap input {
+  width: 100%;
+  background: var(--pitch-card-elevated);
+  border: 1px solid var(--line-strong);
+  color: var(--chalk);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+}
+
+.notif-team-results-box {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #0D1B2A;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-sm);
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: var(--shadow-pitch);
+}
+
+.notif-team-res-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line-faint);
+  font-size: 0.85rem;
+}
+.notif-team-res-item:hover {
+  background: var(--gold-soft);
+}
+.notif-team-res-item img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.notif-fav-pills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 40px;
+  align-items: center;
+}
+
+.notif-team-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--chalk);
+}
+.notif-team-pill img { width: 16px; height: 16px; object-fit: contain; }
+.notif-team-pill .btn-remove-fav {
+  background: transparent;
+  border: none;
+  color: var(--terracotta);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* Switch Toggle UI */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(255, 255, 255, 0.15);
+  transition: .3s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+}
+input:checked + .slider { background-color: var(--gold); }
+input:checked + .slider:before { transform: translateX(20px); background-color: #07111E; }
+.slider.round { border-radius: 34px; }
+.slider.round:before { border-radius: 50%; }
+
+/* ============================================================
    Bottom Navigation Bar (Nativo Mobile)
    ============================================================ */
 .mobile-bottom-nav {
-  display: none; /* Escondido no Desktop */
+  display: none;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -222,10 +428,7 @@ body {
   font-weight: 500;
 }
 
-.bottom-nav-item.active {
-  color: var(--gold);
-}
-
+.bottom-nav-item.active { color: var(--gold); }
 .bottom-nav-item.active .bottom-nav-icon {
   transform: translateY(-2px);
   filter: drop-shadow(0 0 6px var(--gold));
@@ -372,9 +575,7 @@ body {
   font-weight: 600;
 }
 
-/* ============================================================
-   Cards & Grids
-   ============================================================ */
+/* Cards & Grids */
 .card {
   background: var(--pitch-card);
   border: 1px solid var(--pitch-border);
@@ -434,9 +635,7 @@ body {
   margin-top: 2px;
 }
 
-/* ============================================================
-   Tabela de Classificação
-   ============================================================ */
+/* Tabela de Classificação */
 .table-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -471,9 +670,7 @@ body {
   cursor: pointer;
   transition: background 0.15s ease;
 }
-.standings-table tbody tr:hover {
-  background: var(--gold-soft);
-}
+.standings-table tbody tr:hover { background: var(--gold-soft); }
 
 .pos-cell {
   font-family: var(--font-mono);
@@ -513,9 +710,7 @@ body {
 .form-pill.D { background: rgba(255, 255, 255, 0.15); color: var(--chalk-dim); }
 .form-pill.L { background: rgba(244, 63, 94, 0.25); color: var(--terracotta); }
 
-/* ============================================================
-   Jogos & Rodadas
-   ============================================================ */
+/* Jogos e Rodadas */
 .fixture-group-section { margin-bottom: 24px; }
 .fixture-round-header {
   display: flex;
@@ -546,9 +741,7 @@ body {
   background: rgba(255, 255, 255, 0.02);
   transition: all 0.15s ease;
 }
-.fixture-row:hover {
-  background: var(--gold-soft);
-}
+.fixture-row:hover { background: var(--gold-soft); }
 
 .fixture-date-col {
   display: flex;
@@ -604,9 +797,7 @@ body {
   color: var(--gold);
 }
 
-/* ============================================================
-   Placar Hero com Gols
-   ============================================================ */
+/* Placar Hero */
 .fixture-hero {
   background: var(--pitch-card);
   border: 1px solid var(--pitch-border);
@@ -648,9 +839,7 @@ body {
   font-weight: 700;
 }
 
-/* ============================================================
-   Perfil do Jogador & Estatísticas
-   ============================================================ */
+/* Perfil do Jogador */
 .player-hero {
   display: flex;
   align-items: center;
@@ -725,9 +914,7 @@ body {
   justify-content: space-between;
 }
 
-/* ============================================================
-   Campo Tático 2D
-   ============================================================ */
+/* Campo Tático 2D */
 .tactical-pitch {
   position: relative;
   width: 100%;
@@ -851,9 +1038,7 @@ body {
   padding: 1px 2px;
 }
 
-/* ============================================================
-   FIFA Dashboard
-   ============================================================ */
+/* FIFA Dashboard */
 .fifa-dashboard {
   background: var(--pitch-card);
   border: 1px solid var(--pitch-border);
@@ -1017,9 +1202,7 @@ body {
   margin-top: 8px;
 }
 
-/* ============================================================
-   Toast & Botões Globais
-   ============================================================ */
+/* Toast & Botões */
 .btn {
   background: var(--gold);
   color: #07111E;
@@ -1032,9 +1215,7 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.btn:hover {
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
-}
+.btn:hover { box-shadow: 0 0 12px rgba(56, 189, 248, 0.4); }
 .btn.ghost {
   background: transparent;
   border: 1px solid var(--line-strong);
@@ -1061,34 +1242,22 @@ body {
   z-index: 9999;
 }
 
-/* ============================================================
-   📱 REGRAS RESPONSIVAS EXCLUSIVAS PARA CELULAR (<= 768px)
-   ============================================================ */
+/* Responsivo Mobile (<= 768px) */
 @media (max-width: 768px) {
   body {
-    padding-bottom: calc(75px + env(safe-area-inset-bottom)); /* Espaço para não cobrir o rodapé */
+    padding-bottom: calc(75px + env(safe-area-inset-bottom));
   }
 
-  .desktop-nav {
-    display: none; /* Esconde menu superior no celular */
-  }
+  .desktop-nav { display: none; }
+  .mobile-bottom-nav { display: flex; }
+  .main-content { padding: 16px 12px; }
 
-  .mobile-bottom-nav {
-    display: flex; /* Ativa Bottom Bar no celular */
-  }
-
-  .main-content {
-    padding: 16px 12px;
-  }
-
-  /* Placar Hero responsivo no celular */
   .fixture-hero {
     grid-template-columns: 1fr;
     gap: 16px;
     padding: 16px;
   }
 
-  /* FIFA Dashboard reorganizado verticalmente */
   .fifa-body {
     grid-template-columns: 1fr;
     gap: 16px;
@@ -1100,7 +1269,6 @@ body {
     width: 100%;
   }
 
-  /* Tabela com Coluna do Time Fixa no Scroll */
   .standings-table th.team-cell,
   .standings-table td.team-cell {
     position: sticky;

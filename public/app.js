@@ -1,8 +1,11 @@
 // ============================================================
-// APURAÇÃO — app.js (Total Geral de Jogadores & Rodadas 1..38)
+// APURAÇÃO — app.js (com Integração Push & Supabase)
 // ============================================================
 
 const FN_URL = "/api/football";
+const SUPABASE_URL = "https://aqihpureclilnstdacii.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxaWhwdXJlY2xpbG5zdGRhY2lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3ODIyODksImV4cCI6MjEwMzM1ODI4OX0.2odEs0rD_tBsEbHhaLlu1JMOXkJrqs8WKhboasPgvWw";
+const VAPID_PUBLIC_KEY = "BMjC-8Rjccu_uZoj0BaFDXpUatXC1yShp_foJEdb0uixT398zbT4JlvTfRDeRswaBqRQx6ezRF8mAutCCfE-Q6A";
 
 const LEAGUES = [
   { id: 71, name: "Brasileirão Série A", country: "Brasil", calendarYear: true, isCup: false },
@@ -21,12 +24,12 @@ const LEAGUES = [
 ];
 
 const POPULAR_TEAMS = [
-  { id: 127, name: "Flamengo" },
-  { id: 121, name: "Palmeiras" },
-  { id: 541, name: "Real Madrid" },
-  { id: 529, name: "Barcelona" },
-  { id: 50, name: "Man. City" },
-  { id: 40, name: "Liverpool" }
+  { id: 127, name: "Flamengo", logo: "https://media.api-sports.io/football/teams/127.png" },
+  { id: 121, name: "Palmeiras", logo: "https://media.api-sports.io/football/teams/121.png" },
+  { id: 541, name: "Real Madrid", logo: "https://media.api-sports.io/football/teams/541.png" },
+  { id: 529, name: "Barcelona", logo: "https://media.api-sports.io/football/teams/529.png" },
+  { id: 50, name: "Man. City", logo: "https://media.api-sports.io/football/teams/50.png" },
+  { id: 40, name: "Liverpool", logo: "https://media.api-sports.io/football/teams/40.png" }
 ];
 
 function defaultSeasonFor(league) {
@@ -45,6 +48,8 @@ const state = {
   currentTableFilter: "all",
   fifaTab: "summary",
   lastComparisonData: null,
+  favoriteTeams: [],
+  notificationPrefs: { goals: true, kickoff: true, halftime: true, fulltime: true, redcards: true }
 };
 
 const apiCache = new Map();
@@ -76,7 +81,7 @@ function markUpdated(fromCache = false) {
   quotaHint.textContent = (fromCache ? "⚡ Cache " : "Atualizado ") + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-// ---------- Requisições com Cache ----------
+// ---------- Requisições à API de Futebol com Cache ----------
 async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
   const clean = {};
   Object.entries(params).forEach(([k, v]) => {
@@ -130,24 +135,275 @@ async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
   return data.response;
 }
 
-// ---------- Formatador Rigoroso de Rodadas e Copas ----------
+// ============================================================
+// Gerenciador de Notificações & Supabase
+// ============================================================
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+const NotificationManager = {
+  async init() {
+    try {
+      const savedTeams = localStorage.getItem("ap_fav_teams");
+      if (savedTeams) state.favoriteTeams = JSON.parse(savedTeams);
+      const savedPrefs = localStorage.getItem("ap_notif_prefs");
+      if (savedPrefs) state.notificationPrefs = JSON.parse(savedPrefs);
+    } catch { /* storage */ }
+
+    this.updateBellUI();
+    this.bindModalEvents();
+  },
+
+  async isSubscribed() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return !!sub;
+  },
+
+  async updateBellUI() {
+    const active = await this.isSubscribed();
+    const dot = document.getElementById("bell-active-dot");
+    const masterToggle = document.getElementById("toggle-notif-master");
+    if (dot) dot.hidden = !active;
+    if (masterToggle) masterToggle.checked = active;
+  },
+
+  async subscribe() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      toast("Seu navegador não suporta notificações Push.");
+      return false;
+    }
+
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") {
+      toast("Permissão de notificação negada no navegador.");
+      return false;
+    }
+
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+
+    if (!sub) {
+      const convertedVapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey
+      });
+    }
+
+    const subJson = sub.toJSON();
+    await this.saveToSupabase(subJson.endpoint, subJson.keys.p256dh, subJson.keys.auth);
+    this.updateBellUI();
+    toast("🔔 Notificações ativadas com sucesso no celular!", false);
+    return true;
+  },
+
+  async unsubscribe() {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await sub.unsubscribe();
+    }
+    this.updateBellUI();
+    toast("Notificações desativadas.");
+  },
+
+  async saveToSupabase(endpoint, p256dh, auth) {
+    const payload = {
+      endpoint,
+      p256dh,
+      auth,
+      favorite_teams: state.favoriteTeams,
+      preferences: state.notificationPrefs,
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "Prefer": "resolution=merge-duplicates"
+        },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      console.warn("Erro ao sincronizar com Supabase:", err);
+    }
+  },
+
+  async syncPreferences() {
+    localStorage.setItem("ap_fav_teams", JSON.stringify(state.favoriteTeams));
+    localStorage.setItem("ap_notif_prefs", JSON.stringify(state.notificationPrefs));
+
+    if (await this.isSubscribed()) {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        const subJson = sub.toJSON();
+        await this.saveToSupabase(subJson.endpoint, subJson.keys.p256dh, subJson.keys.auth);
+      }
+    }
+    this.renderFavoriteTeamsList();
+  },
+
+  renderFavoriteTeamsList() {
+    const container = document.getElementById("notif-fav-list");
+    if (!container) return;
+
+    if (!state.favoriteTeams.length) {
+      container.innerHTML = `<span style="font-size:0.75rem;color:var(--chalk-dim);">Nenhum time favoritado ainda. Busque acima para receber alertas de gols!</span>`;
+      return;
+    }
+
+    container.innerHTML = state.favoriteTeams.map(t => `
+      <div class="notif-team-pill">
+        <img src="${t.logo}" alt="">
+        <span>${escapeHtml(t.name)}</span>
+        <button class="btn-remove-fav" data-team-id="${t.id}">✕</button>
+      </div>
+    `).join("");
+
+    container.querySelectorAll(".btn-remove-fav").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tid = Number(btn.dataset.teamId);
+        state.favoriteTeams = state.favoriteTeams.filter(t => t.id !== tid);
+        this.syncPreferences();
+      });
+    });
+  },
+
+  bindModalEvents() {
+    const modal = document.getElementById("notif-modal-backdrop");
+    const openBtn = document.getElementById("btn-open-notifications");
+    const bottomNavBell = document.getElementById("bottom-nav-bell");
+    const closeBtn = document.getElementById("btn-close-notifications");
+    const masterToggle = document.getElementById("toggle-notif-master");
+    const testBtn = document.getElementById("btn-test-notification");
+    const saveBtn = document.getElementById("btn-save-notif");
+    const searchInput = document.getElementById("notif-team-search");
+    const searchResults = document.getElementById("notif-team-results");
+
+    const openModal = () => {
+      modal.hidden = false;
+      this.renderFavoriteTeamsList();
+      this.updateBellUI();
+    };
+
+    if (openBtn) openBtn.addEventListener("click", openModal);
+    if (bottomNavBell) bottomNavBell.addEventListener("click", openModal);
+    if (closeBtn) closeBtn.addEventListener("click", () => modal.hidden = true);
+    if (modal) modal.addEventListener("click", (e) => { if (e.target === modal) modal.hidden = true; });
+
+    if (masterToggle) {
+      masterToggle.addEventListener("change", async (e) => {
+        if (e.target.checked) {
+          await this.subscribe();
+        } else {
+          await this.unsubscribe();
+        }
+      });
+    }
+
+    if (testBtn) {
+      testBtn.addEventListener("click", async () => {
+        const reg = await navigator.serviceWorker.ready;
+        reg.showNotification("⚽ GOL DO FLAMENGO! (42')", {
+          body: "Pedro recebe de Arrascaeta e finaliza no canto!",
+          icon: "https://media.api-sports.io/football/teams/127.png",
+          badge: "/icon-192.png",
+          vibrate: [200, 100, 200, 100, 200],
+          data: { url: "/#/" }
+        });
+        toast("Notificação de teste disparada!", false);
+      });
+    }
+
+    if (saveBtn) {
+      saveBtn.addEventListener("click", () => {
+        state.notificationPrefs = {
+          goals: document.getElementById("pref-goals")?.checked ?? true,
+          kickoff: document.getElementById("pref-kickoff")?.checked ?? true,
+          halftime: document.getElementById("pref-halftime")?.checked ?? true,
+          fulltime: document.getElementById("pref-fulltime")?.checked ?? true,
+          redcards: document.getElementById("pref-redcards")?.checked ?? true,
+        };
+        this.syncPreferences();
+        modal.hidden = true;
+        toast("Preferências salvas com sucesso!", false);
+      });
+    }
+
+    let searchTimer;
+    if (searchInput && searchResults) {
+      searchInput.addEventListener("input", () => {
+        clearTimeout(searchTimer);
+        const q = searchInput.value.trim();
+        if (q.length < 3) { searchResults.hidden = true; return; }
+
+        searchTimer = setTimeout(async () => {
+          searchResults.hidden = false;
+          searchResults.innerHTML = `<div style="padding:8px;font-size:0.75rem;color:var(--chalk-dim);">Buscando time...</div>`;
+          try {
+            const teams = await apiGet("teams", { search: q }, 60);
+            if (!teams || !teams.length) {
+              searchResults.innerHTML = `<div style="padding:8px;font-size:0.75rem;color:var(--chalk-dim);">Nenhum time encontrado.</div>`;
+              return;
+            }
+            searchResults.innerHTML = teams.slice(0, 5).map(t => `
+              <div class="notif-team-res-item" data-id="${t.team.id}" data-name="${escapeHtml(t.team.name)}" data-logo="${t.team.logo}">
+                <img src="${t.team.logo}" alt="">
+                <span>${escapeHtml(t.team.name)}</span>
+              </div>
+            `).join("");
+
+            searchResults.querySelectorAll(".notif-team-res-item").forEach(item => {
+              item.addEventListener("click", () => {
+                const teamObj = { id: Number(item.dataset.id), name: item.dataset.name, logo: item.dataset.logo };
+                if (!state.favoriteTeams.some(t => t.id === teamObj.id)) {
+                  state.favoriteTeams.push(teamObj);
+                  this.syncPreferences();
+                  toast(`${teamObj.name} adicionado aos favoritos!`, false);
+                }
+                searchInput.value = "";
+                searchResults.hidden = true;
+              });
+            });
+          } catch (err) {
+            searchResults.innerHTML = `<div style="padding:8px;font-size:0.75rem;color:var(--terracotta);">${escapeHtml(err.message)}</div>`;
+          }
+        }, 300);
+      });
+    }
+  }
+};
+
+// ============================================================
+// Formatador Rigoroso de Rodadas e Copas
+// ============================================================
 function formatRoundName(r) {
   if (!r) return "Partidas";
   let s = String(r).trim();
 
-  // 1. Caso seja rodada de liga (Regular Season, Round, Rodada)
   if (/Regular Season|Round|Rodada/i.test(s)) {
     const matchNum = s.match(/\d+/);
-    if (matchNum) {
-      return `Rodada ${matchNum[0]}`;
-    }
+    if (matchNum) return `Rodada ${matchNum[0]}`;
   }
 
-  // 2. Caso seja fase eliminatória de Copa
   const isLeg1 = /[-_ ]1$|\b1st leg\b|\bida\b/i.test(s);
   const isLeg2 = /[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(s);
   const legSuffix = isLeg1 ? " — Jogo de Ida" : isLeg2 ? " — Jogo de Volta" : "";
-
   const cleanPhase = s.replace(/[-_ ]\d+$/, "").trim();
 
   const dict = {
@@ -237,6 +493,7 @@ function parseHash() {
 
 function setActiveTab(name) {
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.nav === name));
+  document.querySelectorAll(".bottom-nav-item").forEach(t => t.classList.toggle("active", t.dataset.nav === name));
 }
 
 async function router() {
@@ -286,6 +543,8 @@ async function router() {
 
 window.addEventListener("hashchange", router);
 window.addEventListener("DOMContentLoaded", () => {
+  NotificationManager.init();
+
   document.querySelectorAll("[data-nav]").forEach(el => {
     el.addEventListener("click", () => {
       const nav = el.dataset.nav;
@@ -316,7 +575,7 @@ function renderHome() {
     <div class="page-head">
       <p class="page-eyebrow">Competições Oficiais</p>
       <h1 class="page-title">Escolha uma Liga</h1>
-      <p class="page-sub">Classificação detalhada, fases eliminatórias de ida e volta, estatísticas avançadas e comparador direto.</p>
+      <p class="page-sub">Classificação detalhada, rodadas completas, estatísticas avançadas e alertas de gols.</p>
     </div>
     <div class="league-grid">
       ${LEAGUES.map(l => `
@@ -339,7 +598,6 @@ async function renderLeague(leagueId, season) {
 
   app.innerHTML = `
     ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league.name, href: `#/liga/${leagueId}/${season}` }])}
-    
     <div class="page-head">
       <p class="page-eyebrow">${escapeHtml(league.country)}</p>
       <h1 class="page-title">${escapeHtml(league.name)}</h1>
@@ -458,7 +716,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
 }
 
 // ============================================================
-// View: Liga — Jogos Separados por Rodadas (Rodada 1, Rodada 2...)
+// View: Liga — Jogos Separados por Rodadas
 // ============================================================
 async function renderLeagueFixtures(leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "", isCup: false };
@@ -485,7 +743,6 @@ async function renderLeagueFixtures(leagueId, season) {
       return;
     }
 
-    // Extrair títulos de rodadas já formatados
     const uniqueRoundsMap = new Map();
     allFixtures.forEach(f => {
       const formattedTitle = formatRoundName(f.league?.round);
@@ -542,8 +799,6 @@ function renderGroupedFixtures(fixtures, isCup = false) {
   }
 
   const pairCountSeen = {};
-
-  // Agrupar por título formatado (ex: Rodada 1, Rodada 2...)
   const groups = {};
   fixtures.forEach(f => {
     let roundTitle = formatRoundName(f.league?.round);
@@ -551,7 +806,6 @@ function renderGroupedFixtures(fixtures, isCup = false) {
     groups[roundTitle].push(f);
   });
 
-  // Ordenar as rodadas numericamente
   const sortedGroupKeys = Object.keys(groups).sort((a, b) => extractRoundNumber(a) - extractRoundNumber(b));
 
   return sortedGroupKeys.map(roundTitle => {
@@ -568,7 +822,6 @@ function renderGroupedFixtures(fixtures, isCup = false) {
               const rawRound = f.league?.round || "";
               let legBadge = "";
               
-              // Apenas Copas exibem tags de IDA e VOLTA
               if (isCup) {
                 if (/[-_ ]1$|\b1st leg\b|\bida\b/i.test(rawRound)) {
                   legBadge = `<span class="leg-badge ida">IDA</span>`;
@@ -675,7 +928,7 @@ function renderTopList(list, metricFn, leagueId, season) {
 }
 
 // ============================================================
-// View: Perfil do Jogador (com Total Geral + Filtros de Competição)
+// View: Perfil do Jogador (Total Geral + Filtros)
 // ============================================================
 async function renderPlayer(playerId, teamId, leagueId, season) {
   app.innerHTML = `<div id="player-content">${skeletonTable()}</div>`;
@@ -692,7 +945,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
     const p = entry.player;
     const statsList = entry.statistics || [];
 
-    // Calcular Total Geral da Temporada (Somatório de todas as competições)
     const totalStats = {
       team: { name: statsList[0]?.team?.name || "Clube", logo: statsList[0]?.team?.logo },
       league: { id: "TOTAL", name: "Total da Temporada (Todas as Competições)" },
@@ -756,7 +1008,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
       }
     };
 
-    // Lista com Total Geral em primeiro lugar + competições individuais
     const allOptions = [totalStats, ...statsList];
 
     function renderPlayerStatsView(s, selectedIdx = 0) {
@@ -775,7 +1026,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           { label: p.name, href: "" }
         ])}
 
-        <!-- Perfil Principal do Atleta -->
         <div class="player-hero">
           <img class="player-avatar-large" src="${p.photo}" alt="">
           <div>
@@ -794,7 +1044,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           </div>
         </div>
 
-        <!-- Seletor de Competição / Total Geral -->
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;background:var(--glass-bg);border:1px solid var(--glass-border);padding:12px 16px;border-radius:var(--radius);flex-wrap:wrap;">
           <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;">FILTRO DE COMPETIÇÃO:</span>
           <select id="player-comp-select" style="background:var(--pitch-card);border:1px solid var(--line-strong);color:var(--chalk);padding:6px 14px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.85rem;">
@@ -802,7 +1051,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           </select>
         </div>
 
-        <!-- Cards de Métricas Principais -->
         <h2 class="section-title">Estatísticas na Temporada (${escapeHtml(s.league?.name || "Geral")})</h2>
         <div class="stat-grid">
           <div class="stat-card">
@@ -827,7 +1075,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           </div>
         </div>
 
-        <!-- Estatísticas Detalhadas -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;">
           <div class="card">
             <h2 class="section-title">Finalizações & Ataque</h2>
@@ -866,7 +1113,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 }
 
 // ============================================================
-// View: Time — Estatísticas & Últimos Jogos Clicáveis
+// View: Time — Estatísticas
 // ============================================================
 async function renderTeam(teamId, leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId);
@@ -891,16 +1138,20 @@ async function renderTeam(teamId, leagueId, season) {
     const gaAvg = parseFloat(stats.goals.against.average.total) || 0;
     const played = stats.fixtures.played.total;
     const winPct = played ? Math.round((stats.fixtures.wins.total / played) * 100) : 0;
+    const isFav = state.favoriteTeams.some(fav => fav.id === teamId);
 
     content.innerHTML = `
       ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league?.name || "Liga", href: `#/liga/${leagueId}/${season}` }, { label: t.name, href: "" }])}
       
-      <div class="team-header">
-        <img src="${t.logo}" alt="">
+      <div class="team-header" style="display:flex;align-items:center;gap:16px;margin-bottom:20px;background:var(--pitch-card);border:1px solid var(--pitch-border);padding:16px;border-radius:var(--radius-lg);flex-wrap:wrap;">
+        <img src="${t.logo}" alt="" style="width:64px;height:64px;object-fit:contain;">
         <div>
           <p class="page-eyebrow">${escapeHtml(league?.name || "")} · ${season}</p>
-          <h1 class="page-title">${escapeHtml(t.name)}</h1>
+          <h1 class="page-title" style="margin:0;">${escapeHtml(t.name)}</h1>
         </div>
+        <button class="btn ${isFav ? 'ghost' : ''} small" id="btn-toggle-team-fav" style="margin-left:auto;">
+          ${isFav ? '⭐ Seguindo Alertas' : '🔔 Seguir Time'}
+        </button>
       </div>
 
       ${subNav([
@@ -943,6 +1194,18 @@ async function renderTeam(teamId, leagueId, season) {
       </div>
     `;
 
+    document.getElementById("btn-toggle-team-fav").addEventListener("click", () => {
+      if (state.favoriteTeams.some(fav => fav.id === teamId)) {
+        state.favoriteTeams = state.favoriteTeams.filter(fav => fav.id !== teamId);
+        toast(`Você deixou de seguir o ${t.name}.`);
+      } else {
+        state.favoriteTeams.push({ id: teamId, name: t.name, logo: t.logo });
+        toast(`🔔 Você receberá notificações de gols do ${t.name}!`, false);
+      }
+      NotificationManager.syncPreferences();
+      renderTeam(teamId, leagueId, season);
+    });
+
     document.getElementById("set-slot-a").addEventListener("click", () => setCompareSlot("a", t, leagueId, league?.name, season));
     document.getElementById("set-slot-b").addEventListener("click", () => setCompareSlot("b", t, leagueId, league?.name, season));
   } catch (err) {
@@ -976,11 +1239,11 @@ async function renderSquad(teamId, leagueId, season) {
 
     content.innerHTML = `
       ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: squad.team.name, href: `#/time/${teamId}/${leagueId}/${season}` }, { label: "Elenco", href: "" }])}
-      <div class="team-header">
-        <img src="${squad.team.logo}" alt="">
+      <div class="team-header" style="display:flex;align-items:center;gap:16px;margin-bottom:20px;background:var(--pitch-card);border:1px solid var(--pitch-border);padding:16px;border-radius:var(--radius-lg);">
+        <img src="${squad.team.logo}" alt="" style="width:54px;height:54px;object-fit:contain;">
         <div>
           <p class="page-eyebrow">${escapeHtml(league?.name || "")}</p>
-          <h1 class="page-title">${escapeHtml(squad.team.name)}</h1>
+          <h1 class="page-title" style="margin:0;">${escapeHtml(squad.team.name)}</h1>
         </div>
       </div>
       ${subNav([
@@ -1205,7 +1468,6 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     const time = new Date(fx.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     
     const isLive = ["1H", "2H", "HT", "ET", "P", "LIVE"].includes(fx.fixture.status.short);
-    
     setActiveTab(isLive ? "live" : "home");
 
     const statusText = isLive 
@@ -1231,7 +1493,6 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         ` : ""}
       </div>
 
-      <!-- Placar Principal com Gols e Minutos -->
       <div class="fixture-hero">
         <div class="hero-team-block">
           <img src="${fx.teams.home.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
@@ -1275,17 +1536,14 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         </div>
       </div>
 
-      <!-- Estatísticas do Jogo em Tempo Real -->
       <div id="fixture-stats-section" style="margin-bottom:24px;">
         ${renderLiveMatchStats(statsArr, fx)}
       </div>
 
-      <!-- Campo Tático 2D com Jogadores Clicáveis -->
       <div id="fixture-lineups-section" style="margin-bottom:24px;">
         ${renderFixtureLineups(lineupsArr, events, fx.league.id, fx.league.season)}
       </div>
 
-      <!-- Previsão Oficial -->
       ${pred ? `
         <div style="margin-bottom:24px;">
           <h2 class="section-title">Previsão Oficial da API</h2>
@@ -1299,7 +1557,6 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         </div>
       ` : ""}
 
-      <!-- Linha do Tempo e Eventos -->
       <div id="fixture-events-section">
         ${renderFixtureEvents(events, fx)}
       </div>
@@ -1393,7 +1650,6 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season) {
   }
 
   const playerEventsMap = {};
-
   events.forEach(e => {
     const min = e.time?.elapsed ?? 0;
     if (e.type === "Goal" && e.detail !== "Missed Penalty") {
@@ -1464,7 +1720,6 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season) {
               </div>
             </div>
 
-            <!-- Mini Campo 2D -->
             <div class="tactical-pitch">
               <div class="pitch-lines">
                 <div class="pitch-half-line"></div>
@@ -1494,7 +1749,6 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season) {
               </div>
             </div>
 
-            <!-- Banco de Reservas -->
             <p class="stat-label" style="margin-top:16px;">Banco de Reservas</p>
             <ul style="list-style:none;padding:0;margin:0;font-size:0.82rem;display:flex;flex-direction:column;gap:3px;">
               ${l.substitutes.map(s => {

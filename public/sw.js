@@ -1,11 +1,16 @@
-// Service Worker do Apuração PWA
-const CACHE_NAME = "apuracao-cache-v1";
+// ============================================================
+// Service Worker — Apuração PWA & Push Notifications
+// ============================================================
+
+const CACHE_NAME = "apuracao-cache-v2";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
   "/style.css",
   "/app.js",
-  "/manifest.json"
+  "/manifest.json",
+  "/icon-192.png",
+  "/icon-512.png"
 ];
 
 self.addEventListener("install", (e) => {
@@ -29,11 +34,66 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  // Chamadas de API sempre buscam da rede
-  if (e.request.url.includes("/api/")) {
+  if (e.request.url.includes("/api/") || e.request.url.includes("supabase.co")) {
     return;
   }
   e.respondWith(
     caches.match(e.request).then((res) => res || fetch(e.request))
+  );
+});
+
+// ---------- Recebimento de Notificação Push (Com App Fechado) ----------
+self.addEventListener("push", (event) => {
+  let data = {
+    title: "⚽ Apuração Futebol",
+    body: "Novo evento na partida!",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    data: { url: "/#/" }
+  };
+
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch (e) {
+    if (event.data) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || "/icon-192.png",
+    badge: data.badge || "/icon-192.png",
+    vibrate: [200, 100, 200, 100, 200],
+    data: data.data || { url: "/#/" },
+    tag: data.tag || "match-event-" + Date.now(),
+    renotify: true,
+    requireInteraction: false
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// ---------- Clique na Notificação (Abre a tela do jogo) ----------
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/#/";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
   );
 });
