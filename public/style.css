@@ -8,7 +8,7 @@
   --pitch-card-elevated: #132238;
   --pitch-border: rgba(56, 189, 248, 0.15);
   
-  --line-faint: rgba(255, 255, 255, 0.05);
+  --line-faint: rgba(255, 255, 255, 0.06);
   --line-strong: rgba(56, 189, 248, 0.25);
   
   --chalk: #F0F4F8;
@@ -22,10 +22,10 @@
   --terracotta: #F43F5E;       /* Vermelho Neon */
   --terracotta-soft: rgba(244, 63, 94, 0.15);
   
-  --glass-bg: rgba(13, 27, 42, 0.75);
+  --glass-bg: rgba(13, 27, 42, 0.85);
   --glass-border: rgba(56, 189, 248, 0.2);
   
-  --font-display: 'Cinzel', Georgia, serif;
+  --font-display: 'Outfit', -apple-system, sans-serif;
   --font-body: 'Outfit', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   
@@ -54,7 +54,7 @@ body {
     radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.12), transparent 70%),
     linear-gradient(180deg, #07111E 0%, #050B14 100%);
   background-attachment: fixed;
-  padding-bottom: 30px;
+  padding-bottom: 40px;
 }
 
 .app-wrapper {
@@ -63,7 +63,9 @@ body {
   min-height: 100vh;
 }
 
-/* Topbar */
+/* ============================================================
+   Topbar Desktop & Container
+   ============================================================ */
 .topbar {
   position: sticky;
   top: 0;
@@ -101,8 +103,8 @@ body {
 .brand-name {
   font-family: var(--font-display);
   font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 2px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
   background: linear-gradient(135deg, #FFFFFF 30%, var(--gold) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -117,7 +119,7 @@ body {
   background: transparent;
   border: 1px solid transparent;
   color: var(--chalk-dim);
-  padding: 8px 16px;
+  padding: 8px 18px;
   border-radius: var(--radius-sm);
   font-family: var(--font-body);
   font-size: 0.9rem;
@@ -137,7 +139,7 @@ body {
 .tab.active {
   color: #07111E;
   background: var(--gold);
-  font-weight: 600;
+  font-weight: 700;
   box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
 }
 
@@ -207,7 +209,6 @@ body {
   box-shadow: 0 0 8px #10B981;
 }
 
-/* Modal de Notificações */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -316,14 +317,8 @@ body {
   border-bottom: 1px solid var(--line-faint);
   font-size: 0.85rem;
 }
-.notif-team-res-item:hover {
-  background: var(--gold-soft);
-}
-.notif-team-res-item img {
-  width: 22px;
-  height: 22px;
-  object-fit: contain;
-}
+.notif-team-res-item:hover { background: var(--gold-soft); }
+.notif-team-res-item img { width: 22px; height: 22px; object-fit: contain; }
 
 .notif-fav-pills-list {
   display: flex;
@@ -575,7 +570,9 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   font-weight: 600;
 }
 
-/* Cards & Grids */
+/* ============================================================
+   Cards & Layouts
+   ============================================================ */
 .card {
   background: var(--pitch-card);
   border: 1px solid var(--pitch-border);
@@ -585,11 +582,13 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 }
 
 .section-title {
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--gold);
   margin: 24px 0 12px 0;
-  letter-spacing: 0.5px;
 }
 
 .league-grid {
@@ -635,7 +634,42 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   margin-top: 2px;
 }
 
-/* Tabela de Classificação */
+/* ============================================================
+   Cards de Elenco / Jogadores (CORREÇÃO DE LAYOUT)
+   ============================================================ */
+.player-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 14px 10px;
+  text-decoration: none;
+  color: var(--chalk);
+  background: var(--pitch-card);
+  border: 1px solid var(--pitch-border);
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+.player-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--gold);
+  box-shadow: var(--shadow-glow);
+}
+.player-card img {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--pitch-card-elevated);
+  margin-bottom: 8px;
+  border: 2px solid var(--line-strong);
+  display: block;
+}
+
+/* ============================================================
+   Tabela de Classificação
+   ============================================================ */
 .table-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -710,14 +744,16 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 .form-pill.D { background: rgba(255, 255, 255, 0.15); color: var(--chalk-dim); }
 .form-pill.L { background: rgba(244, 63, 94, 0.25); color: var(--terracotta); }
 
-/* Jogos e Rodadas */
+/* ============================================================
+   Jogos e Rodadas
+   ============================================================ */
 .fixture-group-section { margin-bottom: 24px; }
 .fixture-round-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-display);
-  font-size: 1.05rem;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--chalk);
   margin-bottom: 10px;
@@ -797,7 +833,9 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   color: var(--gold);
 }
 
-/* Placar Hero */
+/* ============================================================
+   Placar Hero
+   ============================================================ */
 .fixture-hero {
   background: var(--pitch-card);
   border: 1px solid var(--pitch-border);
@@ -839,7 +877,9 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   font-weight: 700;
 }
 
-/* Perfil do Jogador */
+/* ============================================================
+   Perfil do Jogador
+   ============================================================ */
 .player-hero {
   display: flex;
   align-items: center;
@@ -914,7 +954,9 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   justify-content: space-between;
 }
 
-/* Campo Tático 2D */
+/* ============================================================
+   Campo Tático 2D
+   ============================================================ */
 .tactical-pitch {
   position: relative;
   width: 100%;
@@ -1038,7 +1080,9 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   padding: 1px 2px;
 }
 
-/* FIFA Dashboard */
+/* ============================================================
+   FIFA Dashboard
+   ============================================================ */
 .fifa-dashboard {
   background: var(--pitch-card);
   border: 1px solid var(--pitch-border);

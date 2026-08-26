@@ -1,5 +1,5 @@
 // ============================================================
-// APURAÇÃO — app.js (com Integração Push & Supabase)
+// APURAÇÃO — app.js (com Estatísticas Pré-Jogo & Correção Web)
 // ============================================================
 
 const FN_URL = "/api/football";
@@ -716,7 +716,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
 }
 
 // ============================================================
-// View: Liga — Jogos Separados por Rodadas
+// View: Liga — Jogos
 // ============================================================
 async function renderLeagueFixtures(leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "", isCup: false };
@@ -928,7 +928,7 @@ function renderTopList(list, metricFn, leagueId, season) {
 }
 
 // ============================================================
-// View: Perfil do Jogador (Total Geral + Filtros)
+// View: Perfil do Jogador
 // ============================================================
 async function renderPlayer(playerId, teamId, leagueId, season) {
   app.innerHTML = `<div id="player-content">${skeletonTable()}</div>`;
@@ -1214,7 +1214,7 @@ async function renderTeam(teamId, leagueId, season) {
 }
 
 // ============================================================
-// View: Time — Elenco
+// View: Time — Elenco (Com Cards Perfeitamente Alinhados)
 // ============================================================
 async function renderSquad(teamId, leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId);
@@ -1259,9 +1259,9 @@ async function renderSquad(teamId, leagueId, season) {
           <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:12px;margin-bottom:22px;">
             ${players.map(p => `
               <a class="card player-card" href="#/jogador/${p.id}/${teamId}/${leagueId}/${season}" title="Ver estatísticas de ${escapeHtml(p.name)}">
-                <img src="${p.photo}" alt="" loading="lazy">
+                <img src="${p.photo}" alt="" loading="lazy" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
                 <div style="font-family:var(--font-mono);color:var(--gold);font-size:0.8rem;font-weight:700;">${p.number ?? "-"}</div>
-                <div style="font-size:0.86rem;margin-top:3px;font-weight:500;color:var(--chalk);">${escapeHtml(p.name)}</div>
+                <div style="font-size:0.86rem;margin-top:3px;font-weight:600;color:var(--chalk);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.name)}</div>
                 <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);margin-top:2px;">${p.age ? p.age + " anos" : ""}</div>
               </a>`
             ).join("")}
@@ -1436,7 +1436,7 @@ function startLiveAutoRefresh(refreshFn) {
 }
 
 // ============================================================
-// View: Detalhe do Jogo
+// View: Detalhe do Jogo (Com Estatísticas Pré-Jogo vs Ao Vivo)
 // ============================================================
 async function renderFixture(fixtureId, isSilentRefresh = false) {
   if (!isSilentRefresh) {
@@ -1477,6 +1477,20 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     const homeGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.home.id);
     const awayGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.away.id);
 
+    // Buscar estatísticas pré-jogo se a partida ainda não começou
+    let preMatchSection = "";
+    if (statsArr.length < 2) {
+      try {
+        const [statsA, statsB] = await Promise.all([
+          apiGet("teams/statistics", { league: fx.league.id, season: fx.league.season, team: fx.teams.home.id }, 30),
+          apiGet("teams/statistics", { league: fx.league.id, season: fx.league.season, team: fx.teams.away.id }, 30)
+        ]);
+        if (statsA?.team && statsB?.team) {
+          preMatchSection = renderPreMatchStatsComparison(statsA, statsB, fx);
+        }
+      } catch { /* fallback */ }
+    }
+
     content.innerHTML = `
       ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: fx.league.name, href: `#/liga/${fx.league.id}/${fx.league.season}` }, { label: "Partida", href: "" }])}
       
@@ -1493,10 +1507,11 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         ` : ""}
       </div>
 
+      <!-- Placar Principal -->
       <div class="fixture-hero">
         <div class="hero-team-block">
           <img src="${fx.teams.home.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
-          <span style="font-size:1.15rem;font-family:var(--font-display);font-weight:600;">${escapeHtml(fx.teams.home.name)}</span>
+          <span style="font-size:1.15rem;font-weight:700;">${escapeHtml(fx.teams.home.name)}</span>
           
           ${homeGoals.length ? `
             <div class="hero-goals-list">
@@ -1515,12 +1530,12 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           <div style="font-family:var(--font-mono);font-size:2.4rem;font-weight:700;letter-spacing:4px;">
             ${fx.goals.home ?? "-"} : ${fx.goals.away ?? "-"}
           </div>
-          <div style="font-size:0.75rem;text-transform:uppercase;margin-top:6px;">${statusText}</div>
+          <div style="font-size:0.75rem;text-transform:uppercase;margin-top:6px;font-weight:600;color:var(--gold);">${statusText}</div>
         </div>
 
         <div class="hero-team-block">
           <img src="${fx.teams.away.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
-          <span style="font-size:1.15rem;font-family:var(--font-display);font-weight:600;">${escapeHtml(fx.teams.away.name)}</span>
+          <span style="font-size:1.15rem;font-weight:700;">${escapeHtml(fx.teams.away.name)}</span>
           
           ${awayGoals.length ? `
             <div class="hero-goals-list">
@@ -1536,14 +1551,21 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         </div>
       </div>
 
+      <!-- Estatísticas da Partida (Pré-Jogo ou Ao Vivo) -->
       <div id="fixture-stats-section" style="margin-bottom:24px;">
-        ${renderLiveMatchStats(statsArr, fx)}
+        ${statsArr.length >= 2 ? renderLiveMatchStats(statsArr, fx) : (preMatchSection || `
+          <div class="card" style="text-align:center;padding:24px;color:var(--chalk-dim);">
+            <p style="margin:0;">Estatísticas detalhadas da partida serão disponibilizadas assim que a bola rolar.</p>
+          </div>
+        `)}
       </div>
 
+      <!-- Campo Tático 2D -->
       <div id="fixture-lineups-section" style="margin-bottom:24px;">
         ${renderFixtureLineups(lineupsArr, events, fx.league.id, fx.league.season)}
       </div>
 
+      <!-- Previsão Oficial -->
       ${pred ? `
         <div style="margin-bottom:24px;">
           <h2 class="section-title">Previsão Oficial da API</h2>
@@ -1557,6 +1579,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         </div>
       ` : ""}
 
+      <!-- Linha do Tempo -->
       <div id="fixture-events-section">
         ${renderFixtureEvents(events, fx)}
       </div>
@@ -1570,13 +1593,59 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
   }
 }
 
+// Estatísticas Pré-Jogo baseadas na campanha dos times no campeonato
+function renderPreMatchStatsComparison(statsA, statsB, fx) {
+  const pA = statsA.fixtures.played.total || 1;
+  const pB = statsB.fixtures.played.total || 1;
+
+  const winPctA = Math.round((statsA.fixtures.wins.total / pA) * 100);
+  const winPctB = Math.round((statsB.fixtures.wins.total / pB) * 100);
+
+  const gfAvgA = parseFloat(statsA.goals.for.average.total) || 0;
+  const gfAvgB = parseFloat(statsB.goals.for.average.total) || 0;
+  const gaAvgA = parseFloat(statsA.goals.against.average.total) || 0;
+  const gaAvgB = parseFloat(statsB.goals.against.average.total) || 0;
+
+  const metrics = [
+    { label: "Aproveitamento no Campeonato", valA: `${winPctA}%`, valB: `${winPctB}%`, numA: winPctA, numB: winPctB, higherWins: true },
+    { label: "Média de Gols Pró / Jogo", valA: gfAvgA.toFixed(2), valB: gfAvgB.toFixed(2), numA: gfAvgA, numB: gfAvgB, higherWins: true },
+    { label: "Média de Gols Sofridos / Jogo", valA: gaAvgA.toFixed(2), valB: gaAvgB.toFixed(2), numA: gaAvgA, numB: gaAvgB, higherWins: false },
+    { label: "Jogos sem Sofrer Gols", valA: statsA.clean_sheet.total, valB: statsB.clean_sheet.total, numA: statsA.clean_sheet.total, numB: statsB.clean_sheet.total, higherWins: true },
+    { label: "Total de Vitórias", valA: statsA.fixtures.wins.total, valB: statsB.fixtures.wins.total, numA: statsA.fixtures.wins.total, numB: statsB.fixtures.wins.total, higherWins: true }
+  ];
+
+  return `
+    <h2 class="section-title">Desempenho dos Times no Campeonato (Pré-Jogo)</h2>
+    <div class="card" style="padding:16px;">
+      <div class="fifa-stats-center" style="background:transparent;border:none;">
+        ${metrics.map(m => {
+          const max = Math.max(m.numA, m.numB, 1);
+          const aWins = m.higherWins ? m.numA > m.numB : m.numA < m.numB;
+          const bWins = m.higherWins ? m.numB > m.numA : m.numB < m.numA;
+
+          return `
+            <div class="fifa-stat-row">
+              <div class="fifa-val a ${aWins ? 'highlight' : ''}">
+                <span>${m.valA}</span>
+              </div>
+              <div class="fifa-label">${escapeHtml(m.label)}</div>
+              <div class="fifa-val b ${bWins ? 'highlight' : ''}">
+                <span>${m.valB}</span>
+              </div>
+            </div>
+            <div style="position:relative;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin:0 12px 8px;">
+              <div style="position:absolute;right:50%;height:100%;background:var(--gold);width:${(m.numA / max) * 50}%;"></div>
+              <div style="position:absolute;left:50%;height:100%;background:var(--terracotta);width:${(m.numB / max) * 50}%;"></div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderLiveMatchStats(statsArr, fx) {
-  if (!statsArr || statsArr.length < 2) {
-    return `
-      <div class="card" style="text-align:center;padding:24px;color:var(--chalk-dim);">
-        <p style="margin:0;">Estatísticas detalhadas da partida serão disponibilizadas após o início do jogo.</p>
-      </div>`;
-  }
+  if (!statsArr || statsArr.length < 2) return "";
 
   const [homeStats, awayStats] = statsArr;
   const statMap = {
@@ -1615,13 +1684,11 @@ function renderLiveMatchStats(statsArr, fx) {
     return `
       <div class="fifa-stat-row">
         <div class="fifa-val a ${aWins ? 'highlight' : ''}">
-          ${aWins ? '<span class="fifa-bar a"></span>' : ''}
           <span>${va}</span>
         </div>
         <div class="fifa-label">${escapeHtml(label)}</div>
         <div class="fifa-val b ${bWins ? 'highlight' : ''}">
           <span>${vb}</span>
-          ${bWins ? '<span class="fifa-bar b"></span>' : ''}
         </div>
       </div>
       <div style="position:relative;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin:0 12px 6px;">
@@ -1715,7 +1782,7 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season) {
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
               <img src="${l.team.logo}" alt="" style="width:34px;height:34px;object-fit:contain;">
               <div>
-                <div style="font-family:var(--font-display);font-size:1.15rem;font-weight:600;">${escapeHtml(l.team.name)}</div>
+                <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;">${escapeHtml(l.team.name)}</div>
                 <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);">${escapeHtml(formation)} · Téc. ${escapeHtml(l.coach?.name || "-")}</div>
               </div>
             </div>
@@ -2132,13 +2199,11 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
           ${statRows.map(r => `
             <div class="fifa-stat-row">
               <div class="fifa-val a ${r.aWins ? 'highlight' : ''}">
-                ${r.aWins ? '<span class="fifa-bar a"></span>' : ''}
                 <span>${r.valA}</span>
               </div>
               <div class="fifa-label">${r.label}</div>
               <div class="fifa-val b ${r.bWins ? 'highlight' : ''}">
                 <span>${r.valB}</span>
-                ${r.bWins ? '<span class="fifa-bar b"></span>' : ''}
               </div>
             </div>`
           ).join("")}
