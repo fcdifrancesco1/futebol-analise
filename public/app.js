@@ -1127,25 +1127,31 @@ function renderFixtureLineups(lineupsArr) {
 
   return `
     <h2 class="section-title">Escalações & Campo Tático 2D</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;">
       ${lineupsArr.map((l, teamIdx) => {
         const isAway = teamIdx === 1;
         const formation = l.formation || "4-4-2";
         const formLines = formation.split("-").map(Number);
         
+        // Separar jogadores por linhas táticas (Goleiro, Defesa, Meio, Ataque)
         const rows = [];
         let cursor = 1;
-        rows.push([l.startXI[0]]);
+        rows.push([l.startXI[0]]); // Goleiro
         formLines.forEach(count => {
           rows.push(l.startXI.slice(cursor, cursor + count));
           cursor += count;
         });
 
+        // Caso a formação não cubra os 11 jogadores
+        if (cursor < l.startXI.length) {
+          rows.push(l.startXI.slice(cursor));
+        }
+
         const displayRows = isAway ? [...rows].reverse() : rows;
 
         return `
           <div class="card">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
               <img src="${l.team.logo}" alt="" style="width:34px;height:34px;object-fit:contain;">
               <div>
                 <div style="font-family:var(--font-display);font-size:1.15rem;font-weight:600;">${escapeHtml(l.team.name)}</div>
@@ -1154,21 +1160,27 @@ function renderFixtureLineups(lineupsArr) {
             </div>
 
             <!-- Mini Campo 2D -->
-            <div class="tactical-pitch ${isAway ? 'pitch-away' : ''}">
-              <div class="pitch-half-line"></div>
-              <div class="pitch-center-circle"></div>
-              <div class="pitch-penalty-area"></div>
+            <div class="tactical-pitch">
+              <div class="pitch-lines">
+                <div class="pitch-half-line"></div>
+                <div class="pitch-center-circle"></div>
+                <div class="pitch-center-spot"></div>
+                <div class="pitch-penalty-area top"></div>
+                <div class="pitch-penalty-area bottom"></div>
+              </div>
               
-              ${displayRows.map(rowPlayers => `
-                <div class="pitch-row">
-                  ${rowPlayers.map(p => `
-                    <div class="pitch-player" title="${escapeHtml(p.player.name)} (#${p.player.number ?? ''})">
-                      <div class="pitch-player-badge">${p.player.number ?? ""}</div>
-                      <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
-                    </div>`
-                  ).join("")}
-                </div>`
-              ).join("")}
+              <div class="pitch-players-layer">
+                ${displayRows.map(rowPlayers => `
+                  <div class="pitch-row">
+                    ${rowPlayers.map(p => `
+                      <div class="pitch-player" title="${escapeHtml(p.player.name)} (#${p.player.number ?? ''})">
+                        <div class="pitch-player-badge ${isAway ? 'away' : 'home'}">${p.player.number ?? ""}</div>
+                        <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
+                      </div>`
+                    ).join("")}
+                  </div>`
+                ).join("")}
+              </div>
             </div>
 
             <!-- Banco de Reservas -->
@@ -1181,7 +1193,6 @@ function renderFixtureLineups(lineupsArr) {
     </div>
   `;
 }
-
 function renderFixtureEvents(events, fx) {
   if (!events || !events.length) return "";
 
