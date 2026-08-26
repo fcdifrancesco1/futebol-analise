@@ -1,6 +1,6 @@
 // ============================================================
 // APURAÇÃO — app.js
-// Separação de Jogos de Ida e Volta em Copas + Dashboard EA FC / FIFA
+// Estatísticas Ao Vivo em Tempo Real + Campo 2D + Auto-Refresh Inteligente
 // ============================================================
 
 const FN_URL = "/api/football";
@@ -42,7 +42,7 @@ const state = {
   compareSlots: { a: null, b: null },
   homeSide: null,
   liveTimer: null,
-  liveIntervalSeconds: 60,
+  liveIntervalSeconds: 45,
   currentTableFilter: "all",
   fifaTab: "summary",
   lastComparisonData: null,
@@ -177,7 +177,6 @@ function formatRoundName(r) {
   return s + legSuffix;
 }
 
-// ---------- Componentes Visuais Reutilizáveis ----------
 function skeletonTable() {
   return `
     <div class="card skeleton">
@@ -450,7 +449,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
 }
 
 // ============================================================
-// View: Liga — Jogos (com Separação de Fases e Ida / Volta)
+// View: Liga — Jogos
 // ============================================================
 async function renderLeagueFixtures(leagueId, season) {
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
@@ -486,7 +485,6 @@ async function renderLeagueFixtures(leagueId, season) {
   }
 }
 
-// Agrupador de jogos por fase e detector de Ida / Volta com badge junto à data
 function renderGroupedFixtures(fixtures) {
   if (!fixtures || !fixtures.length) return `<div class="card"><p style="color:var(--chalk-dim);">Nenhum jogo encontrado.</p></div>`;
 
@@ -541,7 +539,6 @@ function renderGroupedFixtures(fixtures) {
 
             return `
               <a class="fixture-row" href="#/jogo/${f.fixture.id}">
-                <!-- Data, Hora e Badge IDA/VOLTA juntos no lado esquerdo -->
                 <div class="fixture-date-col">
                   <span class="fixture-date">${date}<br>${time}</span>
                   ${legBadge}
@@ -876,7 +873,7 @@ async function renderLive() {
 
   document.getElementById("btn-force-refresh").addEventListener("click", () => fetchLiveMatches(true));
   await fetchLiveMatches();
-  startLiveAutoRefresh();
+  startLiveAutoRefresh(() => fetchLiveMatches(true));
 }
 
 async function fetchLiveMatches(isForced = false) {
@@ -901,15 +898,15 @@ async function fetchLiveMatches(isForced = false) {
             return `
               <a class="fixture-row" href="#/jogo/${f.fixture.id}">
                 <span class="fixture-date" style="color:var(--gold);font-weight:700;">${f.fixture.status.elapsed}'<br><small style="color:var(--chalk-dim);">${escapeHtml(league?.name || "")}</small></span>
-                <span class="fixture-team-item right">
+                <div class="fixture-team-item right">
                   <span>${escapeHtml(f.teams.home.name)}</span>
                   <img src="${f.teams.home.logo}" alt="">
-                </span>
+                </div>
                 <span class="fixture-score">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>
-                <span class="fixture-team-item">
+                <div class="fixture-team-item">
                   <img src="${f.teams.away.logo}" alt="">
                   <span>${escapeHtml(f.teams.away.name)}</span>
-                </span>
+                </div>
               </a>`;
           }).join("")}
         </div>
@@ -919,7 +916,7 @@ async function fetchLiveMatches(isForced = false) {
   }
 }
 
-function startLiveAutoRefresh() {
+function startLiveAutoRefresh(refreshFn) {
   let remaining = state.liveIntervalSeconds;
   const bar = document.getElementById("live-progress-bar");
   
@@ -928,81 +925,267 @@ function startLiveAutoRefresh() {
     if (bar) bar.style.width = `${(remaining / state.liveIntervalSeconds) * 100}%`;
     if (remaining <= 0) {
       remaining = state.liveIntervalSeconds;
-      fetchLiveMatches(true);
+      refreshFn();
     }
   }, 1000);
 }
 
 // ============================================================
-// View: Detalhe do Jogo
+// View: Detalhe do Jogo (COM ESTATÍSTICAS AO VIVO + CAMPO 2D COMPLETO)
 // ============================================================
-async function renderFixture(fixtureId) {
-  app.innerHTML = `<div id="fixture-content">${skeletonTable()}</div>`;
-  const content = document.getElementById("fixture-content");
+async function renderFixture(fixtureId, isSilentRefresh = false) {
+  if (!isSilentRefresh) {
+    app.innerHTML = `<div id="fixture-content">${skeletonTable()}</div>`;
+  }
+  const content = document.getElementById("fixture-content") || app;
 
   try {
-    const fxResponse = await apiGet("fixtures", { id: fixtureId }, 5);
-    const fx = fxResponse?.[0];
+    // Busca dados com TTL zerado/baixo para permitir acompanhamento ao vivo
+    const [fxResponse, eventsRes, statsRes, lineupsRes, predictionsRes] = await Promise.allSettled([
+      apiGet("fixtures", { id: fixtureId }, 0.5),
+      apiGet("fixtures/events", { fixture: fixtureId }, 0.5),
+      apiGet("fixtures/statistics", { fixture: fixtureId }, 0.5),
+      apiGet("fixtures/lineups", { fixture: fixtureId }, 30), // Escalação muda pouco, cache de 30 min
+      apiGet("predictions", { fixture: fixtureId }, 60),
+    ]);
+
+    const fx = fxResponse.status === "fulfilled" ? fxResponse.value?.[0] : null;
     if (!fx) {
-      content.innerHTML = errorBox("Jogo não encontrado.");
+      content.innerHTML = errorBox("Jogo não encontrado ou indisponível.");
       return;
     }
 
-    const [events, predictions] = await Promise.allSettled([
-      apiGet("fixtures/events", { fixture: fixtureId }, 5),
-      apiGet("predictions", { fixture: fixtureId }, 15),
-    ]);
+    const events = eventsRes.status === "fulfilled" ? eventsRes.value : [];
+    const statsArr = statsRes.status === "fulfilled" ? statsRes.value : [];
+    const lineupsArr = lineupsRes.status === "fulfilled" ? lineupsRes.value : [];
+    const pred = predictionsRes.status === "fulfilled" ? predictionsRes.value?.[0] : null;
 
     const date = new Date(fx.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
     const time = new Date(fx.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    
+    // Status ao vivo
+    const isLive = ["1H", "2H", "HT", "ET", "P", "LIVE"].includes(fx.fixture.status.short);
+    const statusText = isLive 
+      ? `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${fx.fixture.status.elapsed ?? ""}' (${fx.fixture.status.long})</span>` 
+      : escapeHtml(fx.fixture.status.long);
 
     content.innerHTML = `
       ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: fx.league.name, href: `#/liga/${fx.league.id}/${fx.league.season}` }, { label: "Partida", href: "" }])}
       
-      <div class="page-head">
-        <p class="page-eyebrow">${escapeHtml(fx.league.name)} · ${formatRoundName(fx.league.round)} · ${date} · ${time}${fx.fixture.venue?.name ? " · " + escapeHtml(fx.fixture.venue.name) : ""}</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+        <p class="page-eyebrow" style="margin:0;">${escapeHtml(fx.league.name)} · ${formatRoundName(fx.league.round)} · ${date} · ${time}${fx.fixture.venue?.name ? " · " + escapeHtml(fx.fixture.venue.name) : ""}</p>
+        ${isLive ? `
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);padding:4px 12px;border-radius:999px;border:1px solid var(--gold-soft);">
+            <span class="pulse-dot"></span>
+            <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">Auto-refresh (45s)</span>
+            <div style="width:40px;height:4px;background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden;">
+              <div style="height:100%;background:var(--gold);width:100%;" id="live-progress-bar"></div>
+            </div>
+          </div>
+        ` : ""}
       </div>
 
+      <!-- Placar Principal -->
       <div class="fixture-hero" style="display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);padding:22px;margin-bottom:22px;text-align:center;">
         <div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-family:var(--font-display);">
-          <img src="${fx.teams.home.logo}" alt="" style="width:52px;height:52px;object-fit:contain;">
-          <span>${escapeHtml(fx.teams.home.name)}</span>
+          <img src="${fx.teams.home.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
+          <span style="font-size:1.15rem;">${escapeHtml(fx.teams.home.name)}</span>
         </div>
         <div>
-          <div style="font-family:var(--font-mono);font-size:2.2rem;font-weight:700;">${fx.goals.home ?? "-"} : ${fx.goals.away ?? "-"}</div>
-          <div style="font-size:0.75rem;color:var(--chalk-dim);text-transform:uppercase;margin-top:4px;">${escapeHtml(fx.fixture.status.long)}</div>
+          <div style="font-family:var(--font-mono);font-size:2.4rem;font-weight:700;letter-spacing:4px;">
+            ${fx.goals.home ?? "-"} : ${fx.goals.away ?? "-"}
+          </div>
+          <div style="font-size:0.75rem;text-transform:uppercase;margin-top:6px;">${statusText}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-family:var(--font-display);">
-          <img src="${fx.teams.away.logo}" alt="" style="width:52px;height:52px;object-fit:contain;">
-          <span>${escapeHtml(fx.teams.away.name)}</span>
+          <img src="${fx.teams.away.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
+          <span style="font-size:1.15rem;">${escapeHtml(fx.teams.away.name)}</span>
         </div>
       </div>
 
-      <div id="fx-predictions"></div>
-      <div id="fx-events"></div>
+      <!-- 1. Estatísticas do Jogo em Tempo Real -->
+      <div id="fixture-stats-section" style="margin-bottom:24px;">
+        ${renderLiveMatchStats(statsArr, fx)}
+      </div>
+
+      <!-- 2. Campo Tático 2D e Escalações -->
+      <div id="fixture-lineups-section" style="margin-bottom:24px;">
+        ${renderFixtureLineups(lineupsArr)}
+      </div>
+
+      <!-- 3. Previsão Oficial -->
+      ${pred ? `
+        <div style="margin-bottom:24px;">
+          <h2 class="section-title">Previsão Oficial da API</h2>
+          ${(() => {
+            const pct = pred.predictions.percent;
+            const probA = parseInt(pct.home);
+            const probB = parseInt(pct.away);
+            const probDraw = 100 - probA - probB;
+            return renderPitchBar(fx.teams.home, fx.teams.away, { probA, probB, probDraw });
+          })()}
+        </div>
+      ` : ""}
+
+      <!-- 4. Linha do Tempo e Eventos -->
+      <div id="fixture-events-section">
+        ${renderFixtureEvents(events, fx)}
+      </div>
     `;
 
-    if (predictions.status === "fulfilled" && predictions.value?.[0]) {
-      const pct = predictions.value[0].predictions.percent;
-      const probA = parseInt(pct.home);
-      const probB = parseInt(pct.away);
-      const probDraw = 100 - probA - probB;
-      document.getElementById("fx-predictions").innerHTML = `
-        <h2 class="section-title">Previsão Oficial da API</h2>
-        ${renderPitchBar(fx.teams.home, fx.teams.away, { probA, probB, probDraw })}`;
+    // Inicia auto-refresh se estiver acontecendo agora
+    if (isLive) {
+      startLiveAutoRefresh(() => renderFixture(fixtureId, true));
     }
-
-    if (events.status === "fulfilled") renderFixtureEvents(events.value, fx);
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
 }
 
-function renderFixtureEvents(events, fx) {
-  const el = document.getElementById("fx-events");
-  if (!events || !events.length || !el) return;
+// ------------------------------------------------------------
+// Renderizador de Estatísticas Ao Vivo do Jogo
+// ------------------------------------------------------------
+function renderLiveMatchStats(statsArr, fx) {
+  if (!statsArr || statsArr.length < 2) {
+    return `
+      <div class="card" style="text-align:center;padding:24px;color:var(--chalk-dim);">
+        <p style="margin:0;">Estatísticas detalhadas da partida serão disponibilizadas após o início do jogo.</p>
+      </div>`;
+  }
 
-  el.innerHTML = `
+  const [homeStats, awayStats] = statsArr;
+  const statMap = {
+    "Ball Possession": "Posse de Bola",
+    "Total Shots": "Finalizações Totais",
+    "Shots on Goal": "Chutes no Gol",
+    "Shots off Goal": "Chutes para Fora",
+    "Blocked Shots": "Chutes Bloqueados",
+    "Corner Kicks": "Escanteios",
+    "Offsides": "Impedimentos",
+    "Fouls": "Faltas Cometidas",
+    "Yellow Cards": "Cartões Amarelos",
+    "Red Cards": "Cartões Vermelhos",
+    "Goalkeeper Saves": "Defesas do Goleiro",
+    "Total passes": "Passes Totais",
+    "Passes accurate": "Passes Certos",
+    "Passes %": "Precisão de Passe",
+    "expected_goals": "Gols Esperados (xG)"
+  };
+
+  const rows = homeStats.statistics.map((s, i) => {
+    const rawLabel = s.type;
+    const label = statMap[rawLabel] || rawLabel;
+    let va = s.value ?? 0;
+    let vb = awayStats.statistics[i]?.value ?? 0;
+
+    let numA = parseFloat(String(va).replace("%", "")) || 0;
+    let numB = parseFloat(String(vb).replace("%", "")) || 0;
+    let max = Math.max(numA, numB, 1);
+
+    const aWins = numA > numB;
+    const bWins = numB > numA;
+
+    return `
+      <div class="fifa-stat-row">
+        <div class="fifa-val a ${aWins ? 'highlight' : ''}">
+          ${aWins ? '<span class="fifa-bar a"></span>' : ''}
+          <span>${va}</span>
+        </div>
+        <div class="fifa-label">${escapeHtml(label)}</div>
+        <div class="fifa-val b ${bWins ? 'highlight' : ''}">
+          <span>${vb}</span>
+          ${bWins ? '<span class="fifa-bar b"></span>' : ''}
+        </div>
+      </div>
+      <div style="position:relative;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin:0 12px 6px;">
+        <div style="position:absolute;right:50%;height:100%;background:var(--gold);width:${(numA / max) * 50}%;"></div>
+        <div style="position:absolute;left:50%;height:100%;background:var(--terracotta);width:${(numB / max) * 50}%;"></div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <h2 class="section-title">Estatísticas do Jogo em Tempo Real</h2>
+    <div class="card" style="padding:14px 10px;">
+      <div class="fifa-stats-center" style="background:transparent;border:none;">
+        ${rows}
+      </div>
+    </div>
+  `;
+}
+
+// ------------------------------------------------------------
+// Renderizador de Escalação e Mini Campo Tático 2D
+// ------------------------------------------------------------
+function renderFixtureLineups(lineupsArr) {
+  if (!lineupsArr || !lineupsArr.length) {
+    return `
+      <div class="card" style="text-align:center;padding:24px;color:var(--chalk-dim);">
+        <p style="margin:0;">Escalações táticas serão confirmadas cerca de 45 minutos antes do jogo.</p>
+      </div>`;
+  }
+
+  return `
+    <h2 class="section-title">Escalações & Campo Tático 2D</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;">
+      ${lineupsArr.map((l, teamIdx) => {
+        const isAway = teamIdx === 1;
+        const formation = l.formation || "4-4-2";
+        const formLines = formation.split("-").map(Number);
+        
+        const rows = [];
+        let cursor = 1;
+        rows.push([l.startXI[0]]);
+        formLines.forEach(count => {
+          rows.push(l.startXI.slice(cursor, cursor + count));
+          cursor += count;
+        });
+
+        const displayRows = isAway ? [...rows].reverse() : rows;
+
+        return `
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+              <img src="${l.team.logo}" alt="" style="width:34px;height:34px;object-fit:contain;">
+              <div>
+                <div style="font-family:var(--font-display);font-size:1.15rem;font-weight:600;">${escapeHtml(l.team.name)}</div>
+                <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);">${escapeHtml(formation)} · Téc. ${escapeHtml(l.coach?.name || "-")}</div>
+              </div>
+            </div>
+
+            <!-- Mini Campo 2D -->
+            <div class="tactical-pitch ${isAway ? 'pitch-away' : ''}">
+              <div class="pitch-half-line"></div>
+              <div class="pitch-center-circle"></div>
+              <div class="pitch-penalty-area"></div>
+              
+              ${displayRows.map(rowPlayers => `
+                <div class="pitch-row">
+                  ${rowPlayers.map(p => `
+                    <div class="pitch-player" title="${escapeHtml(p.player.name)} (#${p.player.number ?? ''})">
+                      <div class="pitch-player-badge">${p.player.number ?? ""}</div>
+                      <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
+                    </div>`
+                  ).join("")}
+                </div>`
+              ).join("")}
+            </div>
+
+            <!-- Banco de Reservas -->
+            <p class="stat-label" style="margin-top:16px;">Banco de Reservas</p>
+            <ul style="list-style:none;padding:0;margin:0;font-size:0.82rem;display:flex;flex-direction:column;gap:4px;color:var(--chalk-dim);">
+              ${l.substitutes.map(s => `<li><strong style="color:var(--gold);font-family:var(--font-mono);margin-right:6px;">${s.player.number ?? "-"}</strong>${escapeHtml(s.player.name)}</li>`).join("")}
+            </ul>
+          </div>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderFixtureEvents(events, fx) {
+  if (!events || !events.length) return "";
+
+  return `
     <h2 class="section-title">Linha do Tempo</h2>
     <div class="card">
       <div class="fixture-list">
@@ -1231,7 +1414,7 @@ async function runComparison() {
 }
 
 // ------------------------------------------------------------
-// Dashboard EA FC / FIFA (Layout da Imagem 2)
+// Dashboard EA FC / FIFA
 // ------------------------------------------------------------
 function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
   const pA = statsA.fixtures.played.total || 1;
