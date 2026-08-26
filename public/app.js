@@ -131,6 +131,9 @@ async function router() {
   } else if (parts[0] === "time" && parts[1] && parts[2]) {
     setActiveTab("home");
     await renderTeam(Number(parts[1]), Number(parts[2]), parts[3] ? Number(parts[3]) : undefined);
+  } else if (parts[0] === "jogador" && parts[1]) {
+    setActiveTab("home");
+    await renderPlayer(Number(parts[1]), Number(parts[2]), Number(parts[3]), Number(parts[4]));
   } else if (parts[0] === "jogo" && parts[1]) {
     setActiveTab("home");
     await renderFixture(Number(parts[1]));
@@ -565,12 +568,12 @@ async function renderSquad(teamId, leagueId, season) {
             ${players
               .map(
                 (p) => `
-              <div class="squad-card">
+              <a class="squad-card" href="#/jogador/${p.id}/${season}/${teamId}/${leagueId}">
                 <img src="${p.photo}" alt="">
                 <div class="squad-number">${p.number ?? "-"}</div>
                 <div class="squad-name">${escapeHtml(p.name)}</div>
                 <div class="squad-age">${p.age ? p.age + " anos" : ""}</div>
-              </div>`
+              </a>`
               )
               .join("")}
           </div>`;
@@ -673,6 +676,89 @@ function setCompareSlot(slot, team, leagueId, leagueName, season) {
   };
   toast(`${team.name} definido como Time ${slot.toUpperCase()}`, false);
   location.hash = "#/compare";
+}
+
+// ============================================================
+// View: Jogador — perfil e estatísticas da temporada
+// ============================================================
+async function renderPlayer(playerId, season, teamId, leagueId) {
+  app.innerHTML = `<div id="player-content">${loadingBox("Buscando estatísticas do jogador…")}</div>`;
+  const content = document.getElementById("player-content");
+  const backHref = teamId && leagueId ? `#/time/${teamId}/${leagueId}/${season}/elenco` : "#/";
+
+  try {
+    const response = await apiGet("players", { id: playerId, season });
+    const entry = response?.[0];
+    if (!entry) {
+      content.innerHTML = errorBox("Sem estatísticas disponíveis para esse jogador nessa temporada.");
+      return;
+    }
+
+    const p = entry.player;
+    const stats = entry.statistics || [];
+    const birth = p.birth?.date ? new Date(p.birth.date).toLocaleDateString("pt-BR") : null;
+
+    content.innerHTML = `
+      <a class="btn ghost small" href="${backHref}" style="margin-bottom:16px;display:inline-block;">← Voltar ao elenco</a>
+
+      <div class="player-header">
+        <img src="${p.photo}" alt="">
+        <div>
+          <p class="page-eyebrow">${escapeHtml(stats[0]?.games.position || "")}</p>
+          <h1 class="page-title">${escapeHtml(p.name)}</h1>
+          <div class="player-meta">
+            ${p.age ? `<span>${p.age} anos</span>` : ""}
+            ${p.nationality ? `<span>${escapeHtml(p.nationality)}</span>` : ""}
+            ${p.height ? `<span>${p.height}</span>` : ""}
+            ${p.weight ? `<span>${p.weight}</span>` : ""}
+            ${birth ? `<span>nasc. ${birth}</span>` : ""}
+          </div>
+        </div>
+      </div>
+
+      ${
+        !stats.length
+          ? `<div class="card"><p style="color:var(--chalk-dim);">Sem estatísticas registradas nessa temporada.</p></div>`
+          : stats.map((s) => renderPlayerCompetitionStats(s)).join("")
+      }
+    `;
+  } catch (err) {
+    content.innerHTML = errorBox(err.message);
+  }
+}
+
+function renderPlayerCompetitionStats(s) {
+  const rating = s.games.rating ? parseFloat(s.games.rating).toFixed(2) : "—";
+  const passAcc = s.passes?.accuracy ? `${s.passes.accuracy}%` : "—";
+  const dribbleRate = s.dribbles?.attempts ? `${s.dribbles.success ?? 0}/${s.dribbles.attempts}` : "—";
+  const duelRate = s.duels?.total ? `${s.duels.won ?? 0}/${s.duels.total}` : "—";
+
+  return `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="player-comp-head">
+        <img src="${s.team.logo}" alt="">
+        <div>
+          <div style="font-family:var(--font-display);">${escapeHtml(s.team.name)}</div>
+          <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">${escapeHtml(s.league.name)} · ${s.league.season}</div>
+        </div>
+        <span class="player-rating">${rating}</span>
+      </div>
+      <div class="stat-grid" style="margin-top:14px;margin-bottom:0;">
+        <div class="stat-card"><p class="stat-label">Jogos</p><p class="stat-value">${s.games.appearences ?? 0}</p><div class="stat-split"><span>${s.games.lineups ?? 0} titular</span></div></div>
+        <div class="stat-card"><p class="stat-label">Minutos</p><p class="stat-value">${s.games.minutes ?? 0}</p></div>
+        <div class="stat-card"><p class="stat-label">Gols</p><p class="stat-value">${s.goals?.total ?? 0}</p></div>
+        <div class="stat-card"><p class="stat-label">Assistências</p><p class="stat-value">${s.goals?.assists ?? 0}</p></div>
+        ${s.goals?.conceded !== null && s.goals?.conceded !== undefined && s.games.position === "Goalkeeper" ? `<div class="stat-card"><p class="stat-label">Gols sofridos</p><p class="stat-value">${s.goals.conceded}</p></div>` : ""}
+        ${s.goals?.saves !== null && s.goals?.saves !== undefined && s.games.position === "Goalkeeper" ? `<div class="stat-card"><p class="stat-label">Defesas</p><p class="stat-value">${s.goals.saves}</p></div>` : ""}
+        <div class="stat-card"><p class="stat-label">Chutes (no alvo)</p><p class="stat-value">${s.shots?.total ?? 0}<small> / ${s.shots?.on ?? 0}</small></p></div>
+        <div class="stat-card"><p class="stat-label">Precisão de passe</p><p class="stat-value">${passAcc}</p></div>
+        <div class="stat-card"><p class="stat-label">Dribles (sucesso)</p><p class="stat-value">${dribbleRate}</p></div>
+        <div class="stat-card"><p class="stat-label">Duelos vencidos</p><p class="stat-value">${duelRate}</p></div>
+        <div class="stat-card"><p class="stat-label">Faltas cometidas</p><p class="stat-value">${s.fouls?.committed ?? 0}</p></div>
+        <div class="stat-card"><p class="stat-label">Cartões</p><p class="stat-value">${s.cards?.yellow ?? 0}<small> 🟨</small> ${s.cards?.red ?? 0}<small> 🟥</small></p></div>
+      </div>
+    </div>
+  `;
 }
 
 // ============================================================

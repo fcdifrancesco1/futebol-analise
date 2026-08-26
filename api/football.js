@@ -18,6 +18,7 @@ const ALLOWED_ENDPOINTS = new Set([
   "players/topyellowcards",
   "players/topredcards",
   "players/squads",
+  "players",
   "injuries",
   "odds",
   "predictions",
