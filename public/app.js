@@ -48,8 +48,9 @@ const state = {
   currentTableFilter: "all",
   fifaTab: "summary",
   lastComparisonData: null,
-  favoriteTeams: [],
-  notificationPrefs: { goals: true, kickoff: true, halftime: true, fulltime: true, redcards: true }
+  favoriteTeams: JSON.parse(localStorage.getItem("ap_fav_teams") || "[]"),
+  favoriteFixtures: JSON.parse(localStorage.getItem("ap_fav_fixtures") || "[]"),
+  notificationPrefs: JSON.parse(localStorage.getItem("ap_notif_prefs") || '{"goals":true,"lineups":true,"kickoff":true,"halftime":true,"fulltime":true,"redcards":true}')
 };
 
 const apiCache = new Map();
@@ -223,7 +224,10 @@ const NotificationManager = {
       p256dh,
       auth,
       favorite_teams: state.favoriteTeams,
-      preferences: state.notificationPrefs,
+      preferences: {
+        ...state.notificationPrefs,
+        favorite_fixtures: state.favoriteFixtures
+      },
       updated_at: new Date().toISOString()
     };
 
@@ -250,6 +254,7 @@ const NotificationManager = {
 
   async syncPreferences() {
     localStorage.setItem("ap_fav_teams", JSON.stringify(state.favoriteTeams));
+    localStorage.setItem("ap_fav_fixtures", JSON.stringify(state.favoriteFixtures));
     localStorage.setItem("ap_notif_prefs", JSON.stringify(state.notificationPrefs));
 
     if (await this.isSubscribed()) {
@@ -261,6 +266,36 @@ const NotificationManager = {
       }
     }
     this.renderFavoriteTeamsList();
+    this.renderFavoriteFixturesList();
+  },
+
+  renderFavoriteFixturesList() {
+    const container = document.getElementById("notif-fav-fixtures-list");
+    if (!container) return;
+
+    if (!state.favoriteFixtures || !state.favoriteFixtures.length) {
+      container.innerHTML = `<span style="font-size:0.75rem;color:var(--chalk-dim);">Nenhum jogo específico seguido ainda. Abra qualquer partida e clique em "Seguir Jogo"!</span>`;
+      return;
+    }
+
+    container.innerHTML = state.favoriteFixtures.map(f => `
+      <div class="notif-fixture-pill">
+        <div class="notif-fixture-pill-left">
+          <img src="${f.home?.logo || ''}" alt="">
+          <span><strong>${escapeHtml(f.home?.name || 'Casa')}</strong> × <strong>${escapeHtml(f.away?.name || 'Fora')}</strong></span>
+          <img src="${f.away?.logo || ''}" alt="">
+        </div>
+        <button class="btn-remove-fixture-fav" data-fixture-id="${f.id}" title="Parar de seguir este jogo">✕</button>
+      </div>
+    `).join("");
+
+    container.querySelectorAll(".btn-remove-fixture-fav").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const fid = Number(btn.dataset.fixtureId);
+        state.favoriteFixtures = state.favoriteFixtures.filter(f => f.id !== fid);
+        this.syncPreferences();
+      });
+    });
   },
 
   renderFavoriteTeamsList() {
@@ -305,7 +340,23 @@ const NotificationManager = {
       modal.hidden = false;
       modal.style.display = "flex";
       this.renderFavoriteTeamsList();
+      this.renderFavoriteFixturesList();
       this.updateBellUI();
+
+      // Sincroniza estado das checkboxes
+      const prefGoals = document.getElementById("pref-goals");
+      const prefLineups = document.getElementById("pref-lineups");
+      const prefKickoff = document.getElementById("pref-kickoff");
+      const prefHalftime = document.getElementById("pref-halftime");
+      const prefFulltime = document.getElementById("pref-fulltime");
+      const prefRedcards = document.getElementById("pref-redcards");
+
+      if (prefGoals) prefGoals.checked = state.notificationPrefs.goals !== false;
+      if (prefLineups) prefLineups.checked = state.notificationPrefs.lineups !== false;
+      if (prefKickoff) prefKickoff.checked = state.notificationPrefs.kickoff !== false;
+      if (prefHalftime) prefHalftime.checked = state.notificationPrefs.halftime !== false;
+      if (prefFulltime) prefFulltime.checked = state.notificationPrefs.fulltime !== false;
+      if (prefRedcards) prefRedcards.checked = state.notificationPrefs.redcards !== false;
     };
 
     const closeModal = () => {
@@ -336,12 +387,12 @@ const NotificationManager = {
     if (testBtn) {
       testBtn.addEventListener("click", async () => {
         const reg = await navigator.serviceWorker.ready;
-        reg.showNotification("⚽ GOL DO FLAMENGO! (42')", {
-          body: "Pedro recebe de Arrascaeta e finaliza no canto!",
-          icon: "https://media.api-sports.io/football/teams/127.png",
+        reg.showNotification("📋 ESCALAÇÕES CONFIRMADAS!", {
+          body: "As escalações oficiais de Internacional × Grêmio já estão divulgadas!",
+          icon: "https://media.api-sports.io/football/teams/119.png",
           badge: "/icon-192.png",
           vibrate: [200, 100, 200, 100, 200],
-          data: { url: "/#/" }
+          data: { url: "/#/jogo/1623070" }
         });
         toast("Notificação de teste disparada!", false);
       });
@@ -351,6 +402,7 @@ const NotificationManager = {
       saveBtn.addEventListener("click", () => {
         state.notificationPrefs = {
           goals: document.getElementById("pref-goals")?.checked ?? true,
+          lineups: document.getElementById("pref-lineups")?.checked ?? true,
           kickoff: document.getElementById("pref-kickoff")?.checked ?? true,
           halftime: document.getElementById("pref-halftime")?.checked ?? true,
           fulltime: document.getElementById("pref-fulltime")?.checked ?? true,
@@ -2082,20 +2134,27 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       return;
     }
 
+    const isFavFixture = state.favoriteFixtures.some(f => f.id === fixtureId);
+
     content.innerHTML = `
       ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: fx.league.name, href: `#/liga/${fx.league.id}/${fx.league.season}` }, { label: "Partida", href: "" }])}
       
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
         <p class="page-eyebrow" style="margin:0;">${escapeHtml(fx.league.name)} · ${formatRoundName(fx.league.round)} · ${date} · ${time}${fx.fixture.venue?.name ? " · " + escapeHtml(fx.fixture.venue.name) : ""}</p>
-        ${isLive ? `
-          <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);padding:4px 12px;border-radius:999px;border:1px solid var(--gold-soft);">
-            <span class="pulse-dot"></span>
-            <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">Auto-refresh (45s)</span>
-            <div style="width:40px;height:4px;background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden;">
-              <div style="height:100%;background:var(--gold);width:100%;" id="live-progress-bar"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap;">
+          <button class="btn ${isFavFixture ? 'active-fav' : 'ghost'} small" id="btn-toggle-fixture-fav" style="display:inline-flex;align-items:center;gap:6px;">
+            ${isFavFixture ? '🔔 Alertas Ativados (Jogo)' : '🔔 Seguir Jogo (Gols & Escalações)'}
+          </button>
+          ${isLive ? `
+            <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);padding:4px 12px;border-radius:999px;border:1px solid var(--gold-soft);">
+              <span class="pulse-dot"></span>
+              <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">Auto-refresh (45s)</span>
+              <div style="width:40px;height:4px;background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden;">
+                <div style="height:100%;background:var(--gold);width:100%;" id="live-progress-bar"></div>
+              </div>
             </div>
-          </div>
-        ` : ""}
+          ` : ""}
+        </div>
       </div>
 
       <!-- Placar Principal Simétrico -->
@@ -2175,6 +2234,32 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         ${renderFixtureEvents(events, fx)}
       </div>
     `;
+
+    const btnFav = document.getElementById("btn-toggle-fixture-fav");
+    if (btnFav) {
+      btnFav.addEventListener("click", async () => {
+        const isFav = state.favoriteFixtures.some(f => f.id === fixtureId);
+        if (isFav) {
+          state.favoriteFixtures = state.favoriteFixtures.filter(f => f.id !== fixtureId);
+          await NotificationManager.syncPreferences();
+          toast(`Você deixou de seguir os alertas de ${fx.teams.home.name} x ${fx.teams.away.name}.`, false);
+        } else {
+          if (Notification.permission !== "granted") {
+            await NotificationManager.subscribe();
+          }
+          state.favoriteFixtures.push({
+            id: fixtureId,
+            home: { id: fx.teams.home.id, name: fx.teams.home.name, logo: fx.teams.home.logo },
+            away: { id: fx.teams.away.id, name: fx.teams.away.name, logo: fx.teams.away.logo },
+            league: { id: fx.league.id, name: fx.league.name },
+            date: fx.fixture.date
+          });
+          await NotificationManager.syncPreferences();
+          toast(`🔔 Alertas ativados para ${fx.teams.home.name} x ${fx.teams.away.name}! Você receberá avisos de Escalações, Gols e Lances.`, false);
+        }
+        renderFixture(fixtureId, true);
+      });
+    }
 
     if (isLive) {
       startLiveAutoRefresh(() => renderFixture(fixtureId, true));

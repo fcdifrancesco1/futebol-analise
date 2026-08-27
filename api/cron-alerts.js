@@ -33,26 +33,10 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 2. Buscar jogos ao vivo na API-Football
-    const apiResp = await fetch("https://v3.football.api-sports.io/fixtures?live=all", {
-      headers: { "x-apisports-key": FOOTBALL_API_KEY }
-    });
-
-    const liveData = await apiResp.json();
-    const liveFixtures = liveData.response || [];
-
-    if (liveFixtures.length === 0) {
-      return res.status(200).json({
-        message: "Nenhum jogo ao vivo acontecendo no momento.",
-        activeSubscribers: subscribers.length,
-        time: new Date().toISOString()
-      });
-    }
-
+    // Helper para enviar push
     let notificationsSent = 0;
     const errors = [];
 
-    // Helper para enviar push
     const dispatchPush = async (sub, payloadObj) => {
       const pushSubscription = {
         endpoint: sub.endpoint,
@@ -74,21 +58,81 @@ module.exports = async (req, res) => {
       }
     };
 
-    // 3. Processar cada jogo ao vivo
-    for (const fx of liveFixtures) {
+    // 2. Buscar jogos ao vivo e jogos de hoje no fuso brasileiro
+    const todayBR = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+
+    const [liveResp, todayResp] = await Promise.all([
+      fetch("https://v3.football.api-sports.io/fixtures?live=all", {
+        headers: { "x-apisports-key": FOOTBALL_API_KEY }
+      }),
+      fetch(`https://v3.football.api-sports.io/fixtures?date=${todayBR}&timezone=America/Sao_Paulo`, {
+        headers: { "x-apisports-key": FOOTBALL_API_KEY }
+      })
+    ]);
+
+    const liveData = await liveResp.json();
+    const todayData = await todayResp.json();
+
+    const liveFixtures = liveData.response || [];
+    const todayFixtures = todayData.response || [];
+
+    // Mapear todas as partidas a serem verificadas
+    const allRelevantFixturesMap = new Map();
+    liveFixtures.forEach(f => allRelevantFixturesMap.set(f.fixture.id, f));
+    todayFixtures.forEach(f => allRelevantFixturesMap.set(f.fixture.id, f));
+
+    // 3. Processar cada partida relevante
+    for (const [fixtureId, fx] of allRelevantFixturesMap.entries()) {
       const homeId = fx.teams.home.id;
       const awayId = fx.teams.away.id;
       const elapsed = fx.fixture.status.elapsed;
       const statusShort = fx.fixture.status.short;
       const score = `${fx.goals.home ?? 0} x ${fx.goals.away ?? 0}`;
 
-      // Filtrar inscritos que seguem pelo menos um dos times da partida
+      // Filtrar inscritos que seguem os times OU esta partida específica
       const matchingSubs = subscribers.filter(sub => {
-        const favs = sub.favorite_teams || [];
-        return favs.some(f => f.id === homeId || f.id === awayId);
+        const favTeams = sub.favorite_teams || [];
+        const favFixtures = sub.preferences?.favorite_fixtures || sub.favorite_fixtures || [];
+
+        const followsTeam = favTeams.some(f => f.id === homeId || f.id === awayId);
+        const followsFixture = favFixtures.some(f => f.id === fixtureId);
+
+        return followsTeam || followsFixture;
       });
 
       if (matchingSubs.length === 0) continue;
+
+      // Evento 0: Alerta de Escalações Oficiais (Dispara quando saem as escalações para jogos não iniciados ou recém-iniciados)
+      if (["NS", "TBD", "1H"].includes(statusShort)) {
+        const wantsLineups = matchingSubs.some(sub => (sub.preferences?.lineups !== false));
+        if (wantsLineups) {
+          try {
+            const lineupsResp = await fetch(`https://v3.football.api-sports.io/fixtures/lineups?fixture=${fixtureId}`, {
+              headers: { "x-apisports-key": FOOTBALL_API_KEY }
+            });
+            const lineupsData = await lineupsResp.json();
+            const lineups = lineupsData.response || [];
+
+            if (lineups.length > 0 && lineups[0]?.startXI?.length > 0) {
+              for (const sub of matchingSubs) {
+                const prefs = sub.preferences || {};
+                if (prefs.lineups === false) continue;
+
+                await dispatchPush(sub, {
+                  title: `📋 ESCALAÇÕES CONFIRMADAS!`,
+                  body: `As escalações oficiais de ${fx.teams.home.name} × ${fx.teams.away.name} já estão no ar!`,
+                  icon: fx.teams.home.logo,
+                  badge: "/icon-192.png",
+                  tag: `lineups-${fixtureId}`,
+                  data: { url: `/#/jogo/${fixtureId}` }
+                });
+              }
+            }
+          } catch (e) {
+            console.warn("Erro ao checar escalações:", e.message);
+          }
+        }
+      }
 
       // Evento A: Início de Partida (1H até 3 min)
       if (statusShort === "1H" && elapsed <= 3) {
@@ -101,8 +145,8 @@ module.exports = async (req, res) => {
             body: `Começou a partida entre ${fx.teams.home.name} e ${fx.teams.away.name} pela ${fx.league.name}!`,
             icon: fx.teams.home.logo,
             badge: "/icon-192.png",
-            tag: `kickoff-${fx.fixture.id}`,
-            data: { url: `/#/jogo/${fx.fixture.id}` }
+            tag: `kickoff-${fixtureId}`,
+            data: { url: `/#/jogo/${fixtureId}` }
           });
         }
       }
@@ -118,8 +162,8 @@ module.exports = async (req, res) => {
             body: `Fim do primeiro tempo! Placar parcial: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
             icon: fx.teams.home.logo,
             badge: "/icon-192.png",
-            tag: `halftime-${fx.fixture.id}`,
-            data: { url: `/#/jogo/${fx.fixture.id}` }
+            tag: `halftime-${fixtureId}`,
+            data: { url: `/#/jogo/${fixtureId}` }
           });
         }
       }
@@ -135,67 +179,74 @@ module.exports = async (req, res) => {
             body: `Partida encerrada! Placar final: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
             icon: fx.teams.home.logo,
             badge: "/icon-192.png",
-            tag: `fulltime-${fx.fixture.id}`,
-            data: { url: `/#/jogo/${fx.fixture.id}` }
+            tag: `fulltime-${fixtureId}`,
+            data: { url: `/#/jogo/${fixtureId}` }
           });
         }
       }
 
-      // Evento D: Eventos Dinâmicos de Lance (Gols e Cartões Vermelhos)
-      const eventsResp = await fetch(`https://v3.football.api-sports.io/fixtures/events?fixture=${fx.fixture.id}`, {
-        headers: { "x-apisports-key": FOOTBALL_API_KEY }
-      });
-      const eventsData = await eventsResp.json();
-      const events = eventsData.response || [];
+      // Evento D: Eventos Dinâmicos de Lance (Gols e Cartões Vermelhos nos jogos ao vivo)
+      if (["1H", "2H", "ET", "P", "LIVE"].includes(statusShort)) {
+        try {
+          const eventsResp = await fetch(`https://v3.football.api-sports.io/fixtures/events?fixture=${fixtureId}`, {
+            headers: { "x-apisports-key": FOOTBALL_API_KEY }
+          });
+          const eventsData = await eventsResp.json();
+          const events = eventsData.response || [];
 
-      // Filtrar eventos dos últimos 2 minutos
-      const recentEvents = events.filter(e => {
-        const eventMin = e.time.elapsed;
-        return elapsed && (elapsed - eventMin <= 2 && elapsed - eventMin >= 0);
-      });
+          // Filtrar eventos dos últimos 2 minutos
+          const recentEvents = events.filter(e => {
+            const eventMin = e.time.elapsed;
+            return elapsed && (elapsed - eventMin <= 2 && elapsed - eventMin >= 0);
+          });
 
-      for (const ev of recentEvents) {
-        const teamName = ev.team?.name || "Seu time";
-        const playerName = ev.player?.name || "Jogador";
+          for (const ev of recentEvents) {
+            const teamName = ev.team?.name || "Seu time";
+            const playerName = ev.player?.name || "Jogador";
 
-        // GOL
-        if (ev.type === "Goal" && ev.detail !== "Missed Penalty") {
-          for (const sub of matchingSubs) {
-            const prefs = sub.preferences || {};
-            if (prefs.goals === false) continue;
+            // GOL
+            if (ev.type === "Goal" && ev.detail !== "Missed Penalty") {
+              for (const sub of matchingSubs) {
+                const prefs = sub.preferences || {};
+                if (prefs.goals === false) continue;
 
-            await dispatchPush(sub, {
-              title: `⚽ GOL DO ${teamName.toUpperCase()}! (${ev.time.elapsed}')`,
-              body: `${playerName} marca para o ${teamName}! (${fx.teams.home.name} ${score} ${fx.teams.away.name})`,
-              icon: ev.team?.logo || fx.teams.home.logo,
-              badge: "/icon-192.png",
-              tag: `goal-${fx.fixture.id}-${ev.time.elapsed}-${ev.player?.id || ''}`,
-              data: { url: `/#/jogo/${fx.fixture.id}` }
-            });
+                await dispatchPush(sub, {
+                  title: `⚽ GOL DO ${teamName.toUpperCase()}! (${ev.time.elapsed}')`,
+                  body: `${playerName} marca para o ${teamName}! (${fx.teams.home.name} ${score} ${fx.teams.away.name})`,
+                  icon: ev.team?.logo || fx.teams.home.logo,
+                  badge: "/icon-192.png",
+                  tag: `goal-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
+                  data: { url: `/#/jogo/${fixtureId}` }
+                });
+              }
+            } 
+            // CARTÃO VERMELHO
+            else if (ev.type === "Card" && (ev.detail === "Red Card" || ev.detail === "Yellow Red")) {
+              for (const sub of matchingSubs) {
+                const prefs = sub.preferences || {};
+                if (prefs.redcards === false) continue;
+
+                await dispatchPush(sub, {
+                  title: `🟥 CARTÃO VERMELHO! (${ev.time.elapsed}')`,
+                  body: `${playerName} (${teamName}) foi expulso da partida!`,
+                  icon: ev.team?.logo || fx.teams.home.logo,
+                  badge: "/icon-192.png",
+                  tag: `redcard-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
+                  data: { url: `/#/jogo/${fixtureId}` }
+                });
+              }
+            }
           }
-        } 
-        // CARTÃO VERMELHO
-        else if (ev.type === "Card" && (ev.detail === "Red Card" || ev.detail === "Yellow Red")) {
-          for (const sub of matchingSubs) {
-            const prefs = sub.preferences || {};
-            if (prefs.redcards === false) continue;
-
-            await dispatchPush(sub, {
-              title: `🟥 CARTÃO VERMELHO! (${ev.time.elapsed}')`,
-              body: `${playerName} (${teamName}) foi expulso da partida!`,
-              icon: ev.team?.logo || fx.teams.home.logo,
-              badge: "/icon-192.png",
-              tag: `redcard-${fx.fixture.id}-${ev.time.elapsed}-${ev.player?.id || ''}`,
-              data: { url: `/#/jogo/${fx.fixture.id}` }
-            });
-          }
+        } catch (e) {
+          console.warn("Erro ao processar eventos do jogo:", e.message);
         }
       }
     }
 
     return res.status(200).json({
       success: true,
-      liveMatchesChecked: liveFixtures.length,
+      matchesChecked: allRelevantFixturesMap.size,
+      liveMatches: liveFixtures.length,
       notificationsSent,
       activeSubscribers: subscribers.length,
       errors: errors.length > 0 ? errors : undefined,

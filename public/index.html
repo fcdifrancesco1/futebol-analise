@@ -102,11 +102,18 @@
           <label style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);text-transform:uppercase;font-weight:700;display:block;margin-bottom:8px;">Eventos Desejados</label>
           <div class="notif-checkbox-grid">
             <label class="notif-checkbox-item"><input type="checkbox" id="pref-goals" checked> ⚽ Gols</label>
+            <label class="notif-checkbox-item"><input type="checkbox" id="pref-lineups" checked> 📋 Escalações Confirmadas</label>
             <label class="notif-checkbox-item"><input type="checkbox" id="pref-kickoff" checked> ⏱️ Início de Jogo</label>
             <label class="notif-checkbox-item"><input type="checkbox" id="pref-halftime" checked> ⏸️ Intervalo</label>
             <label class="notif-checkbox-item"><input type="checkbox" id="pref-fulltime" checked> 🏁 Fim de Jogo</label>
             <label class="notif-checkbox-item"><input type="checkbox" id="pref-redcards" checked> 🟥 Cartões Vermelhos</label>
           </div>
+        </div>
+
+        <!-- Jogos Seguidos -->
+        <div>
+          <label style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);text-transform:uppercase;font-weight:700;display:block;margin-bottom:8px;">Jogos Seguidos (Partidas Específicas)</label>
+          <div class="notif-fav-fixtures-wrap" id="notif-fav-fixtures-list"></div>
         </div>
 
         <!-- Times Favoritos -->

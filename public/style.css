@@ -364,6 +364,58 @@ body {
   font-weight: 700;
 }
 
+.notif-fav-fixtures-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 140px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.notif-fixture-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-faint);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  gap: 8px;
+}
+.notif-fixture-pill-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notif-fixture-pill img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.notif-fixture-pill .btn-remove-fixture-fav {
+  background: transparent;
+  border: none;
+  color: var(--terracotta);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 2px 6px;
+}
+
+.btn.active-fav {
+  background: rgba(56, 189, 248, 0.18);
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+  font-weight: 700;
+}
+
 /* Switch Toggle UI */
 .switch {
   position: relative;
