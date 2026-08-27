@@ -209,6 +209,12 @@ body {
   box-shadow: 0 0 8px #10B981;
 }
 
+/* Garante que elementos com atributo hidden fiquem ocultos */
+[hidden],
+.modal-backdrop[hidden] {
+  display: none !important;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -247,8 +253,17 @@ body {
   background: transparent;
   border: none;
   color: var(--chalk-dim);
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.btn-modal-close:hover {
+  color: var(--terracotta);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .notif-toggle-row {

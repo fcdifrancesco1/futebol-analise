@@ -296,15 +296,27 @@ const NotificationManager = {
     const searchResults = document.getElementById("notif-team-results");
 
     const openModal = () => {
+      if (!modal) return;
       modal.hidden = false;
+      modal.style.display = "flex";
       this.renderFavoriteTeamsList();
       this.updateBellUI();
     };
 
+    const closeModal = () => {
+      if (!modal) return;
+      modal.hidden = true;
+      modal.style.display = "none";
+    };
+
     if (openBtn) openBtn.addEventListener("click", openModal);
     if (bottomNavBell) bottomNavBell.addEventListener("click", openModal);
-    if (closeBtn) closeBtn.addEventListener("click", () => modal.hidden = true);
-    if (modal) modal.addEventListener("click", (e) => { if (e.target === modal) modal.hidden = true; });
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeModal();
+      });
+    }
 
     if (masterToggle) {
       masterToggle.addEventListener("change", async (e) => {
@@ -340,7 +352,7 @@ const NotificationManager = {
           redcards: document.getElementById("pref-redcards")?.checked ?? true,
         };
         this.syncPreferences();
-        modal.hidden = true;
+        closeModal();
         toast("Preferências salvas com sucesso!", false);
       });
     }
