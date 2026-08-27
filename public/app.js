@@ -669,18 +669,144 @@ async function renderLeague(leagueId, season) {
 async function renderStandingsFromCache(leagueId, season) {
   const content = document.getElementById("league-content");
   try {
-    const response = await apiGet("standings", { league: leagueId, season }, 30);
-    const groups = response?.[0]?.league?.standings;
-    if (!groups || !groups.length) {
+    const [standingsResp, fixturesResp] = await Promise.all([
+      apiGet("standings", { league: leagueId, season }, 5),
+      apiGet("fixtures", { league: leagueId, season }, 5).catch(() => [])
+    ]);
+
+    const officialStandings = standingsResp?.[0]?.league?.standings;
+    if (!officialStandings || !officialStandings.length) {
       content.innerHTML = `<div class="card" style="text-align:center;color:var(--chalk-dim);padding:30px;">Sem tabela de pontos corridos nesta competição (formato mata-mata). Acesse a aba <strong>Jogos</strong> para ver os confrontos de Ida e Volta.</div>`;
       return;
     }
-    content.innerHTML = groups.map((table, gi) => 
-      renderStandingsTable(table, leagueId, season, groups.length > 1 ? `Grupo ${gi + 1}` : null, state.currentTableFilter)
+
+    const allFixtures = Array.isArray(fixturesResp) ? fixturesResp : [];
+    const finishedFixtures = allFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short));
+
+    let tablesToRender = officialStandings;
+
+    // Se houver jogos finalizados, reconcilia a tabela para garantir sincronismo em tempo real imediato
+    if (finishedFixtures.length > 0) {
+      const officialNotes = {};
+      officialStandings.flat().forEach(t => {
+        officialNotes[t.team.id] = {
+          description: t.description,
+          group: t.group
+        };
+      });
+
+      const isMultiGroup = officialStandings.length > 1;
+      if (isMultiGroup) {
+        tablesToRender = officialStandings.map(groupTable => {
+          const groupTeamIds = new Set(groupTable.map(t => t.team.id));
+          const groupFinished = finishedFixtures.filter(f => groupTeamIds.has(f.teams.home.id) && groupTeamIds.has(f.teams.away.id));
+          return computeTableFromFixtures(groupFinished, groupTable, officialNotes);
+        });
+      } else {
+        tablesToRender = [computeTableFromFixtures(finishedFixtures, officialStandings[0], officialNotes)];
+      }
+    }
+
+    content.innerHTML = tablesToRender.map((table, gi) => 
+      renderStandingsTable(table, leagueId, season, tablesToRender.length > 1 ? `Grupo ${gi + 1}` : null, state.currentTableFilter)
     ).join("");
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
+}
+
+function computeTableFromFixtures(fixtures, templateTable, officialNotes) {
+  const teamsMap = {};
+
+  templateTable.forEach(t => {
+    teamsMap[t.team.id] = {
+      team: { id: t.team.id, name: t.team.name, logo: t.team.logo },
+      all: { played: 0, win: 0, draw: 0, lose: 0, goals: { for: 0, against: 0 } },
+      home: { played: 0, win: 0, draw: 0, lose: 0, goals: { for: 0, against: 0 } },
+      away: { played: 0, win: 0, draw: 0, lose: 0, goals: { for: 0, against: 0 } },
+      points: 0,
+      form: '',
+      matches: [],
+      description: officialNotes[t.team.id]?.description || null,
+      group: officialNotes[t.team.id]?.group || null
+    };
+  });
+
+  fixtures.forEach(fx => {
+    const homeId = fx.teams?.home?.id;
+    const awayId = fx.teams?.away?.id;
+    const homeGoals = fx.goals?.home;
+    const awayGoals = fx.goals?.away;
+
+    if (homeGoals === null || homeGoals === undefined || awayGoals === null || awayGoals === undefined) return;
+    if (!teamsMap[homeId] || !teamsMap[awayId]) return;
+
+    const h = teamsMap[homeId];
+    const a = teamsMap[awayId];
+
+    h.all.played++;
+    h.home.played++;
+    h.all.goals.for += homeGoals;
+    h.all.goals.against += awayGoals;
+    h.home.goals.for += homeGoals;
+    h.home.goals.against += awayGoals;
+
+    a.all.played++;
+    a.away.played++;
+    a.all.goals.for += awayGoals;
+    a.all.goals.against += homeGoals;
+    a.away.goals.for += awayGoals;
+    a.away.goals.against += homeGoals;
+
+    const date = new Date(fx.fixture.date);
+
+    if (homeGoals > awayGoals) {
+      h.all.win++;
+      h.home.win++;
+      h.points += 3;
+      h.matches.push({ date, res: 'W' });
+
+      a.all.lose++;
+      a.away.lose++;
+      a.matches.push({ date, res: 'L' });
+    } else if (homeGoals === awayGoals) {
+      h.all.draw++;
+      h.home.draw++;
+      h.points += 1;
+      h.matches.push({ date, res: 'D' });
+
+      a.all.draw++;
+      a.away.draw++;
+      a.points += 1;
+      a.matches.push({ date, res: 'D' });
+    } else {
+      h.all.lose++;
+      h.home.lose++;
+      h.matches.push({ date, res: 'L' });
+
+      a.all.win++;
+      a.away.win++;
+      a.points += 3;
+      a.matches.push({ date, res: 'W' });
+    }
+  });
+
+  const result = Object.values(teamsMap);
+  result.forEach(t => {
+    t.matches.sort((m1, m2) => m1.date - m2.date);
+    t.form = t.matches.map(m => m.res).join('');
+  });
+
+  result.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    const diffA = a.all.goals.for - a.all.goals.against;
+    const diffB = b.all.goals.for - b.all.goals.against;
+    if (diffB !== diffA) return diffB - diffA;
+    if (b.all.goals.for !== a.all.goals.for) return b.all.goals.for - a.all.goals.for;
+    return a.team.name.localeCompare(b.team.name);
+  });
+
+  return result;
 }
 
 function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all") {
@@ -1216,9 +1342,10 @@ async function renderTeam(teamId, leagueId, season) {
   const content = document.getElementById("team-content");
 
   try {
-    const [stats, recentFixtures] = await Promise.all([
-      apiGet("teams/statistics", { league: leagueId, season, team: teamId }, 30),
-      apiGet("fixtures", { team: teamId, last: 5 }, 15),
+    const [stats, recentFixtures, teamSeasonFixtures] = await Promise.all([
+      apiGet("teams/statistics", { league: leagueId, season, team: teamId }, 5),
+      apiGet("fixtures", { team: teamId, last: 5 }, 5),
+      apiGet("fixtures", { team: teamId, season, league: leagueId }, 5).catch(() => [])
     ]);
 
     if (!stats || !stats.team) {
@@ -1227,10 +1354,70 @@ async function renderTeam(teamId, leagueId, season) {
     }
 
     const t = stats.team;
-    const gfAvg = parseFloat(stats.goals.for.average.total) || 0;
-    const gaAvg = parseFloat(stats.goals.against.average.total) || 0;
-    const played = stats.fixtures.played.total;
-    const winPct = played ? Math.round((stats.fixtures.wins.total / played) * 100) : 0;
+    const finishedSeason = Array.isArray(teamSeasonFixtures) ? teamSeasonFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short)) : [];
+
+    let totalPlayed = stats.fixtures?.played?.total || 0;
+    let totalWins = stats.fixtures?.wins?.total || 0;
+    let totalDraws = stats.fixtures?.draws?.total || 0;
+    let totalLoses = stats.fixtures?.loses?.total || 0;
+    let gfAvg = parseFloat(stats.goals?.for?.average?.total) || 0;
+    let gaAvg = parseFloat(stats.goals?.against?.average?.total) || 0;
+    let gfHomeAvg = stats.goals?.for?.average?.home || "0.0";
+    let gfAwayAvg = stats.goals?.for?.average?.away || "0.0";
+    let gaHomeAvg = stats.goals?.against?.average?.home || "0.0";
+    let gaAwayAvg = stats.goals?.against?.average?.away || "0.0";
+    let csTotal = stats.clean_sheet?.total || 0;
+    let csHome = stats.clean_sheet?.home || 0;
+    let csAway = stats.clean_sheet?.away || 0;
+
+    // Se houver partidas finalizadas recentes que ainda não constem no agregado da API-Football:
+    if (finishedSeason.length > totalPlayed) {
+      let wH = 0, wA = 0, dH = 0, dA = 0, lH = 0, lA = 0;
+      let gForH = 0, gForA = 0, gAgainstH = 0, gAgainstA = 0;
+      let cHome = 0, cAway = 0;
+      let playedHome = 0, playedAway = 0;
+
+      finishedSeason.forEach(f => {
+        const isHome = f.teams.home.id === teamId;
+        const gF = isHome ? f.goals.home : f.goals.away;
+        const gA = isHome ? f.goals.away : f.goals.home;
+        if (gF === null || gA === null || gF === undefined || gA === undefined) return;
+
+        if (isHome) {
+          playedHome++;
+          gForH += gF;
+          gAgainstH += gA;
+          if (gA === 0) cHome++;
+          if (gF > gA) wH++;
+          else if (gF === gA) dH++;
+          else lH++;
+        } else {
+          playedAway++;
+          gForA += gF;
+          gAgainstA += gA;
+          if (gA === 0) cAway++;
+          if (gF > gA) wA++;
+          else if (gF === gA) dA++;
+          else lA++;
+        }
+      });
+
+      totalPlayed = finishedSeason.length;
+      totalWins = wH + wA;
+      totalDraws = dH + dA;
+      totalLoses = lH + lA;
+      gfAvg = totalPlayed ? ((gForH + gForA) / totalPlayed) : 0;
+      gaAvg = totalPlayed ? ((gAgainstH + gAgainstA) / totalPlayed) : 0;
+      gfHomeAvg = playedHome ? (gForH / playedHome).toFixed(2) : gfHomeAvg;
+      gfAwayAvg = playedAway ? (gForA / playedAway).toFixed(2) : gfAwayAvg;
+      gaHomeAvg = playedHome ? (gAgainstH / playedHome).toFixed(2) : gaHomeAvg;
+      gaAwayAvg = playedAway ? (gAgainstA / playedAway).toFixed(2) : gaAwayAvg;
+      csTotal = cHome + cAway;
+      csHome = cHome;
+      csAway = cAway;
+    }
+
+    const winPct = totalPlayed ? Math.round((totalWins / totalPlayed) * 100) : 0;
     const isFav = state.favoriteTeams.some(fav => fav.id === teamId);
 
     content.innerHTML = `
@@ -1261,9 +1448,9 @@ async function renderTeam(teamId, leagueId, season) {
           </div>
           <div class="stat-card-main-val gold">${winPct}<small style="font-size:1.1rem;">%</small></div>
           <div class="stat-card-chips">
-            <span class="stat-chip win">${stats.fixtures.wins.total}V</span>
-            <span class="stat-chip draw">${stats.fixtures.draws.total}E</span>
-            <span class="stat-chip loss">${stats.fixtures.loses.total}D</span>
+            <span class="stat-chip win">${totalWins}V</span>
+            <span class="stat-chip draw">${totalDraws}E</span>
+            <span class="stat-chip loss">${totalLoses}D</span>
           </div>
         </div>
 
@@ -1274,8 +1461,8 @@ async function renderTeam(teamId, leagueId, season) {
           </div>
           <div class="stat-card-main-val green">${gfAvg.toFixed(2)}</div>
           <div class="stat-split-bar">
-            <span>🏠 Casa ${stats.goals.for.average.home}</span>
-            <span>✈️ Fora ${stats.goals.for.average.away}</span>
+            <span>🏠 Casa ${gfHomeAvg}</span>
+            <span>✈️ Fora ${gfAwayAvg}</span>
           </div>
         </div>
 
@@ -1286,8 +1473,8 @@ async function renderTeam(teamId, leagueId, season) {
           </div>
           <div class="stat-card-main-val red">${gaAvg.toFixed(2)}</div>
           <div class="stat-split-bar">
-            <span>🏠 Casa ${stats.goals.against.average.home}</span>
-            <span>✈️ Fora ${stats.goals.against.average.away}</span>
+            <span>🏠 Casa ${gaHomeAvg}</span>
+            <span>✈️ Fora ${gaAwayAvg}</span>
           </div>
         </div>
 
@@ -1296,10 +1483,10 @@ async function renderTeam(teamId, leagueId, season) {
             <span>🧤</span>
             <span>Jogos Sem Sofrer Gol</span>
           </div>
-          <div class="stat-card-main-val cyan">${stats.clean_sheet.total}</div>
+          <div class="stat-card-main-val cyan">${csTotal}</div>
           <div class="stat-split-bar">
-            <span>🏠 Casa ${stats.clean_sheet.home}</span>
-            <span>✈️ Fora ${stats.clean_sheet.away}</span>
+            <span>🏠 Casa ${csHome}</span>
+            <span>✈️ Fora ${csAway}</span>
           </div>
         </div>
       </div>

@@ -59,7 +59,7 @@ module.exports = async (req, res) => {
     const data = await apiResp.json();
 
     res.status(apiResp.status);
-    res.setHeader("Cache-Control", "public, max-age=300");
+    res.setHeader("Cache-Control", "public, max-age=60, s-maxage=60");
     res.json(data);
   } catch (err) {
     res.status(502).json({
