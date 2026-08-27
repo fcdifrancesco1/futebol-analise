@@ -2,6 +2,9 @@
   "name": "futebol-analise",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "build": "echo Build completed successfully"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "web-push": "^3.6.7"

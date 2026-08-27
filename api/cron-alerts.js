@@ -57,7 +57,7 @@ module.exports = async (req, res) => {
       const homeId = fx.teams.home.id;
       const awayId = fx.teams.away.id;
       const elapsed = fx.fixture.status.elapsed;
-      const score = ${fx.goals.home ?? 0} x ;
+      const score = `${fx.goals.home ?? 0} x ${fx.goals.away ?? 0}`;
 
       // Filtrar inscritos que seguem o time da casa ou visitante
       const matchingSubs = subscribers.filter(sub => {
@@ -68,7 +68,7 @@ module.exports = async (req, res) => {
       if (matchingSubs.length === 0) continue;
 
       // Buscar eventos recentes desta partida
-      const eventsResp = await fetch(https://v3.football.api-sports.io/fixtures/events?fixture=, {
+      const eventsResp = await fetch(`https://v3.football.api-sports.io/fixtures/events?fixture=${fx.fixture.id}`, {
         headers: { "x-apisports-key": FOOTBALL_API_KEY }
       });
       const eventsData = await eventsResp.json();
@@ -87,11 +87,11 @@ module.exports = async (req, res) => {
         const playerName = ev.player?.name || "Jogador";
 
         if (ev.type === "Goal" && ev.detail !== "Missed Penalty") {
-          title = ⚽ GOL DO ! (');
-          body = ${playerName} marca para o ! (  );
+          title = `⚽ GOL DO ${teamName.toUpperCase()}! (${ev.time.elapsed}')`;
+          body = `${playerName} marca para o ${teamName}! (${fx.teams.home.name} ${score} ${fx.teams.away.name})`;
         } else if (ev.type === "Card" && ev.detail === "Red Card") {
-          title = 🟥 CARTÃO VERMELHO! (');
-          body = ${playerName} () foi expulso da partida!;
+          title = `🟥 CARTÃO VERMELHO! (${ev.time.elapsed}')`;
+          body = `${playerName} (${teamName}) foi expulso da partida!`;
         }
 
         if (!title) continue;
@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
           body,
           icon: ev.team?.logo || fx.teams.home.logo,
           badge: "/icon-192.png",
-          url: /#/jogo/
+          data: { url: `/#/jogo/${fx.fixture.id}` }
         });
 
         // Enviar notificação para os celulares dos torcedores
