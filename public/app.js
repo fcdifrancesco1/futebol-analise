@@ -1779,10 +1779,16 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
   if (!content) return;
 
   const knownLeagueIds = new Set(LEAGUES.map(l => l.id));
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
 
   try {
-    const fixtures = await apiGet("fixtures", { date: dateStr }, 3);
-    const relevant = (fixtures || []).filter(f => knownLeagueIds.has(f.league?.id));
+    const fixtures = await apiGet("fixtures", { date: dateStr, timezone: tz }, 3);
+    const relevant = (fixtures || []).filter(f => {
+      if (!knownLeagueIds.has(f.league?.id)) return false;
+      // Garante que o jogo pertence exatamente ao dia selecionado no fuso horário local
+      const fixtureDateLocal = getLocalDateString(new Date(f.fixture?.date));
+      return fixtureDateLocal === dateStr;
+    });
 
     if (!relevant.length) {
       content.innerHTML = `
