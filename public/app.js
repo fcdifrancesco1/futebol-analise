@@ -228,7 +228,7 @@ const NotificationManager = {
     };
 
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?on_conflict=endpoint`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -238,6 +238,11 @@ const NotificationManager = {
         },
         body: JSON.stringify(payload)
       });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn("Supabase save response:", res.status, errText);
+      }
     } catch (err) {
       console.warn("Erro ao sincronizar com Supabase:", err);
     }
