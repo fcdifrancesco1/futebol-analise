@@ -29,6 +29,7 @@
 
         <nav class="desktop-nav" aria-label="Navegação Principal">
           <button class="tab active" data-nav="home">Ligas</button>
+          <button class="tab" data-nav="today">Jogos do Dia</button>
           <button class="tab" data-nav="live">Ao Vivo <span class="live-indicator"></span></button>
           <button class="tab" data-nav="compare">Comparador <span class="badge" id="compare-badge" hidden>0</span></button>
         </nav>
@@ -47,11 +48,15 @@
     <!-- Conteúdo Principal -->
     <main class="main-content" id="app"></main>
 
-    <!-- Menu Inferior Mobile (4 Abas incluindo Alertas 🔔) -->
+    <!-- Menu Inferior Mobile (5 Abas incluindo Jogos do Dia e Alertas 🔔) -->
     <nav class="mobile-bottom-nav">
       <button class="bottom-nav-item active" data-nav="home">
         <span class="bottom-nav-icon">🏆</span>
         <span class="bottom-nav-label">Ligas</span>
+      </button>
+      <button class="bottom-nav-item" data-nav="today">
+        <span class="bottom-nav-icon">📅</span>
+        <span class="bottom-nav-label">Jogos do Dia</span>
       </button>
       <button class="bottom-nav-item" data-nav="live">
         <span class="bottom-nav-icon">🔴</span>
