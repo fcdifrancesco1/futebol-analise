@@ -33,11 +33,20 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Helper para enviar push
+    // Helper para enviar push exatamente uma única vez por evento/tag
     let notificationsSent = 0;
     const errors = [];
+    const subUpdates = new Map(); // endpoint -> updated sent_events array
 
-    const dispatchPush = async (sub, payloadObj) => {
+    const dispatchPushOnce = async (sub, payloadObj) => {
+      const tag = payloadObj.tag;
+      const currentSentEvents = subUpdates.get(sub.endpoint) || (sub.preferences?.sent_events || []);
+
+      // Se a notificação já foi disparada anteriormente para este celular, ignora!
+      if (tag && currentSentEvents.includes(tag)) {
+        return false;
+      }
+
       const pushSubscription = {
         endpoint: sub.endpoint,
         keys: {
@@ -49,12 +58,19 @@ module.exports = async (req, res) => {
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(payloadObj));
         notificationsSent++;
+
+        if (tag) {
+          const nextSentEvents = [...currentSentEvents, tag].slice(-60); // Mantém últimos 60 eventos para não inflar o JSON
+          subUpdates.set(sub.endpoint, nextSentEvents);
+        }
+        return true;
       } catch (err) {
         if (err.statusCode === 410 || err.statusCode === 404) {
           await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
         } else {
           errors.push(err.message);
         }
+        return false;
       }
     };
 
@@ -102,7 +118,7 @@ module.exports = async (req, res) => {
 
       if (matchingSubs.length === 0) continue;
 
-      // Evento 0: Alerta de Escalações Oficiais (Dispara quando saem as escalações para jogos não iniciados ou recém-iniciados)
+      // Evento 0: Alerta de Escalações Oficiais (Dispara estritamente 1 única vez quando saem as escalações)
       if (["NS", "TBD", "1H"].includes(statusShort)) {
         const wantsLineups = matchingSubs.some(sub => (sub.preferences?.lineups !== false));
         if (wantsLineups) {
@@ -118,7 +134,7 @@ module.exports = async (req, res) => {
                 const prefs = sub.preferences || {};
                 if (prefs.lineups === false) continue;
 
-                await dispatchPush(sub, {
+                await dispatchPushOnce(sub, {
                   title: `📋 ESCALAÇÕES CONFIRMADAS!`,
                   body: `As escalações oficiais de ${fx.teams.home.name} × ${fx.teams.away.name} já estão no ar!`,
                   icon: fx.teams.home.logo,
@@ -140,7 +156,7 @@ module.exports = async (req, res) => {
           const prefs = sub.preferences || {};
           if (prefs.kickoff === false) continue;
 
-          await dispatchPush(sub, {
+          await dispatchPushOnce(sub, {
             title: `⏱️ BOLA ROLANDO! (${fx.teams.home.name} x ${fx.teams.away.name})`,
             body: `Começou a partida entre ${fx.teams.home.name} e ${fx.teams.away.name} pela ${fx.league.name}!`,
             icon: fx.teams.home.logo,
@@ -157,7 +173,7 @@ module.exports = async (req, res) => {
           const prefs = sub.preferences || {};
           if (prefs.halftime === false) continue;
 
-          await dispatchPush(sub, {
+          await dispatchPushOnce(sub, {
             title: `⏸️ INTERVALO: ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
             body: `Fim do primeiro tempo! Placar parcial: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
             icon: fx.teams.home.logo,
@@ -174,7 +190,7 @@ module.exports = async (req, res) => {
           const prefs = sub.preferences || {};
           if (prefs.fulltime === false) continue;
 
-          await dispatchPush(sub, {
+          await dispatchPushOnce(sub, {
             title: `🏁 FIM DE JOGO: ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
             body: `Partida encerrada! Placar final: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
             icon: fx.teams.home.logo,
@@ -210,7 +226,7 @@ module.exports = async (req, res) => {
                 const prefs = sub.preferences || {};
                 if (prefs.goals === false) continue;
 
-                await dispatchPush(sub, {
+                await dispatchPushOnce(sub, {
                   title: `⚽ GOL DO ${teamName.toUpperCase()}! (${ev.time.elapsed}')`,
                   body: `${playerName} marca para o ${teamName}! (${fx.teams.home.name} ${score} ${fx.teams.away.name})`,
                   icon: ev.team?.logo || fx.teams.home.logo,
@@ -226,7 +242,7 @@ module.exports = async (req, res) => {
                 const prefs = sub.preferences || {};
                 if (prefs.redcards === false) continue;
 
-                await dispatchPush(sub, {
+                await dispatchPushOnce(sub, {
                   title: `🟥 CARTÃO VERMELHO! (${ev.time.elapsed}')`,
                   body: `${playerName} (${teamName}) foi expulso da partida!`,
                   icon: ev.team?.logo || fx.teams.home.logo,
@@ -239,6 +255,23 @@ module.exports = async (req, res) => {
           }
         } catch (e) {
           console.warn("Erro ao processar eventos do jogo:", e.message);
+        }
+      }
+    }
+
+    // 4. Salvar histórico de eventos já enviados para evitar qualquer repetição nos próximos ciclos
+    if (subUpdates.size > 0) {
+      for (const [endpoint, updatedEvents] of subUpdates.entries()) {
+        const targetSub = subscribers.find(s => s.endpoint === endpoint);
+        if (targetSub) {
+          const mergedPrefs = {
+            ...(targetSub.preferences || {}),
+            sent_events: updatedEvents
+          };
+          await supabase
+            .from("push_subscriptions")
+            .update({ preferences: mergedPrefs, updated_at: new Date().toISOString() })
+            .eq("endpoint", endpoint);
         }
       }
     }

@@ -219,6 +219,7 @@ const NotificationManager = {
   },
 
   async saveToSupabase(endpoint, p256dh, auth) {
+    const existingSentEvents = JSON.parse(localStorage.getItem("ap_sent_events") || "[]");
     const payload = {
       endpoint,
       p256dh,
@@ -226,7 +227,8 @@ const NotificationManager = {
       favorite_teams: state.favoriteTeams,
       preferences: {
         ...state.notificationPrefs,
-        favorite_fixtures: state.favoriteFixtures
+        favorite_fixtures: state.favoriteFixtures,
+        sent_events: existingSentEvents
       },
       updated_at: new Date().toISOString()
     };
