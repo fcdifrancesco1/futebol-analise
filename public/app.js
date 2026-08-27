@@ -1819,9 +1819,13 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season) {
                     ${rowPlayers.map(p => {
                       const pid = p.player?.id;
                       const eventBadges = generateEventBadges(pid);
+                      const photoUrl = pid ? `https://media.api-sports.io/football/players/${pid}.png` : 'https://media.api-sports.io/football/players/placeholder.png';
                       return `
                         <a class="pitch-player" href="#/jogador/${pid}/${l.team.id}/${leagueId}/${season}" title="Ver estatísticas de ${escapeHtml(p.player.name)} (#${p.player.number ?? ''})">
                           <div class="pitch-badge-wrapper">
+                            <div class="pitch-player-avatar-circle ${isAway ? 'away' : 'home'}">
+                              <img src="${photoUrl}" alt="" loading="lazy" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                            </div>
                             <div class="pitch-player-badge ${isAway ? 'away' : 'home'}">${p.player.number ?? ""}</div>
                             ${eventBadges ? `<div class="pitch-event-icons">${eventBadges}</div>` : ''}
                           </div>
@@ -1833,22 +1837,22 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season) {
               </div>
             </div>
 
-            <p class="stat-label" style="margin-top:16px;">Banco de Reservas</p>
-            <ul style="list-style:none;padding:0;margin:0;font-size:0.82rem;display:flex;flex-direction:column;gap:3px;">
+            <p class="stat-label" style="margin-top:18px;">Banco de Reservas</p>
+            <div class="substitutes-grid">
               ${l.substitutes.map(s => {
                 const pid = s.player?.id;
                 const eventBadges = generateEventBadges(pid);
                 const entered = playerEventsMap[pid]?.subIn;
+                const photoUrl = pid ? `https://media.api-sports.io/football/players/${pid}.png` : 'https://media.api-sports.io/football/players/placeholder.png';
                 return `
-                  <li>
-                    <a class="sub-player-item ${entered ? 'was-subbed-in' : ''}" href="#/jogador/${pid}/${l.team.id}/${leagueId}/${season}" title="Ver perfil do atleta">
-                      <span class="sub-num">${s.player.number ?? "-"}</span>
-                      <span class="sub-name">${escapeHtml(s.player.name)}</span>
-                      ${eventBadges ? `<span class="sub-events">${eventBadges}</span>` : ''}
-                    </a>
-                  </li>`;
+                  <a class="sub-player-card ${entered ? 'was-subbed-in' : ''}" href="#/jogador/${pid}/${l.team.id}/${leagueId}/${season}" title="Ver perfil de ${escapeHtml(s.player.name)}">
+                    <span class="sub-num ${isAway ? 'away' : 'home'}">${s.player.number ?? "-"}</span>
+                    <img class="sub-photo" src="${photoUrl}" alt="" loading="lazy" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                    <span class="sub-name">${escapeHtml(s.player.name)}</span>
+                    ${eventBadges ? `<span class="sub-events">${eventBadges}</span>` : ''}
+                  </a>`;
               }).join("")}
-            </ul>
+            </div>
           </div>`;
       }).join("")}
     </div>

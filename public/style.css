@@ -1052,29 +1052,67 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 }
 .pitch-player:hover { transform: scale(1.15); }
 
-.pitch-badge-wrapper { position: relative; }
-.pitch-player-badge {
-  width: 26px;
-  height: 26px;
+.pitch-badge-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pitch-player-avatar-circle {
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
+  position: relative;
+  background: var(--pitch-card-elevated);
+  border: 2px solid var(--gold);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.pitch-player-avatar-circle.away {
+  border-color: var(--terracotta);
+}
+
+.pitch-player-avatar-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pitch-player-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.8);
+  z-index: 2;
+  border: 1px solid rgba(0,0,0,0.5);
 }
 .pitch-player-badge.home { background: var(--gold); color: #07111E; }
 .pitch-player-badge.away { background: var(--terracotta); color: white; }
 
 .pitch-player-name {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  color: var(--chalk);
-  text-shadow: 0 1px 3px black;
-  margin-top: 2px;
-  max-width: 60px;
+  color: #FFFFFF;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+  margin-top: 3px;
+  max-width: 68px;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1084,15 +1122,84 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 .pitch-event-icons {
   position: absolute;
   top: -8px;
-  right: -12px;
+  right: -10px;
   display: flex;
-  gap: 1px;
+  gap: 2px;
+  z-index: 3;
 }
 .event-pill {
   font-size: 0.6rem;
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 3px;
-  padding: 1px 2px;
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 4px;
+  padding: 1px 3px;
+  border: 1px solid var(--line-faint);
+}
+
+/* ============================================================
+   Banco de Reservas — Grid Moderno e Estilizado
+   ============================================================ */
+.substitutes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sub-player-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-faint);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  text-decoration: none;
+  color: var(--chalk);
+  transition: all 0.2s ease;
+}
+
+.sub-player-card:hover {
+  background: var(--gold-soft);
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  color: var(--chalk);
+}
+
+.sub-player-card.was-subbed-in {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.sub-num {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 22px;
+  text-align: center;
+}
+
+.sub-num.home { background: var(--gold-soft); color: var(--gold); }
+.sub-num.away { background: var(--terracotta-soft); color: var(--terracotta); }
+
+.sub-photo {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--line-strong);
+  background: var(--pitch-card-elevated);
+  flex-shrink: 0;
+}
+
+.sub-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
 /* ============================================================
