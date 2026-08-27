@@ -1,5 +1,5 @@
 // ============================================================
-// APURAÇÃO — app.js (com Estatísticas Pré-Jogo & Correção Web)
+// FutStats — app.js (Estatísticas, Análises e Alertas Push)
 // ============================================================
 
 const FN_URL = "/api/football";

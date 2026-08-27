@@ -1,40 +1,40 @@
 /* ============================================================
-   APURAÇÃO — Visual Identity: Dark Slate & Electric Cyan
+   FutStats — Visual Identity: Modern Dark Glassmorphic & Electric Cyan
    ============================================================ */
 
 :root {
-  --bg-app: #07111E;
-  --pitch-card: #0D1B2A;
-  --pitch-card-elevated: #132238;
-  --pitch-border: rgba(56, 189, 248, 0.15);
+  --bg-app: #060E18;
+  --pitch-card: rgba(13, 27, 42, 0.65);
+  --pitch-card-elevated: rgba(19, 34, 56, 0.75);
+  --pitch-border: rgba(255, 255, 255, 0.12);
   
-  --line-faint: rgba(255, 255, 255, 0.06);
-  --line-strong: rgba(56, 189, 248, 0.25);
+  --line-faint: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(56, 189, 248, 0.3);
   
   --chalk: #F0F4F8;
   --chalk-dim: #94A3B8;
   --chalk-muted: #64748B;
   
   --gold: #38BDF8;             /* Ciano Elétrico Neon */
-  --gold-soft: rgba(56, 189, 248, 0.15);
-  --gold-border: rgba(56, 189, 248, 0.35);
+  --gold-soft: rgba(56, 189, 248, 0.18);
+  --gold-border: rgba(56, 189, 248, 0.4);
   
   --terracotta: #F43F5E;       /* Vermelho Neon */
-  --terracotta-soft: rgba(244, 63, 94, 0.15);
+  --terracotta-soft: rgba(244, 63, 94, 0.18);
   
-  --glass-bg: rgba(13, 27, 42, 0.85);
-  --glass-border: rgba(56, 189, 248, 0.2);
+  --glass-bg: rgba(9, 20, 32, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.14);
   
   --font-display: 'Outfit', -apple-system, sans-serif;
   --font-body: 'Outfit', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   
-  --radius: 12px;
+  --radius: 14px;
   --radius-sm: 8px;
-  --radius-lg: 16px;
+  --radius-lg: 18px;
   
-  --shadow-pitch: 0 10px 30px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px rgba(56, 189, 248, 0.2);
+  --shadow-pitch: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 20px rgba(56, 189, 248, 0.25);
 }
 
 * {
@@ -50,10 +50,9 @@ body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  background-image: 
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.12), transparent 70%),
-    linear-gradient(180deg, #07111E 0%, #050B14 100%);
-  background-attachment: fixed;
+  background: 
+    linear-gradient(180deg, rgba(6, 14, 24, 0.82) 0%, rgba(4, 9, 17, 0.90) 100%),
+    url('/fundo.jpeg') center center / cover no-repeat fixed;
   padding-bottom: 40px;
 }
 
@@ -229,7 +228,9 @@ body {
 }
 
 .notif-modal-card {
-  background: var(--pitch-card);
+  background: rgba(9, 20, 32, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--pitch-border);
   border-radius: var(--radius-lg);
   width: 100%;
@@ -586,10 +587,12 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 }
 
 /* ============================================================
-   Cards & Layouts
+   Cards & Layouts — Glassmorphic Theme
    ============================================================ */
 .card {
   background: var(--pitch-card);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--pitch-border);
   border-radius: var(--radius);
   padding: 20px;
@@ -614,6 +617,8 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 
 .league-card {
   background: var(--pitch-card);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--pitch-border);
   border-radius: var(--radius);
   padding: 16px;
@@ -661,6 +666,8 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   text-decoration: none;
   color: var(--chalk);
   background: var(--pitch-card);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--pitch-border);
   border-radius: var(--radius);
   transition: all 0.2s ease;
@@ -689,6 +696,8 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--pitch-card);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--pitch-border);
   border-radius: var(--radius);
 }
@@ -857,6 +866,8 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
    ============================================================ */
 .fixture-hero {
   background: var(--pitch-card);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--pitch-border);
   border-radius: var(--radius-lg);
   padding: 20px;
@@ -964,6 +975,8 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   align-items: center;
   gap: 20px;
   background: var(--pitch-card);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--pitch-border);
   border-radius: var(--radius-lg);
   padding: 20px;
@@ -1012,11 +1025,13 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 }
 
 .stat-card-modern {
-  background: linear-gradient(145deg, rgba(13, 27, 42, 0.95) 0%, rgba(6, 17, 30, 0.98) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(13, 27, 42, 0.75) 0%, rgba(6, 17, 30, 0.85) 100%);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
   padding: 16px 14px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -1360,6 +1375,8 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
    ============================================================ */
 .fifa-dashboard {
   background: var(--pitch-card);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--pitch-border);
   border-radius: var(--radius-lg);
   padding: 20px;
@@ -1471,6 +1488,8 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 /* Barra de Probabilidade */
 .pitch-bar-wrap {
   background: var(--pitch-card);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--pitch-border);
   border-radius: var(--radius-lg);
   padding: 16px;

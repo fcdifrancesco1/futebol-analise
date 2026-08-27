@@ -1,14 +1,15 @@
 // ============================================================
-// Service Worker — Apuração PWA & Push Notifications
+// Service Worker — FutStats PWA & Push Notifications
 // ============================================================
 
-const CACHE_NAME = "apuracao-cache-v2";
+const CACHE_NAME = "futstats-cache-v3";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
   "/style.css",
   "/app.js",
   "/manifest.json",
+  "/fundo.jpeg",
   "/icon-192.png",
   "/icon-512.png"
 ];
@@ -53,7 +54,7 @@ self.addEventListener("fetch", (e) => {
 // ---------- Recebimento de Notificação Push (Com App Fechado) ----------
 self.addEventListener("push", (event) => {
   let data = {
-    title: "⚽ Apuração Futebol",
+    title: "⚽ FutStats",
     body: "Novo evento na partida!",
     icon: "/icon-192.png",
     badge: "/icon-192.png",

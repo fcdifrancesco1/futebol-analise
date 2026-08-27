@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // Vercel Serverless Function — Robô de Monitoramento e Disparo Push
 // ============================================================
 
@@ -11,7 +11,7 @@ const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5c
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BMjC-8Rjccu_uZoj0BaFDXpUatXC1yShp_foJEdb0uixT398zbT4JlvTfRDeRswaBqRQx6ezRF8mAutCCfE-Q6A";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "gWKwUrc5XBpYUOBExM1ha_M3ugoo5JbM7mQSMt4Lk_c";
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:contato@apuracao.com";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:contato@futstats.com";
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
