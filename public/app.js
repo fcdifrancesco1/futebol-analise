@@ -1439,12 +1439,24 @@ async function fetchLiveMatches(isForced = false) {
 }
 
 function startLiveAutoRefresh(refreshFn) {
+  if (state.liveTimer) {
+    clearInterval(state.liveTimer);
+    state.liveTimer = null;
+  }
+
   let remaining = state.liveIntervalSeconds;
-  const bar = document.getElementById("live-progress-bar");
   
   state.liveTimer = setInterval(() => {
+    const bar = document.getElementById("live-progress-bar");
+    // Se o elemento sumiu da tela ou o usuário mudou de rota, cancela o timer
+    if (!bar) {
+      clearInterval(state.liveTimer);
+      state.liveTimer = null;
+      return;
+    }
+
     remaining--;
-    if (bar) bar.style.width = `${(remaining / state.liveIntervalSeconds) * 100}%`;
+    bar.style.width = `${(remaining / state.liveIntervalSeconds) * 100}%`;
     if (remaining <= 0) {
       remaining = state.liveIntervalSeconds;
       refreshFn();
@@ -1456,7 +1468,20 @@ function startLiveAutoRefresh(refreshFn) {
 // View: Detalhe do Jogo (Com Estatísticas Pré-Jogo vs Ao Vivo)
 // ============================================================
 async function renderFixture(fixtureId, isSilentRefresh = false) {
+  // Se o usuário não está mais nesta partida, interrompe
+  if (location.hash !== `#/jogo/${fixtureId}`) {
+    if (state.liveTimer) {
+      clearInterval(state.liveTimer);
+      state.liveTimer = null;
+    }
+    return;
+  }
+
   if (!isSilentRefresh) {
+    if (state.liveTimer) {
+      clearInterval(state.liveTimer);
+      state.liveTimer = null;
+    }
     app.innerHTML = `<div id="fixture-content">${skeletonTable()}</div>`;
   }
   const content = document.getElementById("fixture-content") || app;
@@ -1469,6 +1494,11 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       apiGet("fixtures/lineups", { fixture: fixtureId }, 30),
       apiGet("predictions", { fixture: fixtureId }, 60),
     ]);
+
+    // Verifica novamente se o usuário ainda está nesta partida após as requisições assíncronas
+    if (location.hash !== `#/jogo/${fixtureId}`) {
+      return;
+    }
 
     const fx = fxResponse.status === "fulfilled" ? fxResponse.value?.[0] : null;
     if (!fx) {
@@ -1506,6 +1536,11 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           preMatchSection = renderPreMatchStatsComparison(statsA, statsB, fx);
         }
       } catch { /* fallback */ }
+    }
+
+    // Confirma novamente antes de renderizar no DOM
+    if (location.hash !== `#/jogo/${fixtureId}`) {
+      return;
     }
 
     content.innerHTML = `
