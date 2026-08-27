@@ -1111,6 +1111,139 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 }
 
 /* ============================================================
+   Estatísticas Detalhadas do Jogador — Layout Simétrico Glass
+   ============================================================ */
+.player-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.player-metrics-card {
+  background: var(--pitch-card);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--pitch-border);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  box-shadow: var(--shadow-pitch);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.player-metrics-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.player-metrics-header.attack .metrics-header-title { color: #38BDF8; }
+.player-metrics-header.defense .metrics-header-title { color: #10B981; }
+
+.metrics-header-icon {
+  font-size: 1.15rem;
+}
+
+.metrics-header-title {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 0;
+}
+
+.player-metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.player-metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.player-metric-row:hover {
+  background: rgba(56, 189, 248, 0.06);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.metric-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--chalk);
+  font-weight: 500;
+  min-width: 0;
+}
+
+.metric-icon {
+  font-size: 0.95rem;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.metric-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metric-val {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--chalk);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 3px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.metric-val.gold { color: #38BDF8; border-color: rgba(56, 189, 248, 0.3); }
+.metric-val.green { color: #10B981; border-color: rgba(16, 185, 129, 0.3); }
+
+.metric-cards-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.card-badge {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.card-badge.yellow {
+  background: rgba(234, 179, 8, 0.18);
+  color: #FACC15;
+  border: 1px solid rgba(234, 179, 8, 0.35);
+}
+.card-badge.red {
+  background: rgba(239, 68, 68, 0.18);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+/* ============================================================
    Campo Tático 2D
    ============================================================ */
 .tactical-pitch {

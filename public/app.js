@@ -1105,24 +1105,87 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;">
-          <div class="card">
-            <h2 class="section-title">Finalizações & Ataque</h2>
-            <div class="fifa-stats-center" style="background:transparent;border:none;">
-              <div class="fifa-stat-row"><span>Chutes Totais</span><strong>${s.shots?.total ?? 0}</strong></div>
-              <div class="fifa-stat-row"><span>Chutes no Alvo</span><strong>${s.shots?.on ?? 0}</strong></div>
-              <div class="fifa-stat-row"><span>Dribles Certos</span><strong>${s.dribbles?.success ?? 0}</strong></div>
-              <div class="fifa-stat-row"><span>Pênaltis Sofridos</span><strong>${s.penalty?.won ?? 0}</strong></div>
+        <div class="player-metrics-grid">
+          <div class="player-metrics-card">
+            <div class="player-metrics-header attack">
+              <span class="metrics-header-icon">🔥</span>
+              <span class="metrics-header-title">Finalizações & Ataque</span>
+            </div>
+            <div class="player-metrics-list">
+              <div class="player-metric-row">
+                <div class="metric-info">
+                  <span class="metric-icon">🎯</span>
+                  <span class="metric-label">Chutes Totais</span>
+                </div>
+                <span class="metric-val gold">${s.shots?.total ?? 0}</span>
+              </div>
+
+              <div class="player-metric-row">
+                <div class="metric-info">
+                  <span class="metric-icon">🥅</span>
+                  <span class="metric-label">Chutes no Alvo</span>
+                </div>
+                <span class="metric-val gold">${s.shots?.on ?? 0}</span>
+              </div>
+
+              <div class="player-metric-row">
+                <div class="metric-info">
+                  <span class="metric-icon">⚡</span>
+                  <span class="metric-label">Dribles Certos</span>
+                </div>
+                <span class="metric-val">${s.dribbles?.success ?? 0}</span>
+              </div>
+
+              <div class="player-metric-row">
+                <div class="metric-info">
+                  <span class="metric-icon">🎖️</span>
+                  <span class="metric-label">Pênaltis Sofridos</span>
+                </div>
+                <span class="metric-val">${s.penalty?.won ?? 0}</span>
+              </div>
             </div>
           </div>
 
-          <div class="card">
-            <h2 class="section-title">Defesa & Disciplina</h2>
-            <div class="fifa-stats-center" style="background:transparent;border:none;">
-              <div class="fifa-stat-row"><span>Desarmes</span><strong>${s.tackles?.total ?? 0}</strong></div>
-              <div class="fifa-stat-row"><span>Interceptações</span><strong>${s.tackles?.interceptions ?? 0}</strong></div>
-              <div class="fifa-stat-row"><span>Faltas Cometidas</span><strong>${s.fouls?.committed ?? 0}</strong></div>
-              <div class="fifa-stat-row"><span>Cartões Amarelos / Vermelhos</span><strong>🟨 ${s.cards?.yellow ?? 0} · 🟥 ${s.cards?.red ?? 0}</strong></div>
+          <div class="player-metrics-card">
+            <div class="player-metrics-header defense">
+              <span class="metrics-header-icon">🛡️</span>
+              <span class="metrics-header-title">Defesa & Disciplina</span>
+            </div>
+            <div class="player-metrics-list">
+              <div class="player-metric-row">
+                <div class="metric-info">
+                  <span class="metric-icon">⚔️</span>
+                  <span class="metric-label">Desarmes</span>
+                </div>
+                <span class="metric-val green">${s.tackles?.total ?? 0}</span>
+              </div>
+
+              <div class="player-metric-row">
+                <div class="metric-info">
+                  <span class="metric-icon">🧤</span>
+                  <span class="metric-label">Interceptações</span>
+                </div>
+                <span class="metric-val green">${s.tackles?.interceptions ?? 0}</span>
+              </div>
+
+              <div class="player-metric-row">
+                <div class="metric-info">
+                  <span class="metric-icon">⚠️</span>
+                  <span class="metric-label">Faltas Cometidas</span>
+                </div>
+                <span class="metric-val">${s.fouls?.committed ?? 0}</span>
+              </div>
+
+              <div class="player-metric-row">
+                <div class="metric-info">
+                  <span class="metric-icon">🎴</span>
+                  <span class="metric-label">Cartões Amarelos / Vermelhos</span>
+                </div>
+                <div class="metric-cards-badges">
+                  <span class="card-badge yellow">🟨 ${s.cards?.yellow ?? 0}</span>
+                  <span class="card-badge red">🟥 ${s.cards?.red ?? 0}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
