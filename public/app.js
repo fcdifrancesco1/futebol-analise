@@ -407,13 +407,15 @@ const NotificationManager = {
 };
 
 // ============================================================
+// ============================================================
 // Formatador Rigoroso de Rodadas e Copas
 // ============================================================
 function formatRoundName(r) {
   if (!r) return "Partidas";
   let s = String(r).trim();
 
-  if (/Regular Season|Round|Rodada/i.test(s)) {
+  // 1. Se for liga de pontos corridos (ex: Regular Season - 14, Round 14, Rodada 14)
+  if (/Regular Season\s*-\s*\d+/i.test(s) || /^Round\s*\d+$/i.test(s) || /^Rodada\s*\d+$/i.test(s)) {
     const matchNum = s.match(/\d+/);
     if (matchNum) return `Rodada ${matchNum[0]}`;
   }
@@ -421,36 +423,40 @@ function formatRoundName(r) {
   const isLeg1 = /[-_ ]1$|\b1st leg\b|\bida\b/i.test(s);
   const isLeg2 = /[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(s);
   const legSuffix = isLeg1 ? " — Jogo de Ida" : isLeg2 ? " — Jogo de Volta" : "";
-  const cleanPhase = s.replace(/[-_ ]\d+$/, "").trim();
+  const cleanPhase = s.replace(/[-_ ]\d+$/, "").replace(/\s*-\s*(1st|2nd)\s*Leg/i, "").trim();
 
-  const dict = {
-    "Round of 16": "Oitavas de Final",
-    "8th Finals": "Oitavas de Final",
-    "Quarter-finals": "Quartas de Final",
-    "Quarterfinals": "Quartas de Final",
-    "Semi-finals": "Semifinal",
-    "Semifinals": "Semifinal",
-    "Final": "Grande Final",
-    "Round of 32": "16 avos de Final",
-    "16th Finals": "16 avos de Final",
-    "Preliminary Round": "Fase Preliminar",
-    "1st Qualifying Round": "1ª Pré-Eliminatória",
-    "2nd Qualifying Round": "2ª Pré-Eliminatória",
-    "3rd Qualifying Round": "3ª Pré-Eliminatória",
-    "Play-offs": "Play-offs",
-    "Group Stage": "Fase de Grupos",
-  };
+  // 2. Fases de mata-mata em ordem estrita de prioridade (evita que 1st Round vire Final)
+  if (/Round of 64|1st Qualifying|1ª Fase|1st Round/i.test(cleanPhase)) return "1ª Fase" + legSuffix;
+  if (/2nd Qualifying|2ª Fase|2nd Round/i.test(cleanPhase)) return "2ª Fase" + legSuffix;
+  if (/3rd Qualifying|3ª Fase|3rd Round/i.test(cleanPhase)) return "3ª Fase" + legSuffix;
+  if (/Round of 32|16th Finals|16 avos/i.test(cleanPhase)) return "16 avos de Final" + legSuffix;
+  if (/Round of 16|8th Finals|Oitavas/i.test(cleanPhase)) return "Oitavas de Final" + legSuffix;
+  if (/Quarter-finals|Quarterfinals|Quartas/i.test(cleanPhase)) return "Quartas de Final" + legSuffix;
+  if (/Semi-finals|Semifinals|Semifinal/i.test(cleanPhase)) return "Semifinal" + legSuffix;
+  if (/^Final$|^Finals$|Grande Final|Championship Final/i.test(cleanPhase)) return "Grande Final" + legSuffix;
+  if (/Play-offs|Playoffs/i.test(cleanPhase)) return "Play-offs" + legSuffix;
+  if (/Group Stage|Fase de Grupos/i.test(cleanPhase)) return "Fase de Grupos";
+  if (/Preliminary/i.test(cleanPhase)) return "Fase Preliminar" + legSuffix;
 
-  for (const [en, pt] of Object.entries(dict)) {
-    if (cleanPhase.toLowerCase().includes(en.toLowerCase())) {
-      return pt + legSuffix;
-    }
-  }
+  // Fallback para qualquer número de rodada
+  const matchNum = s.match(/\d+/);
+  if (matchNum && /Round|Rodada/i.test(s)) return `Rodada ${matchNum[0]}`;
 
-  return s;
+  return cleanPhase + legSuffix;
 }
 
 function extractRoundNumber(title) {
+  const t = String(title).toLowerCase();
+  if (t.includes("fase preliminar")) return 1;
+  if (t.includes("1ª fase") || t.includes("1ª pré")) return 2;
+  if (t.includes("2ª fase") || t.includes("2ª pré")) return 3;
+  if (t.includes("3ª fase") || t.includes("3ª pré")) return 4;
+  if (t.includes("16 avos")) return 5;
+  if (t.includes("oitavas")) return 6;
+  if (t.includes("quartas")) return 7;
+  if (t.includes("semifinal")) return 8;
+  if (t.includes("grande final") || t.includes("final")) return 9;
+
   const m = title.match(/\d+/);
   return m ? parseInt(m[0], 10) : 9999;
 }
@@ -803,7 +809,14 @@ async function renderLeagueFixtures(leagueId, season) {
 }
 
 function renderGroupedFixtures(fixtures, isCup = false) {
-  if (!fixtures || !fixtures.length) return `<div class="card"><p style="color:var(--chalk-dim);">Nenhum jogo encontrado.</p></div>`;
+  if (!fixtures || !fixtures.length) {
+    return `
+      <div class="card" style="text-align:center;padding:36px 20px;color:var(--chalk-dim);">
+        <span style="font-size:2rem;display:block;margin-bottom:8px;">🏆</span>
+        <p style="margin:0;font-weight:700;font-size:1rem;color:var(--chalk);">Confronto ainda não definido</p>
+        <span style="font-size:0.82rem;color:var(--chalk-dim);margin-top:6px;display:block;">Os times e datas desta fase serão confirmados após o encerramento das etapas anteriores.</span>
+      </div>`;
+  }
 
   const pairOccurrences = {};
   if (isCup) {
@@ -1563,7 +1576,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       <div class="fixture-hero">
         <div class="hero-team-block">
           <img src="${fx.teams.home.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
-          <span style="font-size:1.15rem;font-weight:700;">${escapeHtml(fx.teams.home.name)}</span>
+          <span class="hero-team-name" style="font-size:1.15rem;font-weight:700;">${escapeHtml(fx.teams.home.name)}</span>
           
           ${homeGoals.length ? `
             <div class="hero-goals-list">
@@ -1578,8 +1591,8 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           ` : ""}
         </div>
 
-        <div>
-          <div style="font-family:var(--font-mono);font-size:2.4rem;font-weight:700;letter-spacing:4px;">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;">
+          <div class="hero-score-val" style="font-family:var(--font-mono);font-size:2.4rem;font-weight:700;letter-spacing:4px;">
             ${fx.goals.home ?? "-"} : ${fx.goals.away ?? "-"}
           </div>
           <div style="font-size:0.75rem;text-transform:uppercase;margin-top:6px;font-weight:600;color:var(--gold);">${statusText}</div>
@@ -1587,7 +1600,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
 
         <div class="hero-team-block">
           <img src="${fx.teams.away.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
-          <span style="font-size:1.15rem;font-weight:700;">${escapeHtml(fx.teams.away.name)}</span>
+          <span class="hero-team-name" style="font-size:1.15rem;font-weight:700;">${escapeHtml(fx.teams.away.name)}</span>
           
           ${awayGoals.length ? `
             <div class="hero-goals-list">
@@ -1716,15 +1729,29 @@ function renderLiveMatchStats(statsArr, fx) {
     "Goalkeeper Saves": "Defesas do Goleiro",
     "Total passes": "Passes Totais",
     "Passes accurate": "Passes Certos",
-    "Passes %": "Precisão de Passe",
-    "expected_goals": "Gols Esperados (xG)"
+    "Passes %": "Precisão de Passe"
   };
 
-  const rows = homeStats.statistics.map((s, i) => {
+  const filteredStats = homeStats.statistics.filter((s, i) => {
+    const rawLabel = String(s.type || "").trim();
+    if (rawLabel === "goals_prevented") return false;
+    if (rawLabel === "expected_goals") return false;
+    if (!statMap[rawLabel]) return false;
+    
+    let va = s.value;
+    let vb = awayStats.statistics[i]?.value;
+    if (va === null && vb === null) return false;
+    return true;
+  });
+
+  if (!filteredStats.length) return "";
+
+  const rows = filteredStats.map((s) => {
+    const origIdx = homeStats.statistics.indexOf(s);
     const rawLabel = s.type;
     const label = statMap[rawLabel] || rawLabel;
     let va = s.value ?? 0;
-    let vb = awayStats.statistics[i]?.value ?? 0;
+    let vb = awayStats.statistics[origIdx]?.value ?? 0;
 
     let numA = parseFloat(String(va).replace("%", "")) || 0;
     let numB = parseFloat(String(vb).replace("%", "")) || 0;

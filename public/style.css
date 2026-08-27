@@ -1128,11 +1128,38 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   z-index: 3;
 }
 .event-pill {
-  font-size: 0.6rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
   background: rgba(0, 0, 0, 0.85);
   border-radius: 4px;
-  padding: 1px 3px;
+  padding: 1px 4px;
   border: 1px solid var(--line-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.event-pill.sub-in {
+  background: rgba(16, 185, 129, 0.25) !important;
+  color: #10B981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.6) !important;
+}
+.event-pill.sub-out {
+  background: rgba(244, 63, 94, 0.25) !important;
+  color: #F43F5E !important;
+  border: 1px solid rgba(244, 63, 94, 0.6) !important;
+}
+.event-pill.goal {
+  background: rgba(56, 189, 248, 0.2) !important;
+  border: 1px solid rgba(56, 189, 248, 0.5) !important;
+}
+.event-pill.yellow {
+  background: rgba(234, 179, 8, 0.2) !important;
+  border: 1px solid rgba(234, 179, 8, 0.5) !important;
+}
+.event-pill.red {
+  background: rgba(239, 68, 68, 0.25) !important;
+  border: 1px solid rgba(239, 68, 68, 0.6) !important;
 }
 
 /* ============================================================
@@ -1419,9 +1446,36 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   .main-content { padding: 16px 12px; }
 
   .fixture-hero {
-    grid-template-columns: 1fr;
-    gap: 16px;
-    padding: 16px;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    padding: 16px 8px;
+    align-items: center;
+  }
+  .hero-team-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  .hero-team-block img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+  }
+  .hero-team-name {
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.2;
+    max-width: 105px;
+    word-break: normal;
+  }
+  .hero-score-val {
+    font-family: var(--font-mono);
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 2px;
   }
 
   .fifa-body {
@@ -1445,12 +1499,34 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   }
 
   .fixture-row {
-    grid-template-columns: 55px 1fr auto 1fr;
-    gap: 6px;
-    padding: 8px;
-    font-size: 0.8rem;
+    grid-template-columns: 46px 1fr auto 1fr;
+    gap: 4px;
+    padding: 8px 6px;
+    font-size: 0.78rem;
   }
-  .fixture-team-item { font-size: 0.8rem; }
-  .fixture-team-item img { width: 18px; height: 18px; }
-  .fixture-score { font-size: 0.95rem; min-width: 38px; padding: 2px 6px; }
+  .fixture-date {
+    font-size: 0.65rem;
+    line-height: 1.15;
+  }
+  .fixture-team-item {
+    font-size: 0.78rem;
+    min-width: 0;
+    gap: 4px;
+  }
+  .fixture-team-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .fixture-team-item img {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+  .fixture-score {
+    font-size: 0.85rem;
+    min-width: 34px;
+    padding: 2px 4px;
+    flex-shrink: 0;
+  }
 }

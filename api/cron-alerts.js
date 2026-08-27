@@ -52,14 +52,37 @@ module.exports = async (req, res) => {
     let notificationsSent = 0;
     const errors = [];
 
-    // 3. Para cada jogo ao vivo, verificar se algum inscrito segue os times
+    // Helper para enviar push
+    const dispatchPush = async (sub, payloadObj) => {
+      const pushSubscription = {
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: sub.p256dh,
+          auth: sub.auth
+        }
+      };
+
+      try {
+        await webpush.sendNotification(pushSubscription, JSON.stringify(payloadObj));
+        notificationsSent++;
+      } catch (err) {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+        } else {
+          errors.push(err.message);
+        }
+      }
+    };
+
+    // 3. Processar cada jogo ao vivo
     for (const fx of liveFixtures) {
       const homeId = fx.teams.home.id;
       const awayId = fx.teams.away.id;
       const elapsed = fx.fixture.status.elapsed;
+      const statusShort = fx.fixture.status.short;
       const score = `${fx.goals.home ?? 0} x ${fx.goals.away ?? 0}`;
 
-      // Filtrar inscritos que seguem o time da casa ou visitante
+      // Filtrar inscritos que seguem pelo menos um dos times da partida
       const matchingSubs = subscribers.filter(sub => {
         const favs = sub.favorite_teams || [];
         return favs.some(f => f.id === homeId || f.id === awayId);
@@ -67,7 +90,58 @@ module.exports = async (req, res) => {
 
       if (matchingSubs.length === 0) continue;
 
-      // Buscar eventos recentes desta partida
+      // Evento A: Início de Partida (1H até 3 min)
+      if (statusShort === "1H" && elapsed <= 3) {
+        for (const sub of matchingSubs) {
+          const prefs = sub.preferences || {};
+          if (prefs.kickoff === false) continue;
+
+          await dispatchPush(sub, {
+            title: `⏱️ BOLA ROLANDO! (${fx.teams.home.name} x ${fx.teams.away.name})`,
+            body: `Começou a partida entre ${fx.teams.home.name} e ${fx.teams.away.name} pela ${fx.league.name}!`,
+            icon: fx.teams.home.logo,
+            badge: "/icon-192.png",
+            tag: `kickoff-${fx.fixture.id}`,
+            data: { url: `/#/jogo/${fx.fixture.id}` }
+          });
+        }
+      }
+
+      // Evento B: Intervalo (HT)
+      if (statusShort === "HT") {
+        for (const sub of matchingSubs) {
+          const prefs = sub.preferences || {};
+          if (prefs.halftime === false) continue;
+
+          await dispatchPush(sub, {
+            title: `⏸️ INTERVALO: ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
+            body: `Fim do primeiro tempo! Placar parcial: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
+            icon: fx.teams.home.logo,
+            badge: "/icon-192.png",
+            tag: `halftime-${fx.fixture.id}`,
+            data: { url: `/#/jogo/${fx.fixture.id}` }
+          });
+        }
+      }
+
+      // Evento C: Fim de Jogo (FT, AET, PEN)
+      if (["FT", "AET", "PEN"].includes(statusShort)) {
+        for (const sub of matchingSubs) {
+          const prefs = sub.preferences || {};
+          if (prefs.fulltime === false) continue;
+
+          await dispatchPush(sub, {
+            title: `🏁 FIM DE JOGO: ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
+            body: `Partida encerrada! Placar final: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
+            icon: fx.teams.home.logo,
+            badge: "/icon-192.png",
+            tag: `fulltime-${fx.fixture.id}`,
+            data: { url: `/#/jogo/${fx.fixture.id}` }
+          });
+        }
+      }
+
+      // Evento D: Eventos Dinâmicos de Lance (Gols e Cartões Vermelhos)
       const eventsResp = await fetch(`https://v3.football.api-sports.io/fixtures/events?fixture=${fx.fixture.id}`, {
         headers: { "x-apisports-key": FOOTBALL_API_KEY }
       });
@@ -81,49 +155,39 @@ module.exports = async (req, res) => {
       });
 
       for (const ev of recentEvents) {
-        let title = "";
-        let body = "";
         const teamName = ev.team?.name || "Seu time";
         const playerName = ev.player?.name || "Jogador";
 
+        // GOL
         if (ev.type === "Goal" && ev.detail !== "Missed Penalty") {
-          title = `⚽ GOL DO ${teamName.toUpperCase()}! (${ev.time.elapsed}')`;
-          body = `${playerName} marca para o ${teamName}! (${fx.teams.home.name} ${score} ${fx.teams.away.name})`;
-        } else if (ev.type === "Card" && ev.detail === "Red Card") {
-          title = `🟥 CARTÃO VERMELHO! (${ev.time.elapsed}')`;
-          body = `${playerName} (${teamName}) foi expulso da partida!`;
-        }
+          for (const sub of matchingSubs) {
+            const prefs = sub.preferences || {};
+            if (prefs.goals === false) continue;
 
-        if (!title) continue;
+            await dispatchPush(sub, {
+              title: `⚽ GOL DO ${teamName.toUpperCase()}! (${ev.time.elapsed}')`,
+              body: `${playerName} marca para o ${teamName}! (${fx.teams.home.name} ${score} ${fx.teams.away.name})`,
+              icon: ev.team?.logo || fx.teams.home.logo,
+              badge: "/icon-192.png",
+              tag: `goal-${fx.fixture.id}-${ev.time.elapsed}-${ev.player?.id || ''}`,
+              data: { url: `/#/jogo/${fx.fixture.id}` }
+            });
+          }
+        } 
+        // CARTÃO VERMELHO
+        else if (ev.type === "Card" && (ev.detail === "Red Card" || ev.detail === "Yellow Red")) {
+          for (const sub of matchingSubs) {
+            const prefs = sub.preferences || {};
+            if (prefs.redcards === false) continue;
 
-        const payload = JSON.stringify({
-          title,
-          body,
-          icon: ev.team?.logo || fx.teams.home.logo,
-          badge: "/icon-192.png",
-          data: { url: `/#/jogo/${fx.fixture.id}` }
-        });
-
-        // Enviar notificação para os celulares dos torcedores
-        for (const sub of matchingSubs) {
-          const pushSubscription = {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth
-            }
-          };
-
-          try {
-            await webpush.sendNotification(pushSubscription, payload);
-            notificationsSent++;
-          } catch (err) {
-            // Se o token expirou no navegador, remove do banco
-            if (err.statusCode === 410 || err.statusCode === 404) {
-              await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-            } else {
-              errors.push(err.message);
-            }
+            await dispatchPush(sub, {
+              title: `🟥 CARTÃO VERMELHO! (${ev.time.elapsed}')`,
+              body: `${playerName} (${teamName}) foi expulso da partida!`,
+              icon: ev.team?.logo || fx.teams.home.logo,
+              badge: "/icon-192.png",
+              tag: `redcard-${fx.fixture.id}-${ev.time.elapsed}-${ev.player?.id || ''}`,
+              data: { url: `/#/jogo/${fx.fixture.id}` }
+            });
           }
         }
       }
