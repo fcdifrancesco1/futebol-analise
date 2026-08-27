@@ -745,19 +745,23 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 }
 
 .form-pill {
-  display: inline-block;
-  width: 18px;
-  height: 18px;
-  line-height: 18px;
-  font-size: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 0.72rem;
   font-family: var(--font-mono);
   font-weight: 700;
   border-radius: 4px;
-  margin-right: 2px;
+  text-align: center;
+  line-height: 1;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
-.form-pill.W { background: rgba(56, 189, 248, 0.25); color: var(--gold); }
-.form-pill.D { background: rgba(255, 255, 255, 0.15); color: var(--chalk-dim); }
-.form-pill.L { background: rgba(244, 63, 94, 0.25); color: var(--terracotta); }
+.form-pill.W { background: #10B981; color: #FFFFFF; }
+.form-pill.D { background: #64748B; color: #FFFFFF; }
+.form-pill.L { background: #EF4444; color: #FFFFFF; }
 
 /* ============================================================
    Jogos e Rodadas
@@ -849,41 +853,101 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 }
 
 /* ============================================================
-   Placar Hero
+   Placar Hero — Estrutura Perfeitamente Simétrica
    ============================================================ */
 .fixture-hero {
   background: var(--pitch-card);
   border: 1px solid var(--pitch-border);
   border-radius: var(--radius-lg);
-  padding: 24px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  text-align: center;
-  gap: 20px;
+  padding: 20px;
   margin-bottom: 24px;
   box-shadow: var(--shadow-pitch);
 }
 
-.hero-team-block {
+.fixture-hero-main {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.hero-team-col {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  text-align: center;
+  gap: 6px;
+  min-width: 0;
 }
 
-.hero-goals-list {
+.hero-team-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.hero-team-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--chalk);
+  line-height: 1.25;
+  max-width: 130px;
+  word-break: normal;
+}
+
+.hero-score-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 10px;
+}
+
+.hero-score-numbers {
+  font-family: var(--font-mono);
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--chalk);
+}
+
+.hero-status-pill {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  margin-top: 4px;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.hero-goals-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hero-goals-col {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 10px;
+}
+.hero-goals-col.home {
+  align-items: flex-start;
+  text-align: left;
+}
+.hero-goals-col.away {
+  align-items: flex-end;
+  text-align: right;
 }
 
 .hero-goal-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.78rem;
+  gap: 5px;
+  font-size: 0.75rem;
   color: var(--chalk-dim);
 }
 .hero-goal-item .time {
@@ -937,36 +1001,98 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   color: var(--chalk-dim);
 }
 
+/* ============================================================
+   Cards de Estatísticas — Identidade Visual Moderna
+   ============================================================ */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
-.stat-card {
-  background: var(--pitch-card);
-  border: 1px solid var(--pitch-border);
+
+.stat-card-modern {
+  background: linear-gradient(145deg, rgba(13, 27, 42, 0.95) 0%, rgba(6, 17, 30, 0.98) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius);
-  padding: 14px;
+  padding: 16px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
 }
-.stat-label {
+
+.stat-card-modern::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+.stat-card-modern.gold::before { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+.stat-card-modern.green::before { background: linear-gradient(90deg, #10B981, #34D399); }
+.stat-card-modern.red::before { background: linear-gradient(90deg, #EF4444, #F87171); }
+.stat-card-modern.cyan::before { background: linear-gradient(90deg, #38BDF8, #818CF8); }
+
+.stat-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  color: var(--chalk-dim);
-  text-transform: uppercase;
-  margin: 0 0 6px 0;
-}
-.stat-value {
-  font-family: var(--font-mono);
-  font-size: 1.6rem;
   font-weight: 700;
-  margin: 0 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--chalk-dim);
 }
-.stat-split {
-  font-size: 0.75rem;
-  color: var(--chalk-muted);
+
+.stat-card-main-val {
+  font-family: var(--font-mono);
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--chalk);
+}
+.stat-card-main-val.gold { color: #F59E0B; }
+.stat-card-main-val.green { color: #10B981; }
+.stat-card-main-val.red { color: #EF4444; }
+.stat-card-main-val.cyan { color: #38BDF8; }
+
+.stat-card-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.stat-chip.win { background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.4); }
+.stat-chip.draw { background: rgba(100, 116, 139, 0.2); color: #94A3B8; border: 1px solid rgba(100, 116, 139, 0.4); }
+.stat-chip.loss { background: rgba(239, 68, 68, 0.2); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+.stat-split-bar {
   display: flex;
   justify-content: space-between;
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  color: var(--chalk-dim);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* ============================================================
@@ -1446,36 +1572,61 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   .main-content { padding: 16px 12px; }
 
   .fixture-hero {
-    grid-template-columns: 1fr auto 1fr;
+    padding: 14px 10px;
+    margin-bottom: 18px;
+  }
+  .fixture-hero-main {
     gap: 8px;
-    padding: 16px 8px;
-    align-items: center;
   }
-  .hero-team-block {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+  .hero-team-col {
     gap: 4px;
-    min-width: 0;
   }
-  .hero-team-block img {
-    width: 44px;
-    height: 44px;
-    object-fit: contain;
+  .hero-team-logo {
+    width: 40px;
+    height: 40px;
   }
   .hero-team-name {
-    font-size: 0.84rem;
-    font-weight: 700;
-    line-height: 1.2;
-    max-width: 105px;
-    word-break: normal;
+    font-size: 0.82rem;
+    max-width: 95px;
+    line-height: 1.15;
   }
-  .hero-score-val {
-    font-family: var(--font-mono);
-    font-size: 1.8rem;
-    font-weight: 700;
+  .hero-score-numbers {
+    font-size: 1.75rem;
     letter-spacing: 2px;
+  }
+  .hero-status-pill {
+    font-size: 0.68rem;
+  }
+  .hero-goals-section {
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    font-size: 0.72rem;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .stat-card-modern {
+    padding: 12px 10px;
+    gap: 6px;
+  }
+  .stat-card-header {
+    font-size: 0.65rem;
+  }
+  .stat-card-main-val {
+    font-size: 1.55rem;
+    margin-bottom: 4px;
+  }
+  .stat-chip {
+    padding: 2px 6px;
+    font-size: 0.68rem;
+  }
+  .stat-split-bar {
+    font-size: 0.68rem;
+    padding: 3px 6px;
   }
 
   .fifa-body {

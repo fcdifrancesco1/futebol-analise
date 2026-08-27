@@ -1083,25 +1083,25 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
         <h2 class="section-title">Estatísticas na Temporada (${escapeHtml(s.league?.name || "Geral")})</h2>
         <div class="stat-grid">
-          <div class="stat-card">
-            <p class="stat-label">Jogos (Titular)</p>
-            <p class="stat-value">${s.games?.appearences ?? 0} <small>(${s.games?.lineups ?? 0})</small></p>
-            <div class="stat-split"><span>${s.games?.minutes ?? 0} minutos</span></div>
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header"><span>🏃</span><span>Jogos (Titular)</span></div>
+            <div class="stat-card-main-val cyan">${s.games?.appearences ?? 0} <small style="font-size:1rem;color:var(--chalk-dim);">(${s.games?.lineups ?? 0})</small></div>
+            <div class="stat-split-bar"><span>⏱️ ${s.games?.minutes ?? 0} minutos</span></div>
           </div>
-          <div class="stat-card">
-            <p class="stat-label">Gols Marcados</p>
-            <p class="stat-value" style="color:var(--gold);">${s.goals?.total ?? 0}</p>
-            <div class="stat-split"><span>Pênaltis: ${s.penalty?.scored ?? 0}</span></div>
+          <div class="stat-card-modern gold">
+            <div class="stat-card-header"><span>⚽</span><span>Gols Marcados</span></div>
+            <div class="stat-card-main-val gold">${s.goals?.total ?? 0}</div>
+            <div class="stat-split-bar"><span>Pênaltis: ${s.penalty?.scored ?? 0}</span></div>
           </div>
-          <div class="stat-card">
-            <p class="stat-label">Assistências</p>
-            <p class="stat-value">${s.goals?.assists ?? 0}</p>
-            <div class="stat-split"><span>Passes Chave: ${s.passes?.key ?? 0}</span></div>
+          <div class="stat-card-modern green">
+            <div class="stat-card-header"><span>👟</span><span>Assistências</span></div>
+            <div class="stat-card-main-val green">${s.goals?.assists ?? 0}</div>
+            <div class="stat-split-bar"><span>Passes Chave: ${s.passes?.key ?? 0}</span></div>
           </div>
-          <div class="stat-card">
-            <p class="stat-label">Precisão de Passes</p>
-            <p class="stat-value">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</p>
-            <div class="stat-split"><span>Total: ${s.passes?.total ?? 0}</span></div>
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header"><span>🎯</span><span>Precisão de Passes</span></div>
+            <div class="stat-card-main-val cyan">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</div>
+            <div class="stat-split-bar"><span>Total: ${s.passes?.total ?? 0}</span></div>
           </div>
         </div>
 
@@ -1191,25 +1191,53 @@ async function renderTeam(teamId, leagueId, season) {
       ])}
 
       <div class="stat-grid">
-        <div class="stat-card">
-          <p class="stat-label">Aproveitamento</p>
-          <p class="stat-value">${winPct}<small>%</small></p>
-          <div class="stat-split"><span>${stats.fixtures.wins.total}V</span><span>${stats.fixtures.draws.total}E</span><span>${stats.fixtures.loses.total}D</span></div>
+        <div class="stat-card-modern gold">
+          <div class="stat-card-header">
+            <span>🎯</span>
+            <span>Aproveitamento</span>
+          </div>
+          <div class="stat-card-main-val gold">${winPct}<small style="font-size:1.1rem;">%</small></div>
+          <div class="stat-card-chips">
+            <span class="stat-chip win">${stats.fixtures.wins.total}V</span>
+            <span class="stat-chip draw">${stats.fixtures.draws.total}E</span>
+            <span class="stat-chip loss">${stats.fixtures.loses.total}D</span>
+          </div>
         </div>
-        <div class="stat-card">
-          <p class="stat-label">Média de Gols Pró</p>
-          <p class="stat-value">${gfAvg.toFixed(2)}</p>
-          <div class="stat-split"><span>Casa ${stats.goals.for.average.home}</span><span>Fora ${stats.goals.for.average.away}</span></div>
+
+        <div class="stat-card-modern green">
+          <div class="stat-card-header">
+            <span>⚽</span>
+            <span>Média Gols Pró</span>
+          </div>
+          <div class="stat-card-main-val green">${gfAvg.toFixed(2)}</div>
+          <div class="stat-split-bar">
+            <span>🏠 Casa ${stats.goals.for.average.home}</span>
+            <span>✈️ Fora ${stats.goals.for.average.away}</span>
+          </div>
         </div>
-        <div class="stat-card">
-          <p class="stat-label">Média de Gols Contra</p>
-          <p class="stat-value">${gaAvg.toFixed(2)}</p>
-          <div class="stat-split"><span>Casa ${stats.goals.against.average.home}</span><span>Fora ${stats.goals.against.average.away}</span></div>
+
+        <div class="stat-card-modern red">
+          <div class="stat-card-header">
+            <span>🛡️</span>
+            <span>Média Gols Contra</span>
+          </div>
+          <div class="stat-card-main-val red">${gaAvg.toFixed(2)}</div>
+          <div class="stat-split-bar">
+            <span>🏠 Casa ${stats.goals.against.average.home}</span>
+            <span>✈️ Fora ${stats.goals.against.average.away}</span>
+          </div>
         </div>
-        <div class="stat-card">
-          <p class="stat-label">Jogos Sem Sofrer Gol</p>
-          <p class="stat-value">${stats.clean_sheet.total}</p>
-          <div class="stat-split"><span>Casa ${stats.clean_sheet.home}</span><span>Fora ${stats.clean_sheet.away}</span></div>
+
+        <div class="stat-card-modern cyan">
+          <div class="stat-card-header">
+            <span>🧤</span>
+            <span>Jogos Sem Sofrer Gol</span>
+          </div>
+          <div class="stat-card-main-val cyan">${stats.clean_sheet.total}</div>
+          <div class="stat-split-bar">
+            <span>🏠 Casa ${stats.clean_sheet.home}</span>
+            <span>✈️ Fora ${stats.clean_sheet.away}</span>
+          </div>
         </div>
       </div>
 
@@ -1572,48 +1600,48 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         ` : ""}
       </div>
 
-      <!-- Placar Principal -->
+      <!-- Placar Principal Simétrico -->
       <div class="fixture-hero">
-        <div class="hero-team-block">
-          <img src="${fx.teams.home.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
-          <span class="hero-team-name" style="font-size:1.15rem;font-weight:700;">${escapeHtml(fx.teams.home.name)}</span>
-          
-          ${homeGoals.length ? `
-            <div class="hero-goals-list">
+        <div class="fixture-hero-main">
+          <div class="hero-team-col home">
+            <img src="${fx.teams.home.logo}" alt="" class="hero-team-logo" loading="lazy">
+            <span class="hero-team-name">${escapeHtml(fx.teams.home.name)}</span>
+          </div>
+
+          <div class="hero-score-col">
+            <div class="hero-score-numbers">${fx.goals.home ?? "-"} : ${fx.goals.away ?? "-"}</div>
+            <div class="hero-status-pill">${statusText}</div>
+          </div>
+
+          <div class="hero-team-col away">
+            <img src="${fx.teams.away.logo}" alt="" class="hero-team-logo" loading="lazy">
+            <span class="hero-team-name">${escapeHtml(fx.teams.away.name)}</span>
+          </div>
+        </div>
+
+        ${(homeGoals.length || awayGoals.length) ? `
+          <div class="hero-goals-section">
+            <div class="hero-goals-col home">
               ${homeGoals.map(g => `
                 <div class="hero-goal-item">
                   <span>⚽</span>
-                  <span>${escapeHtml(g.player?.name || "")}</span>
+                  <span class="player-name">${escapeHtml(g.player?.name || "")}</span>
                   <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${g.detail === 'Penalty' ? ' (P)' : g.detail === 'Own Goal' ? ' (GC)' : ''}</span>
                 </div>
               `).join("")}
             </div>
-          ` : ""}
-        </div>
 
-        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;">
-          <div class="hero-score-val" style="font-family:var(--font-mono);font-size:2.4rem;font-weight:700;letter-spacing:4px;">
-            ${fx.goals.home ?? "-"} : ${fx.goals.away ?? "-"}
-          </div>
-          <div style="font-size:0.75rem;text-transform:uppercase;margin-top:6px;font-weight:600;color:var(--gold);">${statusText}</div>
-        </div>
-
-        <div class="hero-team-block">
-          <img src="${fx.teams.away.logo}" alt="" style="width:56px;height:56px;object-fit:contain;">
-          <span class="hero-team-name" style="font-size:1.15rem;font-weight:700;">${escapeHtml(fx.teams.away.name)}</span>
-          
-          ${awayGoals.length ? `
-            <div class="hero-goals-list">
+            <div class="hero-goals-col away">
               ${awayGoals.map(g => `
                 <div class="hero-goal-item">
                   <span>⚽</span>
-                  <span>${escapeHtml(g.player?.name || "")}</span>
+                  <span class="player-name">${escapeHtml(g.player?.name || "")}</span>
                   <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${g.detail === 'Penalty' ? ' (P)' : g.detail === 'Own Goal' ? ' (GC)' : ''}</span>
                 </div>
               `).join("")}
             </div>
-          ` : ""}
-        </div>
+          </div>
+        ` : ""}
       </div>
 
       <!-- Estatísticas da Partida (Pré-Jogo ou Ao Vivo) -->
@@ -1832,8 +1860,8 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season) {
     if (ev.goals > 0) badges.push(`<span class="event-pill goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `x${ev.goals}` : ''}</span>`);
     if (ev.yellows > 0) badges.push(`<span class="event-pill yellow" title="Cartão Amarelo">🟨${ev.yellows > 1 ? `x${ev.yellows}` : ''}</span>`);
     if (ev.reds > 0) badges.push(`<span class="event-pill red" title="Cartão Vermelho">🟥</span>`);
-    if (ev.subOut) badges.push(`<span class="event-pill sub-out" title="Substituído aos ${ev.subOut}'">🔻${ev.subOut}'</span>`);
-    if (ev.subIn) badges.push(`<span class="event-pill sub-in" title="Entrou aos ${ev.subIn}'">🔺${ev.subIn}'</span>`);
+    if (ev.subOut) badges.push(`<span class="event-pill sub-out" title="Substituído aos ${ev.subOut}'"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:2px;"><path d="M12 20l8-8h-6v-8h-4v8h-6z"/></svg>${ev.subOut}'</span>`);
+    if (ev.subIn) badges.push(`<span class="event-pill sub-in" title="Entrou aos ${ev.subIn}'"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:2px;"><path d="M12 4l-8 8h6v8h4v-8h6z"/></svg>${ev.subIn}'</span>`);
     return badges.join("");
   }
 
