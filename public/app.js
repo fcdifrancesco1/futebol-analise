@@ -400,7 +400,6 @@ const NotificationManager = {
         reg.showNotification("📋 ESCALAÇÕES CONFIRMADAS!", {
           body: "As escalações oficiais de Internacional × Grêmio já estão divulgadas!",
           icon: "https://media.api-sports.io/football/teams/119.png",
-          badge: "/icon-192.png",
           vibrate: [200, 100, 200, 100, 200],
           data: { url: "/#/jogo/1623070" }
         });
