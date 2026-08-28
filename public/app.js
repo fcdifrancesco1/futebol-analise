@@ -2636,12 +2636,13 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
   const content = document.getElementById("fixture-content") || app;
 
   try {
-    const [fxResponse, eventsRes, statsRes, lineupsRes, predictionsRes] = await Promise.allSettled([
+    const [fxResponse, eventsRes, statsRes, lineupsRes, predictionsRes, playersRes] = await Promise.allSettled([
       apiGet("fixtures", { id: fixtureId }, 0.5),
       apiGet("fixtures/events", { fixture: fixtureId }, 0.5),
       apiGet("fixtures/statistics", { fixture: fixtureId }, 0.5),
       apiGet("fixtures/lineups", { fixture: fixtureId }, 30),
       apiGet("predictions", { fixture: fixtureId }, 60),
+      apiGet("fixtures/players", { fixture: fixtureId }, 15)
     ]);
 
     // Verifica novamente se o usuário ainda está nesta partida após as requisições assíncronas
@@ -2659,12 +2660,32 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     const statsArr = statsRes.status === "fulfilled" ? (statsRes.value || []) : [];
     const lineupsArr = lineupsRes.status === "fulfilled" ? (lineupsRes.value || []) : [];
     const pred = predictionsRes.status === "fulfilled" ? predictionsRes.value?.[0] : null;
+    const fixturePlayersArr = playersRes.status === "fulfilled" ? (playersRes.value || []) : [];
+
+    const fixturePlayersMap = {};
+    let highestRating = 0;
+    let mvpPlayerId = null;
+
+    if (Array.isArray(fixturePlayersArr)) {
+      fixturePlayersArr.forEach(teamData => {
+        (teamData.players || []).forEach(pData => {
+          const pid = pData.player?.id;
+          if (pid) {
+            fixturePlayersMap[pid] = pData;
+            const r = parseFloat(pData.statistics?.[0]?.games?.rating || "0");
+            if (r > highestRating && r >= 7.0) {
+              highestRating = r;
+              mvpPlayerId = pid;
+            }
+          }
+        });
+      });
+    }
 
     const date = new Date(fx.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
     const time = new Date(fx.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     
     const isLive = ["1H", "2H", "HT", "ET", "P", "LIVE"].includes(fx.fixture.status.short);
-    setActiveTab(isLive ? "live" : "home");
 
     const statusText = isLive 
       ? `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${fx.fixture.status.elapsed ?? ""}' (${fx.fixture.status.long})</span>` 
