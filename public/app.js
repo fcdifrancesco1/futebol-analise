@@ -554,6 +554,16 @@ function skeletonTable() {
     </div>`;
 }
 
+function skeletonCards(count = 2) {
+  return Array.from({ length: count }, () => `
+    <div class="card skeleton" style="margin-bottom:16px;">
+      <div class="skeleton-title skeleton"></div>
+      <div class="skeleton-box skeleton"></div>
+      <div class="skeleton-box skeleton"></div>
+    </div>
+  `).join("");
+}
+
 function errorBox(msg) {
   return `
     <div class="card" style="text-align:center;padding:40px 20px;">
@@ -590,128 +600,6 @@ function breadcrumbs(crumbs) {
 function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
-
-// ============================================================
-// Roteamento
-// ============================================================
-function parseHash() {
-  return location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
-}
-
-function setActiveTab(name) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.nav === name));
-  document.querySelectorAll(".bottom-nav-item").forEach(t => t.classList.toggle("active", t.dataset.nav === name));
-}
-
-async function router() {
-  if (state.liveTimer) {
-    clearInterval(state.liveTimer);
-    state.liveTimer = null;
-  }
-
-  const parts = parseHash();
-  window.scrollTo(0, 0);
-  updateCompareBadge();
-
-  if (parts[0] === "minha-escalacao") {
-    setActiveTab("mylineups");
-    if (parts[1] === "montar" && parts[2]) {
-      await renderLineupBuilder(Number(parts[2]), parts[3] ? Number(parts[3]) : undefined);
-    } else if (parts[1] === "comparar" && parts[2]) {
-      await renderLineupComparison(parts[2]);
-    } else {
-      await renderMyLineups();
-    }
-  } else if (parts[0] === "jogos-do-dia") {
-    setActiveTab("today");
-    await renderMatchesOfDay(parts[1]);
-  } else if (parts[0] === "liga" && parts[1] && parts[3] === "jogos") {
-    setActiveTab("home");
-    await renderLeagueFixtures(Number(parts[1]), Number(parts[2]));
-  } else if (parts[0] === "liga" && parts[1] && parts[3] === "artilheiros") {
-    setActiveTab("home");
-    await renderLeagueTopStats(Number(parts[1]), Number(parts[2]));
-  } else if (parts[0] === "liga" && parts[1]) {
-    setActiveTab("home");
-    await renderLeague(Number(parts[1]), parts[2] ? Number(parts[2]) : undefined);
-  } else if (parts[0] === "time" && parts[1] && parts[2] && parts[4] === "elenco") {
-    setActiveTab("home");
-    await renderSquad(Number(parts[1]), Number(parts[2]), Number(parts[3]));
-  } else if (parts[0] === "time" && parts[1] && parts[2] && parts[4] === "lesoes") {
-    setActiveTab("home");
-    await renderInjuries(Number(parts[1]), Number(parts[2]), Number(parts[3]));
-  } else if (parts[0] === "time" && parts[1] && parts[2]) {
-    setActiveTab("home");
-    await renderTeam(Number(parts[1]), Number(parts[2]), parts[3] ? Number(parts[3]) : undefined);
-  } else if (parts[0] === "jogador" && parts[1]) {
-    setActiveTab("home");
-    await renderPlayer(Number(parts[1]), parts[2] ? Number(parts[2]) : undefined, parts[3] ? Number(parts[3]) : undefined, parts[4] ? Number(parts[4]) : undefined);
-  } else if (parts[0] === "jogo" && parts[1]) {
-    await renderFixture(Number(parts[1]));
-  } else if (parts[0] === "aovivo") {
-    setActiveTab("live");
-    await renderLive();
-  } else if (parts[0] === "meu-time" || parts[0] === "seu-time") {
-    setActiveTab("myteam");
-    await renderMyTeam();
-  } else if (parts[0] === "compare") {
-    setActiveTab("home");
-    renderCompare();
-  } else {
-    setActiveTab("home");
-    renderHome();
-  }
-}
-
-// Auto-recuperação de imagens bloqueadas por AdBlockers / Brave / DNS / Firewall
-window.addEventListener("error", (e) => {
-  if (e.target && e.target.tagName === "IMG") {
-    const img = e.target;
-    const src = img.src || "";
-    if (src.includes("media.api-sports.io") && !src.includes("/api/img?url=")) {
-      img.src = `/api/img?url=${encodeURIComponent(src)}`;
-    }
-  }
-}, true);
-
-window.addEventListener("hashchange", router);
-window.addEventListener("DOMContentLoaded", () => {
-  NotificationManager.init();
-  updateFavoriteTeamHeader();
-  document.getElementById("btn-fav-team-header")?.addEventListener("click", () => {
-    showOnboardingModal(true);
-  });
-
-  if (!UserPrefs.hasOnboarded()) {
-    setTimeout(() => {
-      showOnboardingModal(false);
-    }, 700);
-  }
-
-  document.querySelectorAll("[data-nav]").forEach(el => {
-    el.addEventListener("click", () => {
-      const nav = el.dataset.nav;
-      if (nav === "home") location.hash = "#/";
-      if (nav === "today") location.hash = "#/jogos-do-dia";
-      if (nav === "myteam") location.hash = "#/meu-time";
-      if (nav === "live") location.hash = "#/aovivo";
-      if (nav === "mylineups") location.hash = "#/minha-escalacao";
-    });
-  });
-
-  app.addEventListener("click", (e) => {
-    const standingsRow = e.target.closest(".standings-table tbody tr");
-    if (standingsRow && !e.target.closest("button")) {
-      const { teamId, leagueId, season } = standingsRow.dataset;
-      if (teamId && leagueId && season) {
-        location.hash = `#/time/${teamId}/${leagueId}/${season}`;
-      }
-    }
-  });
-
-  router();
-});
-
 
 // ============================================================
 // Preferências do Usuário & Time Favorito
@@ -956,6 +844,137 @@ async function loadTeamNews(teamName, containerId) {
   } catch (err) {
     container.innerHTML = `<div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Não foi possível carregar as notícias agora.</div>`;
   }
+}
+
+// ============================================================
+// Roteamento
+// ============================================================
+function parseHash() {
+  return location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+}
+
+function setActiveTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.nav === name));
+  document.querySelectorAll(".bottom-nav-item").forEach(t => t.classList.toggle("active", t.dataset.nav === name));
+}
+
+async function router() {
+  if (state.liveTimer) {
+    clearInterval(state.liveTimer);
+    state.liveTimer = null;
+  }
+
+  const parts = parseHash();
+  window.scrollTo(0, 0);
+  updateCompareBadge();
+
+  if (parts[0] === "minha-escalacao") {
+    setActiveTab("mylineups");
+    if (parts[1] === "montar" && parts[2]) {
+      await renderLineupBuilder(Number(parts[2]), parts[3] ? Number(parts[3]) : undefined);
+    } else if (parts[1] === "comparar" && parts[2]) {
+      await renderLineupComparison(parts[2]);
+    } else {
+      await renderMyLineups();
+    }
+  } else if (parts[0] === "jogos-do-dia") {
+    setActiveTab("today");
+    await renderMatchesOfDay(parts[1]);
+  } else if (parts[0] === "liga" && parts[1] && parts[3] === "jogos") {
+    setActiveTab("home");
+    await renderLeagueFixtures(Number(parts[1]), Number(parts[2]));
+  } else if (parts[0] === "liga" && parts[1] && parts[3] === "artilheiros") {
+    setActiveTab("home");
+    await renderLeagueTopStats(Number(parts[1]), Number(parts[2]));
+  } else if (parts[0] === "liga" && parts[1]) {
+    setActiveTab("home");
+    await renderLeague(Number(parts[1]), parts[2] ? Number(parts[2]) : undefined);
+  } else if (parts[0] === "time" && parts[1] && parts[2] && parts[4] === "elenco") {
+    setActiveTab("home");
+    await renderSquad(Number(parts[1]), Number(parts[2]), Number(parts[3]));
+  } else if (parts[0] === "time" && parts[1] && parts[2] && parts[4] === "lesoes") {
+    setActiveTab("home");
+    await renderInjuries(Number(parts[1]), Number(parts[2]), Number(parts[3]));
+  } else if (parts[0] === "time" && parts[1] && parts[2]) {
+    setActiveTab("home");
+    await renderTeam(Number(parts[1]), Number(parts[2]), parts[3] ? Number(parts[3]) : undefined);
+  } else if (parts[0] === "jogador" && parts[1]) {
+    setActiveTab("home");
+    await renderPlayer(Number(parts[1]), parts[2] ? Number(parts[2]) : undefined, parts[3] ? Number(parts[3]) : undefined, parts[4] ? Number(parts[4]) : undefined);
+  } else if (parts[0] === "jogo" && parts[1]) {
+    await renderFixture(Number(parts[1]));
+  } else if (parts[0] === "aovivo") {
+    setActiveTab("live");
+    await renderLive();
+  } else if (parts[0] === "meu-time" || parts[0] === "seu-time") {
+    setActiveTab("myteam");
+    await renderMyTeam();
+  } else if (parts[0] === "compare") {
+    setActiveTab("home");
+    renderCompare();
+  } else {
+    setActiveTab("home");
+    renderHome();
+  }
+}
+
+// Auto-recuperação de imagens bloqueadas por AdBlockers / Brave / DNS / Firewall
+window.addEventListener("error", (e) => {
+  if (e.target && e.target.tagName === "IMG") {
+    const img = e.target;
+    const src = img.src || "";
+    if (src.includes("media.api-sports.io") && !src.includes("/api/img?url=")) {
+      img.src = `/api/img?url=${encodeURIComponent(src)}`;
+    }
+  }
+}, true);
+
+window.addEventListener("hashchange", router);
+
+function initApp() {
+  NotificationManager.init();
+  updateFavoriteTeamHeader();
+  document.getElementById("btn-fav-team-header")?.addEventListener("click", () => {
+    showOnboardingModal(true);
+  });
+
+  if (!UserPrefs.hasOnboarded()) {
+    setTimeout(() => {
+      showOnboardingModal(false);
+    }, 700);
+  }
+
+  document.querySelectorAll("[data-nav]").forEach(el => {
+    el.addEventListener("click", () => {
+      const nav = el.dataset.nav;
+      if (nav === "home") location.hash = "#/";
+      if (nav === "today") location.hash = "#/jogos-do-dia";
+      if (nav === "myteam") location.hash = "#/meu-time";
+      if (nav === "live") location.hash = "#/aovivo";
+      if (nav === "mylineups") location.hash = "#/minha-escalacao";
+    });
+  });
+
+  const appEl = document.getElementById("app") || document.querySelector("main");
+  if (appEl) {
+    appEl.addEventListener("click", (e) => {
+      const standingsRow = e.target.closest(".standings-table tbody tr");
+      if (standingsRow && !e.target.closest("button")) {
+        const { teamId, leagueId, season } = standingsRow.dataset;
+        if (teamId && leagueId && season) {
+          location.hash = `#/time/${teamId}/${leagueId}/${season}`;
+        }
+      }
+    });
+  }
+
+  router();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initApp);
+} else {
+  initApp();
 }
 
 
