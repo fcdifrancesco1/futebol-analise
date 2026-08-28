@@ -663,6 +663,16 @@ async function router() {
 window.addEventListener("hashchange", router);
 window.addEventListener("DOMContentLoaded", () => {
   NotificationManager.init();
+  updateFavoriteTeamHeader();
+  document.getElementById("btn-fav-team-header")?.addEventListener("click", () => {
+    showOnboardingModal(true);
+  });
+
+  if (!UserPrefs.hasOnboarded()) {
+    setTimeout(() => {
+      showOnboardingModal(false);
+    }, 700);
+  }
 
   document.querySelectorAll("[data-nav]").forEach(el => {
     el.addEventListener("click", () => {
@@ -688,12 +698,292 @@ window.addEventListener("DOMContentLoaded", () => {
   router();
 });
 
+
+// ============================================================
+// Preferências do Usuário & Time Favorito
+// ============================================================
+const UserPrefs = {
+  KEY: "futstats_user_prefs_v1",
+  get() {
+    try {
+      const data = localStorage.getItem(this.KEY);
+      return data ? JSON.parse(data) : {};
+    } catch {
+      return {};
+    }
+  },
+  getFavoriteTeam() {
+    return this.get().favoriteTeam || null;
+  },
+  setFavoriteTeam(team) {
+    const prefs = this.get();
+    prefs.favoriteTeam = team;
+    prefs.onboarded = true;
+    localStorage.setItem(this.KEY, JSON.stringify(prefs));
+    updateFavoriteTeamHeader();
+  },
+  hasOnboarded() {
+    return !!this.get().onboarded;
+  },
+  setOnboarded() {
+    const prefs = this.get();
+    prefs.onboarded = true;
+    localStorage.setItem(this.KEY, JSON.stringify(prefs));
+  }
+};
+
+function updateFavoriteTeamHeader() {
+  const btn = document.getElementById("btn-fav-team-header");
+  if (!btn) return;
+  const fav = UserPrefs.getFavoriteTeam();
+  if (fav) {
+    btn.innerHTML = `
+      <img src="${fav.logo}" alt="" class="fav-team-crest" onerror="this.style.display='none'">
+      <span class="fav-team-label">${escapeHtml(fav.name)}</span>
+      <span style="font-size:0.65rem;opacity:0.6;">▾</span>
+    `;
+  } else {
+    btn.innerHTML = `<span class="fav-team-label">⭐ Escolher Time</span>`;
+  }
+}
+
+function showOnboardingModal(isChange = false) {
+  let backdropEl = document.getElementById("onboarding-modal-backdrop");
+  if (backdropEl) backdropEl.remove();
+
+  backdropEl = document.createElement("div");
+  backdropEl.id = "onboarding-modal-backdrop";
+  backdropEl.className = "onboarding-backdrop";
+
+  const POPULAR_CHOICES = [
+    { id: 127, name: "Flamengo", logo: "https://media.api-sports.io/football/teams/127.png" },
+    { id: 121, name: "Palmeiras", logo: "https://media.api-sports.io/football/teams/121.png" },
+    { id: 529, name: "Barcelona", logo: "https://media.api-sports.io/football/teams/529.png" },
+    { id: 541, name: "Real Madrid", logo: "https://media.api-sports.io/football/teams/541.png" },
+    { id: 50, name: "Manchester City", logo: "https://media.api-sports.io/football/teams/50.png" },
+    { id: 40, name: "Liverpool", logo: "https://media.api-sports.io/football/teams/40.png" }
+  ];
+
+  backdropEl.innerHTML = `
+    <div class="onboarding-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:1.6rem;">⭐</span>
+          <div>
+            <h3 style="margin:0;font-size:1.2rem;font-weight:800;color:var(--chalk);">${isChange ? 'Trocar Time do Coração' : 'Bem-vindo ao FutStats! ⚽'}</h3>
+            <p style="margin:2px 0 0;font-size:0.8rem;color:var(--chalk-dim);">${isChange ? 'Escolha o novo clube para acompanhar notícias e receber alertas.' : 'Escolha seu time para receber notícias e alertas em tempo real.'}</p>
+          </div>
+        </div>
+        <button id="btn-close-onboarding" style="background:none;border:none;color:var(--chalk);font-size:1.2rem;cursor:pointer;">✕</button>
+      </div>
+
+      <!-- Barra de busca com auto-complete -->
+      <div style="margin-top:14px;position:relative;">
+        <div style="display:flex;align-items:center;background:rgba(255,255,255,0.06);border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:0 12px;">
+          <span style="font-size:1rem;color:var(--chalk-dim);margin-right:8px;">🔍</span>
+          <input type="text" id="input-onboarding-search" placeholder="Busque qualquer clube (ex: Corinthians, Chelsea, Grêmio...)" autocomplete="off" style="width:100%;background:transparent;border:none;color:var(--chalk);padding:10px 0;font-family:var(--font-body);font-size:0.88rem;outline:none;">
+        </div>
+        <div id="onboarding-search-results" style="margin-top:10px;display:none;max-height:220px;overflow-y:auto;"></div>
+      </div>
+
+      <!-- Atalhos Populares -->
+      <div id="onboarding-popular-section" style="margin-top:18px;">
+        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);font-weight:700;display:block;margin-bottom:8px;">SUGESTÕES POPULARES:</span>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:8px;">
+          ${POPULAR_CHOICES.map(c => `
+            <div class="onboarding-team-chip" data-id="${c.id}" data-name="${escapeHtml(c.name)}" data-logo="${c.logo}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;cursor:pointer;transition:all 0.15s ease;">
+              <img src="${c.logo}" alt="" style="width:24px;height:24px;object-fit:contain;" onerror="this.style.display='none'">
+              <span style="font-size:0.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      ${!isChange ? `
+        <div style="margin-top:20px;text-align:center;">
+          <button id="btn-skip-onboarding" style="background:none;border:none;color:var(--chalk-dim);font-size:0.78rem;cursor:pointer;text-decoration:underline;">
+            Pular e escolher mais tarde
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  document.body.appendChild(backdropEl);
+
+  function selectAndSaveTeam(team) {
+    UserPrefs.setFavoriteTeam(team);
+    if (!state.favoriteTeams.some(f => f.id === team.id)) {
+      state.favoriteTeams.push({ id: team.id, name: team.name, logo: team.logo });
+      NotificationManager.syncPreferences();
+    }
+    backdropEl.remove();
+    toast(`⭐ ${team.name} definido como seu time do coração!`, false);
+    if (!location.hash || location.hash === "#/") {
+      renderHome();
+    }
+  }
+
+  // Close / Skip
+  document.getElementById("btn-close-onboarding")?.addEventListener("click", () => {
+    UserPrefs.setOnboarded();
+    backdropEl.remove();
+  });
+  document.getElementById("btn-skip-onboarding")?.addEventListener("click", () => {
+    UserPrefs.setOnboarded();
+    backdropEl.remove();
+  });
+
+  // Popular chips
+  backdropEl.querySelectorAll(".onboarding-team-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      selectAndSaveTeam({
+        id: Number(chip.dataset.id),
+        name: chip.dataset.name,
+        logo: chip.dataset.logo
+      });
+    });
+  });
+
+  // Search input
+  const searchInput = document.getElementById("input-onboarding-search");
+  const resultsContainer = document.getElementById("onboarding-search-results");
+  const popularSection = document.getElementById("onboarding-popular-section");
+  let searchDebounce;
+
+  searchInput?.addEventListener("input", () => {
+    clearTimeout(searchDebounce);
+    const q = searchInput.value.trim();
+    if (q.length < 3) {
+      resultsContainer.innerHTML = "";
+      resultsContainer.style.display = "none";
+      if (popularSection) popularSection.style.display = "block";
+      return;
+    }
+
+    if (popularSection) popularSection.style.display = "none";
+    resultsContainer.style.display = "block";
+    resultsContainer.innerHTML = `<div style="padding:10px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">🔍 Buscando clubes...</div>`;
+
+    searchDebounce = setTimeout(async () => {
+      try {
+        const resp = await apiGet("teams", { search: q }, 60);
+        if (!resp || !resp.length) {
+          resultsContainer.innerHTML = `<div style="padding:10px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">Nenhum clube encontrado com "${escapeHtml(q)}".</div>`;
+          return;
+        }
+
+        resultsContainer.innerHTML = resp.map(item => {
+          const t = item.team;
+          return `
+            <div class="onboarding-search-item" data-id="${t.id}" data-name="${escapeHtml(t.name)}" data-logo="${t.logo}" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;margin-bottom:6px;cursor:pointer;">
+              <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                <img src="${t.logo}" alt="" style="width:28px;height:28px;object-fit:contain;" onerror="this.style.display='none'">
+                <div>
+                  <div style="font-weight:700;font-size:0.85rem;color:var(--chalk);">${escapeHtml(t.name)}</div>
+                  <div style="font-size:0.7rem;color:var(--gold);">${escapeHtml(t.country || "")}</div>
+                </div>
+              </div>
+              <span style="font-size:0.75rem;color:var(--cyan);font-weight:700;">Escolher ⭐</span>
+            </div>
+          `;
+        }).join("");
+
+        resultsContainer.querySelectorAll(".onboarding-search-item").forEach(item => {
+          item.addEventListener("click", () => {
+            selectAndSaveTeam({
+              id: Number(item.dataset.id),
+              name: item.dataset.name,
+              logo: item.dataset.logo
+            });
+          });
+        });
+      } catch (err) {
+        resultsContainer.innerHTML = `<div style="padding:10px;text-align:center;color:#EF4444;font-size:0.8rem;">Erro ao buscar clubes.</div>`;
+      }
+    }, 300);
+  });
+}
+
+async function loadTeamNews(teamName, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  try {
+    const resp = await fetch(`/api/news?team=${encodeURIComponent(teamName)}`);
+    if (!resp.ok) throw new Error("Erro ao carregar notícias");
+    const data = await resp.json();
+    const items = data.items || [];
+
+    if (!items.length) {
+      container.innerHTML = `<div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Nenhuma notícia recente encontrada no momento.</div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="news-grid">
+        ${items.map(item => `
+          <a class="news-card-item" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" title="Ler matéria completa no portal ${escapeHtml(item.source)}">
+            <div class="news-title">${escapeHtml(item.title)}</div>
+            <div class="news-meta-row">
+              <span class="news-source-badge">${escapeHtml(item.source)}</span>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span>${escapeHtml(item.timeAgo)}</span>
+                <span style="color:var(--cyan);font-weight:700;">↗</span>
+              </div>
+            </div>
+          </a>
+        `).join("")}
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Não foi possível carregar as notícias agora.</div>`;
+  }
+}
+
 // ============================================================
 // View: Home
 // ============================================================
 function renderHome() {
+  const favTeam = UserPrefs.getFavoriteTeam();
+
   app.innerHTML = `
-    <div class="page-head">
+    <!-- Feed de Notícias do Time Favorito -->
+    <div id="home-fav-team-news-section">
+      ${favTeam ? `
+        <div class="news-feed-card">
+          <div class="news-feed-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <img src="${favTeam.logo}" alt="" style="width:34px;height:34px;object-fit:contain;" onerror="this.style.display='none'">
+              <div>
+                <h2 style="font-size:1.1rem;font-weight:700;margin:0;color:var(--chalk);display:flex;align-items:center;gap:8px;">
+                  Notícias do ${escapeHtml(favTeam.name)}
+                  <span style="font-size:0.68rem;background:rgba(239,68,68,0.2);color:#EF4444;border:1px solid rgba(239,68,68,0.4);padding:1px 6px;border-radius:10px;font-family:var(--font-mono);font-weight:700;">🔴 EM TEMPO REAL</span>
+                </h2>
+                <span style="font-size:0.75rem;color:var(--chalk-dim);">Principais manchetes e atualizações dos grandes portais de notícias</span>
+              </div>
+            </div>
+            <button class="btn ghost small" id="btn-change-fav-team" style="font-size:0.75rem;">Trocar Time</button>
+          </div>
+          <div id="fav-team-news-container">
+            <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Carregando últimas manchetes...</div>
+          </div>
+        </div>
+      ` : `
+        <div class="match-lineup-prompt-card" style="margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:1.8rem;">⭐</span>
+            <div>
+              <strong style="font-size:0.95rem;color:var(--chalk);display:block;">Escolha seu Time do Coração!</strong>
+              <span style="font-size:0.78rem;color:var(--chalk-dim);">Receba as manchetes mais recentes do seu clube em tempo real e alertas de gols.</span>
+            </div>
+          </div>
+          <button class="btn primary small" id="btn-open-onboarding-home" style="font-weight:700;">⭐ Escolher Time</button>
+        </div>
+      `}
+    </div>
+
+    <div class="page-head" style="margin-top:8px;">
       <p class="page-eyebrow">Competições Oficiais</p>
       <h1 class="page-title">Escolha uma Liga</h1>
       <p class="page-sub">Classificação detalhada, rodadas completas, estatísticas avançadas e alertas de gols.</p>
@@ -708,6 +998,13 @@ function renderHome() {
       ).join("")}
     </div>
   `;
+
+  document.getElementById("btn-change-fav-team")?.addEventListener("click", () => showOnboardingModal(true));
+  document.getElementById("btn-open-onboarding-home")?.addEventListener("click", () => showOnboardingModal(true));
+
+  if (favTeam) {
+    loadTeamNews(favTeam.name, "fav-team-news-container");
+  }
 }
 
 // ============================================================
@@ -1788,6 +2085,11 @@ async function renderTeam(teamId, leagueId, season) {
         </div>
       </div>
 
+      <h2 class="section-title">Últimas Notícias do ${escapeHtml(t.name)}</h2>
+      <div id="team-page-news-container" class="news-feed-card" style="margin-bottom:20px;">
+        <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Carregando manchetes...</div>
+      </div>
+
       <h2 class="section-title">Últimos Jogos (Clique para ver estatísticas)</h2>
       <div class="card" style="margin-bottom:20px;">
         ${renderRecentFixtures(recentFixtures, teamId)}
@@ -1813,6 +2115,7 @@ async function renderTeam(teamId, leagueId, season) {
 
     document.getElementById("set-slot-a").addEventListener("click", () => setCompareSlot("a", t, leagueId, league?.name, season));
     document.getElementById("set-slot-b").addEventListener("click", () => setCompareSlot("b", t, leagueId, league?.name, season));
+    loadTeamNews(t.name, "team-page-news-container");
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
