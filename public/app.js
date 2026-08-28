@@ -1169,18 +1169,26 @@ async function renderMyTeam() {
                 const dateStr = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
                 const timeStr = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
                 const isHome = f.teams.home.id === favTeam.id;
+                const leagueLogo = f.league?.logo;
+                const leagueName = formatTeamName(f.league?.name || "");
 
                 return `
-                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes do confronto">
-                    <div class="fixture-date-col">
-                      <span class="fixture-date" style="color:var(--gold);font-weight:700;">${dateStr}</span>
-                      <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--chalk-dim);">${timeStr}</span>
+                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:6px;min-width:72px;">
+                      ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:18px;height:18px;object-fit:contain;flex-shrink:0;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
+                      <div style="display:flex;flex-direction:column;gap:1px;">
+                        <span class="fixture-date" style="color:var(--gold);font-weight:700;font-size:0.75rem;">${dateStr}</span>
+                        <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--chalk-dim);">${timeStr}</span>
+                      </div>
                     </div>
                     <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
                       <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
-                    <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;">vs</span>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;">
+                      ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
+                      <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;padding:2px 8px;min-width:38px;">vs</span>
+                    </div>
                     <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
@@ -1210,6 +1218,8 @@ async function renderMyTeam() {
                 const isHome = f.teams.home.id === favTeam.id;
                 const homeGoals = f.goals.home ?? 0;
                 const awayGoals = f.goals.away ?? 0;
+                const leagueLogo = f.league?.logo;
+                const leagueName = formatTeamName(f.league?.name || "");
 
                 let outcomeLetter = "E";
                 let outcomeBg = "rgba(255,184,0,0.2)";
@@ -1231,18 +1241,24 @@ async function renderMyTeam() {
                 }
 
                 return `
-                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes do confronto">
-                    <div class="fixture-date-col" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:65px;">
-                      <span class="fixture-date" style="font-size:0.75rem;">${dateStr}</span>
-                      <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.72rem;font-weight:800;line-height:1;">
-                        ${outcomeLetter}
-                      </span>
+                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:6px;min-width:72px;">
+                      ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:18px;height:18px;object-fit:contain;flex-shrink:0;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
+                      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+                        <span class="fixture-date" style="font-size:0.75rem;">${dateStr}</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.7rem;font-weight:800;line-height:1;">
+                          ${outcomeLetter}
+                        </span>
+                      </div>
                     </div>
                     <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
                       <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
-                    <span class="fixture-score">${homeGoals} : ${awayGoals}</span>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;">
+                      ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
+                      <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
+                    </div>
                     <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
@@ -3392,7 +3408,7 @@ function openPlayerMatchModal(playerId, teamId, leagueId, season, pData, pObj, t
         <div style="display:flex;align-items:center;gap:10px;">
           ${ratingNum > 0 ? `
             <div class="player-match-rating-circle ${ratingClass}" title="Nota da Partida">
-              ${isMVP ? `<span style="font-size:0.8rem;line-height:1;margin-bottom:-2px;">👑</span>` : ''}
+              
               <span>${ratingStr}</span>
             </div>
           ` : ''}
@@ -3722,9 +3738,8 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
                           return `
                             <div class="pitch-player btn-open-match-player-modal" data-player-id="${pid}" data-team-id="${l.team.id}" style="cursor:pointer;" title="Clique para ver nota, mapa de calor e estatísticas de ${escapeHtml(p.player.name)}">
                               <div class="pitch-badge-wrapper">
-                                ${mvpBadge}
                                 ${ratingBadge}
-                                <div class="pitch-player-avatar-circle ${isAway ? 'away' : 'home'}">
+                                <div class="pitch-player-avatar-circle ${isAway ? 'away' : 'home'} ${isMVP ? 'is-mvp' : ''}">
                                   <img src="${photoUrl}" alt="" loading="lazy" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
                                 </div>
                                 <div class="pitch-player-badge ${isAway ? 'away' : 'home'}">${p.player.number ?? ""}</div>

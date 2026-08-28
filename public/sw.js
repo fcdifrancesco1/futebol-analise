@@ -2,14 +2,14 @@
 // Service Worker — FutStats PWA & Push Notifications
 // ============================================================
 
-const CACHE_NAME = "futstats-cache-v26";
+const CACHE_NAME = "futstats-cache-v27";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
   "/style.css",
-  "/style.css?v=26",
+  "/style.css?v=27",
   "/app.js",
-  "/app.js?v=26",
+  "/app.js?v=27",
   "/manifest.json",
   "/fundo.jpeg",
   "/icon-192.png",
@@ -59,7 +59,7 @@ self.addEventListener("push", (event) => {
     title: "⚽ FutStats",
     body: "Novo evento na partida!",
     icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    
     data: { url: "/#/" }
   };
 

@@ -138,8 +138,7 @@ module.exports = async (req, res) => {
                   title: `📋 ESCALAÇÕES CONFIRMADAS!`,
                   body: `As escalações oficiais de ${fx.teams.home.name} × ${fx.teams.away.name} já estão no ar!`,
                   icon: fx.teams.home.logo,
-                  badge: "/icon-192.png",
-                  tag: `lineups-${fixtureId}`,
+                                    tag: `lineups-${fixtureId}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
               }
@@ -157,11 +156,11 @@ module.exports = async (req, res) => {
           if (prefs.kickoff === false) continue;
 
           await dispatchPushOnce(sub, {
-            title: `⏱️ BOLA ROLANDO! (${fx.teams.home.name} x ${fx.teams.away.name})`,
+            title: `⏱️ BOLA ROLANDO!`, 
+            body: `Começou ${fx.teams.home.name} × ${fx.teams.away.name} pela ${fx.league.name}!`,
             body: `Começou a partida entre ${fx.teams.home.name} e ${fx.teams.away.name} pela ${fx.league.name}!`,
             icon: fx.teams.home.logo,
-            badge: "/icon-192.png",
-            tag: `kickoff-${fixtureId}`,
+                        tag: `kickoff-${fixtureId}`,
             data: { url: `/#/jogo/${fixtureId}` }
           });
         }
@@ -177,8 +176,7 @@ module.exports = async (req, res) => {
             title: `⏸️ INTERVALO: ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
             body: `Fim do primeiro tempo! Placar parcial: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
             icon: fx.teams.home.logo,
-            badge: "/icon-192.png",
-            tag: `halftime-${fixtureId}`,
+                        tag: `halftime-${fixtureId}`,
             data: { url: `/#/jogo/${fixtureId}` }
           });
         }
@@ -194,8 +192,7 @@ module.exports = async (req, res) => {
             title: `🏁 FIM DE JOGO: ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
             body: `Partida encerrada! Placar final: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
             icon: fx.teams.home.logo,
-            badge: "/icon-192.png",
-            tag: `fulltime-${fixtureId}`,
+                        tag: `fulltime-${fixtureId}`,
             data: { url: `/#/jogo/${fixtureId}` }
           });
         }
@@ -227,11 +224,11 @@ module.exports = async (req, res) => {
                 if (prefs.goals === false) continue;
 
                 await dispatchPushOnce(sub, {
-                  title: `⚽ GOL DO ${teamName.toUpperCase()}! (${ev.time.elapsed}')`,
+                  title: `⚽ GOL DO ${teamName.toUpperCase()}!`, 
+                  body: `${playerName} marca aos ${ev.time.elapsed}'! ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
                   body: `${playerName} marca para o ${teamName}! (${fx.teams.home.name} ${score} ${fx.teams.away.name})`,
                   icon: ev.team?.logo || fx.teams.home.logo,
-                  badge: "/icon-192.png",
-                  tag: `goal-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
+                                    tag: `goal-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
               }
@@ -243,11 +240,11 @@ module.exports = async (req, res) => {
                 if (prefs.redcards === false) continue;
 
                 await dispatchPushOnce(sub, {
-                  title: `🟥 CARTÃO VERMELHO! (${ev.time.elapsed}')`,
+                  title: `🟥 CARTÃO VERMELHO!`, 
+                  body: `${playerName} (${teamName}) expulso aos ${ev.time.elapsed}'!`,
                   body: `${playerName} (${teamName}) foi expulso da partida!`,
                   icon: ev.team?.logo || fx.teams.home.logo,
-                  badge: "/icon-192.png",
-                  tag: `redcard-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
+                                    tag: `redcard-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
               }
