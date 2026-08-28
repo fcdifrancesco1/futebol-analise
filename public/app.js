@@ -3160,6 +3160,10 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     const time = new Date(fx.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     
     const isLive = ["1H", "2H", "HT", "ET", "P", "LIVE"].includes(fx.fixture.status.short);
+    const isFinished = ["FT", "AET", "PEN", "PST", "CANC", "ABD", "AWD", "WO"].includes(fx.fixture.status.short) || 
+      String(fx.fixture.status.long || "").toLowerCase().includes("finish") || 
+      String(fx.fixture.status.long || "").toLowerCase().includes("encerrado") ||
+      String(fx.fixture.status.long || "").toLowerCase().includes("final");
 
     const statusText = isLive 
       ? `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${fx.fixture.status.elapsed ?? ""}' (${fx.fixture.status.long})</span>` 
@@ -3221,29 +3225,18 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           <div class="hero-score-col">
             <div class="hero-score-numbers">${fx.goals.home ?? "-"} : ${fx.goals.away ?? "-"}</div>
             <div class="hero-status-pill">${statusText}</div>
-            ${(() => {
-              const isFinished = ["FT", "AET", "PEN", "PST", "CANC", "ABD", "AWD", "WO"].includes(fx.fixture.status.short) || 
-                String(fx.fixture.status.long || "").toLowerCase().includes("finish") || 
-                String(fx.fixture.status.long || "").toLowerCase().includes("encerrado") ||
-                String(fx.fixture.status.long || "").toLowerCase().includes("final");
-              
-              if (isFinished) {
-                const searchQ = encodeURIComponent(`Melhores Momentos ${fx.teams.home.name} x ${fx.teams.away.name} ${fx.league?.name || ''}`);
-                return `
-                  <a href="https://www.youtube.com/results?search_query=${searchQ}" 
-                     target="_blank" 
-                     rel="noopener noreferrer" 
-                     class="btn-highlights-hero" 
-                     title="Assistir aos Melhores Momentos da partida no YouTube">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle;margin-right:4px;">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
-                    Melhores Momentos
-                  </a>
-                `;
-              }
-              return "";
-            })()}
+            ${isFinished ? `
+              <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${fx.teams.home.name} x ${fx.teams.away.name} ${fx.league?.name || ''}`)}" 
+                 target="_blank" 
+                 rel="noopener noreferrer" 
+                 class="btn-highlights-hero" 
+                 title="Assistir aos Melhores Momentos da partida no YouTube">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle;margin-right:4px;">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                Melhores Momentos
+              </a>
+            ` : ""}
           </div>
 
           <div class="hero-team-col away">
@@ -3267,11 +3260,13 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
                     <span>⚽</span>
                     <span class="player-name">${escapeHtml(playerName)}</span>
                     <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
-                    <a href="${ytUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(playerName)} no YouTube">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z"/>
-                      </svg>
-                    </a>
+                    ${isFinished ? `
+                      <a href="${ytUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(playerName)} no YouTube">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </a>
+                    ` : ''}
                   </div>
                 `;
               }).join("")}
@@ -3290,11 +3285,13 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
                     <span>⚽</span>
                     <span class="player-name">${escapeHtml(playerName)}</span>
                     <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
-                    <a href="${ytUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(playerName)} no YouTube">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z"/>
-                      </svg>
-                    </a>
+                    ${isFinished ? `
+                      <a href="${ytUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(playerName)} no YouTube">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </a>
+                    ` : ''}
                   </div>
                 `;
               }).join("")}
@@ -3336,7 +3333,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
 
       <!-- Linha do Tempo -->
       <div id="fixture-events-section">
-        ${renderFixtureEvents(events, fx)}
+        ${renderFixtureEvents(events, fx, isFinished)}
       </div>
     `;
 
@@ -4003,7 +4000,7 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
   `;
 }
 
-function renderFixtureEvents(events, fx) {
+function renderFixtureEvents(events, fx, isFinished = false) {
   if (!events || !events.length) return "";
   return `
     <h2 class="section-title">Linha do Tempo</h2>
@@ -4022,7 +4019,7 @@ function renderFixtureEvents(events, fx) {
                 <strong>${escapeHtml(pName)}</strong>
                 <span style="color:var(--chalk-dim);font-size:0.75rem;">(${escapeHtml(e.detail || e.type)})</span>
               </div>
-              ${isGoal ? `
+              ${(isFinished && isGoal) ? `
                 <a href="${ytGoalUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(pName)} no YouTube">
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M8 5v14l11-7z"/>
