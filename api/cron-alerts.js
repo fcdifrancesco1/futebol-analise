@@ -157,10 +157,9 @@ module.exports = async (req, res) => {
 
           await dispatchPushOnce(sub, {
             title: `⏱️ BOLA ROLANDO!`, 
-            body: `Começou ${fx.teams.home.name} × ${fx.teams.away.name} pela ${fx.league.name}!`,
-            body: `Começou a partida entre ${fx.teams.home.name} e ${fx.teams.away.name} pela ${fx.league.name}!`,
+            body: `⏱️ Começou ${fx.teams.home.name} × ${fx.teams.away.name} pela ${fx.league.name}!`,
             icon: fx.teams.home.logo,
-                        tag: `kickoff-${fixtureId}`,
+            tag: `kickoff-${fixtureId}`,
             data: { url: `/#/jogo/${fixtureId}` }
           });
         }
@@ -225,10 +224,9 @@ module.exports = async (req, res) => {
 
                 await dispatchPushOnce(sub, {
                   title: `⚽ GOL DO ${teamName.toUpperCase()}!`, 
-                  body: `${playerName} marca aos ${ev.time.elapsed}'! ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
-                  body: `${playerName} marca para o ${teamName}! (${fx.teams.home.name} ${score} ${fx.teams.away.name})`,
+                  body: `⚽ ${playerName} marca aos ${ev.time.elapsed}'! ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
                   icon: ev.team?.logo || fx.teams.home.logo,
-                                    tag: `goal-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
+                  tag: `goal-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
               }
@@ -241,10 +239,9 @@ module.exports = async (req, res) => {
 
                 await dispatchPushOnce(sub, {
                   title: `🟥 CARTÃO VERMELHO!`, 
-                  body: `${playerName} (${teamName}) expulso aos ${ev.time.elapsed}'!`,
-                  body: `${playerName} (${teamName}) foi expulso da partida!`,
+                  body: `🟥 ${playerName} (${teamName}) foi expulso aos ${ev.time.elapsed}'!`,
                   icon: ev.team?.logo || fx.teams.home.logo,
-                                    tag: `redcard-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
+                  tag: `redcard-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
               }
