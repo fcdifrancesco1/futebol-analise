@@ -1167,18 +1167,21 @@ async function renderMyTeam() {
           ${nextFixtures.length ? `
             <div class="fixture-list">
               ${nextFixtures.map(f => {
-                const dateStr = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
-                const timeStr = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const dObj = new Date(f.fixture.date);
+                const dayNum = dObj.toLocaleDateString("pt-BR", { day: "2-digit" });
+                const monthName = dObj.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+                const timeStr = dObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
                 const isHome = f.teams.home.id === favTeam.id;
                 const leagueLogo = f.league?.logo;
                 const leagueName = formatTeamName(f.league?.name || "");
 
                 return `
                   <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
-                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:80px;">
-                      <div style="display:flex;flex-direction:column;gap:1px;">
-                        <span class="fixture-date" style="color:var(--gold);font-weight:700;font-size:0.75rem;white-space:nowrap;">${dateStr}</span>
-                        <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--chalk-dim);">${timeStr}</span>
+                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:65px;">
+                      <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;min-width:28px;">
+                        <span class="fixture-date" style="color:var(--gold);font-weight:800;font-size:0.95rem;">${dayNum}</span>
+                        <span style="font-size:0.68rem;color:var(--chalk-dim);text-transform:lowercase;font-weight:600;">${monthName}</span>
+                        <span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--chalk-dim);margin-top:2px;">${timeStr}</span>
                       </div>
                       ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
                     </div>
@@ -1215,7 +1218,9 @@ async function renderMyTeam() {
           ${lastFixtures.length ? `
             <div class="fixture-list">
               ${lastFixtures.map(f => {
-                const dateStr = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+                const dObj = new Date(f.fixture.date);
+                const dayNum = dObj.toLocaleDateString("pt-BR", { day: "2-digit" });
+                const monthName = dObj.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
                 const isHome = f.teams.home.id === favTeam.id;
                 const homeGoals = f.goals.home ?? 0;
                 const awayGoals = f.goals.away ?? 0;
@@ -1243,8 +1248,11 @@ async function renderMyTeam() {
 
                 return `
                   <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
-                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:80px;">
-                      <span class="fixture-date" style="font-size:0.75rem;white-space:nowrap;">${dateStr}</span>
+                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:65px;">
+                      <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;min-width:28px;">
+                        <span class="fixture-date" style="font-size:0.95rem;font-weight:800;color:var(--chalk);">${dayNum}</span>
+                        <span style="font-size:0.68rem;color:var(--chalk-dim);text-transform:lowercase;font-weight:600;">${monthName}</span>
+                      </div>
                       <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
                         ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:18px;height:18px;object-fit:contain;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
                         <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.68rem;font-weight:800;line-height:1;">
@@ -4675,7 +4683,7 @@ async function renderLineupBuilder(teamId, fixtureId) {
         ${breadcrumbs([
           { label: "Ligas", href: "#/" },
           { label: "Sua Escalação", href: "#/minha-escalacao" },
-          { label: team.name, href: "" }
+          { label: formatTeamName(team.name), href: "" }
         ])}
 
         <div class="page-head" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
@@ -4683,7 +4691,7 @@ async function renderLineupBuilder(teamId, fixtureId) {
             <img src="${team.logo}" alt="" style="width:48px;height:48px;object-fit:contain;">
             <div>
               <p class="page-eyebrow" style="margin:0;">Montador Tático</p>
-              <h1 class="page-title" style="margin:0;">${escapeHtml(team.name)}</h1>
+              <h1 class="page-title" style="margin:0;">${escapeHtml(formatTeamName(team.name))}</h1>
               ${fixtureInfo ? `<span style="font-size:0.8rem;color:var(--cyan);font-family:var(--font-mono);">Confronto: ${escapeHtml(fixtureInfo.home.name)} x ${escapeHtml(fixtureInfo.away.name)}</span>` : ''}
             </div>
           </div>
@@ -4725,7 +4733,7 @@ async function renderLineupBuilder(teamId, fixtureId) {
 
           <!-- Painel Lateral: Elenco & Detalhes -->
           <div class="card" style="height:fit-content;">
-            <h3 style="font-size:1rem;margin-top:0;margin-bottom:12px;color:var(--gold);">Elenco do ${escapeHtml(team.name)}</h3>
+            <h3 style="font-size:1rem;margin-top:0;margin-bottom:12px;color:var(--gold);">Elenco do ${escapeHtml(formatTeamName(team.name))}</h3>
             <p style="font-size:0.8rem;color:var(--chalk-dim);margin-bottom:14px;">Clique em qualquer posição no campo para escolher o atleta correspondente.</p>
             
             <div style="font-family:var(--font-mono);font-size:0.8rem;margin-bottom:12px;background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);">
@@ -4960,15 +4968,15 @@ async function renderLineupBuilder(teamId, fixtureId) {
     function saveCurrentLineup() {
       const filled = selectedSlots.filter(Boolean);
       if (filled.length < 11) {
-        if (!confirm(`Você escalou ${filled.length} de 11 jogadores. Deseja salvar mesmo assim?`)) {
-          return;
-        }
+        const missing = 11 - filled.length;
+        toast(`⚠️ Faltam ${missing} jogador${missing > 1 ? 'es' : ''} para serem escalados! Complete os 11 titulares para salvar.`, false);
+        return;
       }
 
       const lineupObj = {
         id: lineupId,
         teamId: team.id,
-        teamName: team.name,
+        teamName: formatTeamName(team.name),
         teamLogo: team.logo,
         fixtureId: fixtureId || null,
         fixtureInfo: fixtureInfo,
