@@ -839,6 +839,22 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   margin-bottom: 10px;
 }
 
+.fixture-date-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+.fixture-date-divider .date-icon {
+  font-size: 0.9rem;
+}
+
 .fixture-list {
   display: flex;
   flex-direction: column;

@@ -468,7 +468,13 @@ function formatRoundName(r) {
   if (!r) return "Partidas";
   let s = String(r).trim();
 
-  // 1. Se for liga de pontos corridos (ex: Regular Season - 14, Round 14, Rodada 14)
+  // 1. Se for fase de grupos ou fase de liga com número (ex: Group Stage - 1, League Stage - 4, etc.)
+  const groupMatch = s.match(/(?:Group Stage|League Stage|Fase de Grupos|Fase de Liga|Fase de Grupo)\s*-\s*(\d+)/i);
+  if (groupMatch) {
+    return `Fase de Grupos — Rodada ${groupMatch[1]}`;
+  }
+
+  // 2. Se for liga de pontos corridos (ex: Regular Season - 14, Round 14, Rodada 14)
   if (/Regular Season\s*-\s*\d+/i.test(s) || /^Round\s*\d+$/i.test(s) || /^Rodada\s*\d+$/i.test(s)) {
     const matchNum = s.match(/\d+/);
     if (matchNum) return `Rodada ${matchNum[0]}`;
@@ -479,7 +485,7 @@ function formatRoundName(r) {
   const legSuffix = isLeg1 ? " — Jogo de Ida" : isLeg2 ? " — Jogo de Volta" : "";
   const cleanPhase = s.replace(/[-_ ]\d+$/, "").replace(/\s*-\s*(1st|2nd)\s*Leg/i, "").trim();
 
-  // 2. Fases de mata-mata em ordem estrita de prioridade (evita que 1st Round vire Final)
+  // 3. Fases de mata-mata em ordem estrita de prioridade (evita que 1st Round vire Final)
   if (/Round of 64|1st Qualifying|1ª Fase|1st Round/i.test(cleanPhase)) return "1ª Fase" + legSuffix;
   if (/2nd Qualifying|2ª Fase|2nd Round/i.test(cleanPhase)) return "2ª Fase" + legSuffix;
   if (/3rd Qualifying|3ª Fase|3rd Round/i.test(cleanPhase)) return "3ª Fase" + legSuffix;
@@ -502,17 +508,78 @@ function formatRoundName(r) {
 function extractRoundNumber(title) {
   const t = String(title).toLowerCase();
   if (t.includes("fase preliminar")) return 1;
-  if (t.includes("1ª fase") || t.includes("1ª pré")) return 2;
-  if (t.includes("2ª fase") || t.includes("2ª pré")) return 3;
-  if (t.includes("3ª fase") || t.includes("3ª pré")) return 4;
-  if (t.includes("16 avos")) return 5;
-  if (t.includes("oitavas")) return 6;
-  if (t.includes("quartas")) return 7;
-  if (t.includes("semifinal")) return 8;
-  if (t.includes("grande final") || t.includes("final")) return 9;
+  if (t.includes("1ª fase") || t.includes("1ª pré") || t.includes("1st qualifying")) return 2;
+  if (t.includes("2ª fase") || t.includes("2ª pré") || t.includes("2nd qualifying")) return 3;
+  if (t.includes("3ª fase") || t.includes("3ª pré") || t.includes("3rd qualifying")) return 4;
+  if (t.includes("play-offs") || t.includes("playoff")) return 5;
+  
+  if (t.includes("fase de grupos") || t.includes("fase de liga")) {
+    const m = title.match(/\d+/);
+    return m ? 10 + parseInt(m[0], 10) : 10;
+  }
+
+  if (t.includes("16 avos") || t.includes("round of 32")) return 50;
+  if (t.includes("oitavas") || t.includes("round of 16")) return 60;
+  if (t.includes("quartas") || t.includes("quarter")) return 70;
+  if (t.includes("semifinal") || t.includes("semi-finals")) return 80;
+  if (t.includes("grande final") || t.includes("final")) return 90;
 
   const m = title.match(/\d+/);
   return m ? parseInt(m[0], 10) : 9999;
+}
+
+// Pre-processamento inteligente de Fase de Grupos/Fase de Liga da Champions e Copas:
+function preprocessLeagueFixtures(allFixtures) {
+  if (!Array.isArray(allFixtures) || allFixtures.length === 0) return allFixtures;
+
+  const genericGroupFixtures = allFixtures.filter(f => f.league?.round === "Group Stage" || f.league?.round === "Fase de Grupos");
+  if (genericGroupFixtures.length > 18) {
+    const uefaDates = [
+      ['2026-09-15T19:00:00+00:00', '2026-09-16T19:00:00+00:00'],
+      ['2026-09-29T19:00:00+00:00', '2026-09-30T19:00:00+00:00'],
+      ['2026-10-20T19:00:00+00:00', '2026-10-21T19:00:00+00:00'],
+      ['2026-11-03T19:00:00+00:00', '2026-11-04T19:00:00+00:00'],
+      ['2026-11-24T19:00:00+00:00', '2026-11-25T19:00:00+00:00'],
+      ['2026-12-08T19:00:00+00:00', '2026-12-09T19:00:00+00:00'],
+      ['2027-01-19T19:00:00+00:00', '2027-01-20T19:00:00+00:00'],
+      ['2027-01-27T19:00:00+00:00', '2027-01-27T19:00:00+00:00'],
+    ];
+
+    const matchdays = Array.from({ length: 8 }, () => []);
+    const teamPerMatchday = Array.from({ length: 8 }, () => new Set());
+
+    genericGroupFixtures.forEach(f => {
+      const h = f.teams.home.id;
+      const a = f.teams.away.id;
+      for (let d = 0; d < 8; d++) {
+        if (!teamPerMatchday[d].has(h) && !teamPerMatchday[d].has(a) && matchdays[d].length < 18) {
+          teamPerMatchday[d].add(h);
+          teamPerMatchday[d].add(a);
+          matchdays[d].push(f);
+          f.league.round = `Group Stage - ${d + 1}`;
+          const dayIdx = (matchdays[d].length <= 9) ? 0 : 1;
+          f.fixture.date = uefaDates[d][dayIdx];
+          break;
+        }
+      }
+    });
+
+    genericGroupFixtures.forEach(f => {
+      if (!f.league.round.includes(' - ')) {
+        for (let d = 0; d < 8; d++) {
+          if (matchdays[d].length < 18) {
+            matchdays[d].push(f);
+            f.league.round = `Group Stage - ${d + 1}`;
+            const dayIdx = (matchdays[d].length <= 9) ? 0 : 1;
+            f.fixture.date = uefaDates[d][dayIdx];
+            break;
+          }
+        }
+      }
+    });
+  }
+
+  return allFixtures;
 }
 
 function skeletonTable() {
@@ -738,7 +805,7 @@ async function renderStandingsFromCache(leagueId, season) {
       return;
     }
 
-    const allFixtures = Array.isArray(fixturesResp) ? fixturesResp : [];
+    const allFixtures = preprocessLeagueFixtures(Array.isArray(fixturesResp) ? fixturesResp : []);
     const finishedFixtures = allFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short));
 
     let tablesToRender = officialStandings;
@@ -943,7 +1010,8 @@ async function renderLeagueFixtures(leagueId, season) {
 
   const content = document.getElementById("fx-content");
   try {
-    const allFixtures = await apiGet("fixtures", { league: leagueId, season }, 15);
+    const rawFixtures = await apiGet("fixtures", { league: leagueId, season }, 15);
+    const allFixtures = preprocessLeagueFixtures(rawFixtures);
 
     if (!allFixtures || !allFixtures.length) {
       content.innerHTML = `<div class="card"><p style="color:var(--chalk-dim);">Nenhum jogo cadastrado para esta temporada.</p></div>`;
@@ -1024,6 +1092,28 @@ function renderGroupedFixtures(fixtures, isCup = false) {
 
   return sortedGroupKeys.map(roundTitle => {
     const list = groups[roundTitle];
+
+    // Agrupa os jogos da rodada por data
+    const dateGroups = {};
+    list.forEach(f => {
+      const d = new Date(f.fixture.date);
+      const dateKey = d.toLocaleDateString("pt-BR", {
+        weekday: "long",
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+      });
+      const formattedDateKey = dateKey.charAt(0).toUpperCase() + dateKey.slice(1);
+      if (!dateGroups[formattedDateKey]) dateGroups[formattedDateKey] = [];
+      dateGroups[formattedDateKey].push(f);
+    });
+
+    const sortedDates = Object.keys(dateGroups).sort((a, b) => {
+      const tA = new Date(dateGroups[a][0].fixture.date).getTime();
+      const tB = new Date(dateGroups[b][0].fixture.date).getTime();
+      return tA - tB;
+    });
+
     return `
       <div class="fixture-group-section">
         <div class="fixture-round-header">
@@ -1031,54 +1121,65 @@ function renderGroupedFixtures(fixtures, isCup = false) {
           <span class="round-title-text">${escapeHtml(roundTitle)}</span>
         </div>
         <div class="card" style="padding:10px;">
-          <div class="fixture-list">
-            ${list.map(f => {
-              const rawRound = f.league?.round || "";
-              let legBadge = "";
-              
-              if (isCup) {
-                if (/[-_ ]1$|\b1st leg\b|\bida\b/i.test(rawRound)) {
-                  legBadge = `<span class="leg-badge ida">IDA</span>`;
-                } else if (/[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(rawRound)) {
-                  legBadge = `<span class="leg-badge volta">VOLTA</span>`;
-                } else {
-                  const tA = Math.min(f.teams.home.id, f.teams.away.id);
-                  const tB = Math.max(f.teams.home.id, f.teams.away.id);
-                  const key = `${tA}-${tB}`;
-                  if (pairOccurrences[key] > 1) {
-                    pairCountSeen[key] = (pairCountSeen[key] || 0) + 1;
-                    legBadge = pairCountSeen[key] === 1 
-                      ? `<span class="leg-badge ida">IDA</span>` 
-                      : `<span class="leg-badge volta">VOLTA</span>`;
+          ${sortedDates.map((dateHeader, dIdx) => {
+            const dayMatches = dateGroups[dateHeader];
+            return `
+              ${sortedDates.length > 1 ? `
+                <div class="fixture-date-divider" style="${dIdx === 0 ? 'margin-top:2px;' : 'margin-top:16px;'}">
+                  <span class="date-icon">📅</span>
+                  <span class="date-text">${escapeHtml(dateHeader)}</span>
+                </div>
+              ` : ''}
+              <div class="fixture-list" style="margin-bottom:${dIdx === sortedDates.length - 1 ? '0' : '8px'};">
+                ${dayMatches.map(f => {
+                  const rawRound = f.league?.round || "";
+                  let legBadge = "";
+                  
+                  if (isCup) {
+                    if (/[-_ ]1$|\b1st leg\b|\bida\b/i.test(rawRound)) {
+                      legBadge = `<span class="leg-badge ida">IDA</span>`;
+                    } else if (/[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(rawRound)) {
+                      legBadge = `<span class="leg-badge volta">VOLTA</span>`;
+                    } else {
+                      const tA = Math.min(f.teams.home.id, f.teams.away.id);
+                      const tB = Math.max(f.teams.home.id, f.teams.away.id);
+                      const key = `${tA}-${tB}`;
+                      if (pairOccurrences[key] > 1) {
+                        pairCountSeen[key] = (pairCountSeen[key] || 0) + 1;
+                        legBadge = pairCountSeen[key] === 1 
+                          ? `<span class="leg-badge ida">IDA</span>` 
+                          : `<span class="leg-badge volta">VOLTA</span>`;
+                      }
+                    }
                   }
-                }
-              }
 
-              const date = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-              const time = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-              const played = f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD";
+                  const date = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+                  const time = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                  const played = f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD";
 
-              return `
-                <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para ver estatísticas da partida">
-                  <div class="fixture-date-col">
-                    <span class="fixture-date">${date}<br>${time}</span>
-                    ${legBadge}
-                  </div>
+                  return `
+                    <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para ver estatísticas da partida">
+                      <div class="fixture-date-col">
+                        <span class="fixture-date">${date}<br>${time}</span>
+                        ${legBadge}
+                      </div>
 
-                  <div class="fixture-team-item right">
-                    <span>${escapeHtml(f.teams.home.name)}</span>
-                    <img src="${f.teams.home.logo}" alt="" loading="lazy">
-                  </div>
+                      <div class="fixture-team-item right">
+                        <span>${escapeHtml(f.teams.home.name)}</span>
+                        <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                      </div>
 
-                  <span class="fixture-score">${played ? `${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}` : "vs"}</span>
+                      <span class="fixture-score">${played ? `${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}` : "vs"}</span>
 
-                  <div class="fixture-team-item">
-                    <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                    <span>${escapeHtml(f.teams.away.name)}</span>
-                  </div>
-                </a>`;
-            }).join("")}
-          </div>
+                      <div class="fixture-team-item">
+                        <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                        <span>${escapeHtml(f.teams.away.name)}</span>
+                      </div>
+                    </a>`;
+                }).join("")}
+              </div>
+            `;
+          }).join("")}
         </div>
       </div>`;
   }).join("");
