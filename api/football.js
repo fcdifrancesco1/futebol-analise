@@ -13,6 +13,8 @@ const ALLOWED_ENDPOINTS = new Set([
   "fixtures/events",
   "fixtures/lineups",
   "fixtures/statistics",
+  "fixtures/players",
+  "fixtures/player",
   "players/topscorers",
   "players/topassists",
   "players/topyellowcards",

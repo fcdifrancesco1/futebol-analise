@@ -1197,6 +1197,17 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             const shotsOn = matchStats.reduce((acc, s) => acc + (s.shots?.on || 0), 0);
             const totalPasses = matchStats.reduce((acc, s) => acc + (s.passes?.total || 0), 0);
             const totalKeyPasses = matchStats.reduce((acc, s) => acc + (s.passes?.key || 0), 0);
+            const completedPasses = matchStats.reduce((acc, s) => {
+              const accNum = parseFloat(s.passes?.accuracy) || 0;
+              if (accNum <= (s.passes?.total || 0) && accNum > 0) {
+                return acc + accNum;
+              } else if (accNum <= 100 && accNum > 0) {
+                return acc + Math.round(((s.passes?.total || 0) * accNum) / 100);
+              }
+              return acc;
+            }, 0);
+            const passAccPct = totalPasses > 0 ? Math.round((completedPasses / totalPasses) * 100) : st.passes?.accuracy;
+
             const totalDribblesAttempts = matchStats.reduce((acc, s) => acc + (s.dribbles?.attempts || 0), 0);
             const totalDribblesSuccess = matchStats.reduce((acc, s) => acc + (s.dribbles?.success || 0), 0);
             const totalTackles = matchStats.reduce((acc, s) => acc + (s.tackles?.total || 0), 0);
@@ -1224,7 +1235,8 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             st.passes = {
               ...st.passes,
               total: totalPasses,
-              key: totalKeyPasses
+              key: totalKeyPasses,
+              accuracy: passAccPct
             };
             st.dribbles = { attempts: totalDribblesAttempts, success: totalDribblesSuccess };
             st.tackles = { ...(st.tackles || {}), total: totalTackles, interceptions: totalInterceptions };
