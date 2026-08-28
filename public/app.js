@@ -1034,13 +1034,15 @@ function renderGroupedFixtures(fixtures, isCup = false) {
   }
 
   const pairOccurrences = {};
-  const isKnockout = isCup && !/Group Stage|League Stage|Fase de Grupos|Fase de Liga|Rodada/i.test(rawRound);
-                  if (isKnockout) {
+  if (isCup) {
     fixtures.forEach(f => {
-      const tA = Math.min(f.teams.home.id, f.teams.away.id);
-      const tB = Math.max(f.teams.home.id, f.teams.away.id);
-      const key = `${tA}-${tB}`;
-      pairOccurrences[key] = (pairOccurrences[key] || 0) + 1;
+      const rName = f.league?.round || "";
+      if (!/Group Stage|League Stage|Fase de Grupos|Fase de Liga|Rodada/i.test(rName)) {
+        const tA = Math.min(f.teams.home.id, f.teams.away.id);
+        const tB = Math.max(f.teams.home.id, f.teams.away.id);
+        const key = `${tA}-${tB}`;
+        pairOccurrences[key] = (pairOccurrences[key] || 0) + 1;
+      }
     });
   }
 
@@ -1098,8 +1100,8 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                 ${dayMatches.map(f => {
                   const rawRound = f.league?.round || "";
                   let legBadge = "";
-                  
-                  if (isCup) {
+                  const isKnockout = isCup && !/Group Stage|League Stage|Fase de Grupos|Fase de Liga|Rodada/i.test(rawRound);
+                  if (isKnockout) {
                     if (/[-_ ]1$|\b1st leg\b|\bida\b/i.test(rawRound)) {
                       legBadge = `<span class="leg-badge ida">IDA</span>`;
                     } else if (/[-_ ]2$|\b2nd leg\b|\bvolta\b/i.test(rawRound)) {
