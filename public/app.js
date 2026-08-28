@@ -2773,7 +2773,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
 
       <!-- Campo Tático 2D -->
       <div id="fixture-lineups-section" style="margin-bottom:24px;">
-        ${renderFixtureLineups(lineupsArr, events, fx.league.id, fx.league.season)}
+        ${renderFixtureLineups(lineupsArr, events, fx.league.id, fx.league.season, fixturePlayersMap, mvpPlayerId, fx)}
       </div>
 
       <!-- Previsão Oficial -->
@@ -2821,6 +2821,29 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         renderFixture(fixtureId, true);
       });
     }
+
+    // Event listeners para abrir modal de nota e mapa de calor ao clicar no jogador
+    document.querySelectorAll(".btn-open-match-player-modal").forEach(el => {
+      el.addEventListener("click", () => {
+        const pid = Number(el.dataset.playerId);
+        const tid = Number(el.dataset.teamId);
+        const pData = fixturePlayersMap[pid];
+        const teamObj = fx.teams.home.id === tid ? fx.teams.home : fx.teams.away;
+        
+        let pObj = pData?.player;
+        if (!pObj) {
+          // Busca nos lineups
+          lineupsArr.forEach(l => {
+            const starter = (l.startXI || []).find(x => x.player?.id === pid);
+            if (starter) pObj = starter.player;
+            const sub = (l.substitutes || []).find(x => x.player?.id === pid);
+            if (sub) pObj = sub.player;
+          });
+        }
+
+        openPlayerMatchModal(pid, tid, fx.league.id, fx.league.season, pData, pObj, teamObj, fx);
+      });
+    });
 
     if (isLive) {
       startLiveAutoRefresh(() => renderFixture(fixtureId, true));
@@ -2959,7 +2982,288 @@ function renderLiveMatchStats(statsArr, fx) {
   `;
 }
 
-function renderFixtureLineups(lineupsArr, events = [], leagueId, season) {
+
+// ============================================================
+// Modal de Desempenho do Jogador na Partida & Mapa de Calor
+// ============================================================
+
+function openPlayerMatchModal(playerId, teamId, leagueId, season, pData, pObj, teamObj, fx) {
+  let backdrop = document.getElementById("player-match-modal-backdrop");
+  if (backdrop) backdrop.remove();
+
+  backdrop = document.createElement("div");
+  backdrop.id = "player-match-modal-backdrop";
+  backdrop.className = "player-match-modal-backdrop";
+
+  const p = pObj || pData?.player || { id: playerId, name: "Jogador", number: "-" };
+  const team = teamObj || { id: teamId, name: "Clube", logo: "" };
+  const st = pData?.statistics?.[0] || {};
+  const game = st.games || {};
+  const ratingStr = game.rating || "-";
+  const ratingNum = parseFloat(ratingStr || "0");
+  const isMVP = (ratingNum >= 7.5);
+  const position = game.position || p.pos || "M";
+  const minutes = game.minutes ?? "-";
+
+  const shotsOn = st.shots?.on ?? 0;
+  const shotsTotal = st.shots?.total ?? 0;
+  const goals = st.goals?.total ?? 0;
+  const assists = st.goals?.assists ?? 0;
+  const passesTotal = st.passes?.total ?? 0;
+  const passAcc = st.passes?.accuracy ?? "-";
+  const keyPasses = st.passes?.key ?? 0;
+  const tackles = st.tackles?.total ?? 0;
+  const blocks = st.tackles?.blocks ?? 0;
+  const interceptions = st.tackles?.interceptions ?? 0;
+  const dribblesSuccess = st.dribbles?.success ?? 0;
+  const dribblesTotal = st.dribbles?.attempts ?? 0;
+  const duelsWon = st.duels?.won ?? 0;
+  const duelsTotal = st.duels?.total ?? 0;
+  const foulsDrawn = st.fouls?.drawn ?? 0;
+  const foulsCommitted = st.fouls?.committed ?? 0;
+  const yellowCards = st.cards?.yellow ?? 0;
+  const redCards = st.cards?.red ?? 0;
+
+  const ratingClass = ratingNum >= 7.5 ? "rating-high" : ratingNum >= 6.5 ? "rating-med" : ratingNum > 0 ? "rating-low" : "";
+
+  backdrop.innerHTML = `
+    <div class="player-match-modal-card">
+      <div class="player-match-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <img src="https://media.api-sports.io/football/players/${p.id}.png" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <h3 style="margin:0;font-size:1.15rem;font-weight:800;color:var(--chalk);">${escapeHtml(p.name)}</h3>
+              <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;">#${p.number ?? "-"}</span>
+            </div>
+            <div style="font-size:0.78rem;color:var(--chalk-dim);margin-top:2px;">
+              ${escapeHtml(team.name)} · ${position === 'G' ? 'Goleiro' : position === 'D' ? 'Defensor' : position === 'M' ? 'Meio-campista' : 'Atacante'} · ${minutes}' jogados
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${ratingNum > 0 ? `
+            <div class="player-match-rating-circle ${ratingClass}" title="Nota da Partida">
+              ${isMVP ? `<span style="font-size:0.8rem;line-height:1;margin-bottom:-2px;">👑</span>` : ''}
+              <span>${ratingStr}</span>
+            </div>
+          ` : ''}
+          <button id="btn-close-player-match-modal" style="background:none;border:none;color:var(--chalk);font-size:1.3rem;cursor:pointer;padding:4px;">✕</button>
+        </div>
+      </div>
+
+      <!-- Mapa de Calor -->
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;display:flex;align-items:center;gap:6px;">
+            🔥 MAPA DE CALOR TÁTICO
+          </span>
+          <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--cyan);">Ataque ➔</span>
+        </div>
+        <div class="heatmap-canvas-container">
+          <canvas id="player-match-heatmap-canvas" class="heatmap-canvas" width="480" height="220"></canvas>
+        </div>
+      </div>
+
+      <!-- Grade de Estatísticas do Jogo -->
+      <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;display:block;margin-bottom:10px;">
+        📊 ESTATÍSTICAS NESTE CONFRONTO:
+      </span>
+      <div class="match-stat-chip-grid">
+        <div class="match-stat-chip">
+          <span class="match-stat-chip-label">⚽ Gols</span>
+          <span class="match-stat-chip-val" style="color:#10B981;">${goals}</span>
+        </div>
+        <div class="match-stat-chip">
+          <span class="match-stat-chip-label">👟 Assistências</span>
+          <span class="match-stat-chip-val" style="color:var(--cyan);">${assists}</span>
+        </div>
+        <div class="match-stat-chip">
+          <span class="match-stat-chip-label">🎯 Chutes (No Gol)</span>
+          <span class="match-stat-chip-val">${shotsOn} / ${shotsTotal}</span>
+        </div>
+        <div class="match-stat-chip">
+          <span class="match-stat-chip-label">📐 Passes (Precisão)</span>
+          <span class="match-stat-chip-val">${passAcc ? passAcc + '%' : passesTotal}</span>
+        </div>
+        <div class="match-stat-chip">
+          <span class="match-stat-chip-label">🔑 Passes Decisivos</span>
+          <span class="match-stat-chip-val">${keyPasses}</span>
+        </div>
+        <div class="match-stat-chip">
+          <span class="match-stat-chip-label">⚡ Dribles Certos</span>
+          <span class="match-stat-chip-val">${dribblesSuccess} / ${dribblesTotal}</span>
+        </div>
+        <div class="match-stat-chip">
+          <span class="match-stat-chip-label">🛡️ Desarmes / Intercep.</span>
+          <span class="match-stat-chip-val">${tackles + interceptions}</span>
+        </div>
+        <div class="match-stat-chip">
+          <span class="match-stat-chip-label">⚔️ Duelos Ganhos</span>
+          <span class="match-stat-chip-val">${duelsWon} / ${duelsTotal}</span>
+        </div>
+        <div class="match-stat-chip">
+          <span class="match-stat-chip-label">🟨 Cartões</span>
+          <span class="match-stat-chip-val">${yellowCards ? `🟨 ${yellowCards}` : '-'} ${redCards ? `🟥 ${redCards}` : ''}</span>
+        </div>
+      </div>
+
+      <!-- Botão para perfil completo -->
+      <a class="btn primary small" href="#/jogador/${p.id}/${team.id}/${leagueId}/${season}" style="text-align:center;font-weight:700;margin-top:6px;">
+        Ver Perfil e Histórico Completo do Atleta →
+      </a>
+    </div>
+  `;
+
+  document.body.appendChild(backdrop);
+
+  // Fechar
+  document.getElementById("btn-close-player-match-modal")?.addEventListener("click", () => backdrop.remove());
+  backdrop.addEventListener("click", (e) => {
+    if (e.target === backdrop) backdrop.remove();
+  });
+
+  // Renderizar o Canvas do Mapa de Calor
+  const canvas = document.getElementById("player-match-heatmap-canvas");
+  if (canvas) {
+    drawPlayerHeatmap(canvas, position, st, p);
+  }
+}
+
+function drawPlayerHeatmap(canvas, position, st, p) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // 1. Fundo do Campo de Futebol
+  ctx.fillStyle = "#0A2238";
+  ctx.fillRect(0, 0, w, h);
+
+  // Faixas de grama sutis
+  const stripeWidth = w / 10;
+  for (let i = 0; i < 10; i += 2) {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.02)";
+    ctx.fillRect(i * stripeWidth, 0, stripeWidth, h);
+  }
+
+  // 2. Linhas do Campo (Teal suave)
+  ctx.strokeStyle = "rgba(0, 229, 255, 0.35)";
+  ctx.lineWidth = 1.5;
+
+  // Borda externa
+  ctx.strokeRect(16, 12, w - 32, h - 24);
+
+  // Linha de meio-campo
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 12);
+  ctx.lineTo(w / 2, h - 12);
+  ctx.stroke();
+
+  // Círculo central
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, 38, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Ponto central
+  ctx.fillStyle = "rgba(0, 229, 255, 0.5)";
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Grande Área Esquerda (Defesa)
+  ctx.strokeRect(16, h / 2 - 50, 68, 100);
+  // Pequena Área Esquerda
+  ctx.strokeRect(16, h / 2 - 24, 26, 48);
+
+  // Grande Área Direita (Ataque)
+  ctx.strokeRect(w - 84, h / 2 - 50, 68, 100);
+  // Pequena Área Direita
+  ctx.strokeRect(w - 42, h / 2 - 24, 26, 48);
+
+  // Marca do pênalti esquerda e direita
+  ctx.beginPath();
+  ctx.arc(62, h / 2, 2, 0, Math.PI * 2);
+  ctx.arc(w - 62, h / 2, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 3. Focos de Calor Térmico Dinâmico
+  const spots = [];
+  const pos = (position || "").toUpperCase();
+  const grid = p?.grid || "";
+
+  const shotsTotal = st?.shots?.total || 0;
+  const keyPasses = st?.passes?.key || 0;
+  const tackles = st?.tackles?.total || 0;
+  const dribbles = st?.dribbles?.success || 0;
+
+  // Pontos base por posição tática (Ataque sempre da Esquerda para Direita)
+  if (pos === "G") {
+    spots.push({ x: 38, y: h / 2, r: 42, intensity: 1.0 });
+    spots.push({ x: 55, y: h / 2 - 15, r: 35, intensity: 0.7 });
+    spots.push({ x: 55, y: h / 2 + 15, r: 35, intensity: 0.7 });
+  } else if (pos === "D") {
+    if (grid.endsWith(":1") || grid.endsWith(":4") || p?.number === 6 || p?.number === 3 || (p?.name && /left|esquerdo|le/i.test(p.name))) {
+      // Lateral Esquerdo
+      spots.push({ x: 100, y: 38, r: 45, intensity: 0.8 });
+      spots.push({ x: 180, y: 38, r: 50, intensity: 0.95 });
+      spots.push({ x: 260, y: 40, r: 52, intensity: 0.9 });
+      spots.push({ x: 340, y: 45, r: 48, intensity: 0.75 });
+    } else if (grid.endsWith(":2") || p?.number === 2 || (p?.name && /right|direito|ld/i.test(p.name))) {
+      // Lateral Direito
+      spots.push({ x: 100, y: h - 38, r: 45, intensity: 0.8 });
+      spots.push({ x: 180, y: h - 38, r: 50, intensity: 0.95 });
+      spots.push({ x: 260, y: h - 40, r: 52, intensity: 0.9 });
+      spots.push({ x: 340, y: h - 45, r: 48, intensity: 0.75 });
+    } else {
+      // Zagueiro Central
+      spots.push({ x: 100, y: h / 2 - 28, r: 55, intensity: 0.9 });
+      spots.push({ x: 100, y: h / 2 + 28, r: 55, intensity: 0.9 });
+      spots.push({ x: 135, y: h / 2, r: 60, intensity: 0.8 });
+    }
+  } else if (pos === "M") {
+    // Meio-Campo
+    spots.push({ x: w / 2 - 40, y: h / 2, r: 62, intensity: 0.9 });
+    spots.push({ x: w / 2 + 30, y: h / 2 - 25, r: 58, intensity: 0.95 });
+    spots.push({ x: w / 2 + 30, y: h / 2 + 25, r: 58, intensity: 0.95 });
+    spots.push({ x: w * 0.65, y: h / 2, r: 55, intensity: 0.8 });
+  } else {
+    // Atacante / Ponta
+    spots.push({ x: w * 0.72, y: h / 2, r: 60, intensity: 0.95 });
+    spots.push({ x: w * 0.82, y: h / 2 - 30, r: 52, intensity: 0.9 });
+    spots.push({ x: w * 0.82, y: h / 2 + 30, r: 52, intensity: 0.9 });
+    spots.push({ x: w - 60, y: h / 2, r: 48, intensity: 0.85 });
+  }
+
+  // Focos extras baseados nas ações reais do jogo
+  if (shotsTotal > 0) {
+    spots.push({ x: w - 55, y: h / 2 + (Math.random() * 20 - 10), r: 40, intensity: 1.0 });
+  }
+  if (keyPasses > 0 || dribbles > 0) {
+    spots.push({ x: w * 0.68, y: h / 2 + (Math.random() * 40 - 20), r: 45, intensity: 0.9 });
+  }
+  if (tackles >= 2) {
+    spots.push({ x: w * 0.35, y: h / 2, r: 48, intensity: 0.85 });
+  }
+
+  // Desenhar manchas térmicas radiais
+  spots.forEach(spot => {
+    const radGrad = ctx.createRadialGradient(spot.x, spot.y, 0, spot.x, spot.y, spot.r);
+    radGrad.addColorStop(0.0, `rgba(239, 68, 68, ${0.85 * spot.intensity})`);
+    radGrad.addColorStop(0.35, `rgba(255, 184, 0, ${0.65 * spot.intensity})`);
+    radGrad.addColorStop(0.70, `rgba(16, 185, 129, ${0.35 * spot.intensity})`);
+    radGrad.addColorStop(1.0, "rgba(0, 229, 255, 0)");
+
+    ctx.fillStyle = radGrad;
+    ctx.beginPath();
+    ctx.arc(spot.x, spot.y, spot.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixturePlayersMap = {}, mvpPlayerId = null, fx = null) {
   if (!lineupsArr || !lineupsArr.length) {
     return `
       <div class="card" style="text-align:center;padding:24px;color:var(--chalk-dim);">
@@ -3055,16 +3359,34 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season) {
                       const eventBadges = generateEventBadges(pid);
                       const photoUrl = pid ? `https://media.api-sports.io/football/players/${pid}.png` : 'https://media.api-sports.io/football/players/placeholder.png';
                       return `
-                        <a class="pitch-player" href="#/jogador/${pid}/${l.team.id}/${leagueId}/${season}" title="Ver estatísticas de ${escapeHtml(p.player.name)} (#${p.player.number ?? ''})">
-                          <div class="pitch-badge-wrapper">
-                            <div class="pitch-player-avatar-circle ${isAway ? 'away' : 'home'}">
-                              <img src="${photoUrl}" alt="" loading="lazy" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                        ${(() => {
+                          const pData = fixturePlayersMap[pid];
+                          const ratingStr = pData?.statistics?.[0]?.games?.rating;
+                          const ratingNum = parseFloat(ratingStr || "0");
+                          const isMVP = (pid === mvpPlayerId && ratingNum >= 7.0);
+
+                          let ratingBadge = "";
+                          if (ratingStr && !isNaN(ratingNum) && ratingNum > 0) {
+                            const rClass = ratingNum >= 7.5 ? "rating-high" : ratingNum >= 6.5 ? "rating-med" : "rating-low";
+                            ratingBadge = `<span class="pitch-player-rating-pill ${rClass}" title="Nota da Partida: ${ratingStr}">${ratingStr}</span>`;
+                          }
+                          const mvpBadge = isMVP ? `<span class="pitch-player-mvp-crown" title="Craque do Jogo (MVP)">👑</span>` : "";
+
+                          return `
+                            <div class="pitch-player btn-open-match-player-modal" data-player-id="${pid}" data-team-id="${l.team.id}" style="cursor:pointer;" title="Clique para ver nota, mapa de calor e estatísticas de ${escapeHtml(p.player.name)}">
+                              <div class="pitch-badge-wrapper">
+                                ${mvpBadge}
+                                ${ratingBadge}
+                                <div class="pitch-player-avatar-circle ${isAway ? 'away' : 'home'}">
+                                  <img src="${photoUrl}" alt="" loading="lazy" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                                </div>
+                                <div class="pitch-player-badge ${isAway ? 'away' : 'home'}">${p.player.number ?? ""}</div>
+                                ${eventBadges ? `<div class="pitch-event-icons">${eventBadges}</div>` : ''}
+                              </div>
+                              <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
                             </div>
-                            <div class="pitch-player-badge ${isAway ? 'away' : 'home'}">${p.player.number ?? ""}</div>
-                            ${eventBadges ? `<div class="pitch-event-icons">${eventBadges}</div>` : ''}
-                          </div>
-                          <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
-                        </a>`;
+                          `;
+                        })()}`;
                     }).join("")}
                   </div>`
                 ).join("")}
