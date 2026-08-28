@@ -1175,12 +1175,12 @@ async function renderMyTeam() {
 
                 return `
                   <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
-                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:6px;min-width:72px;">
-                      ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:18px;height:18px;object-fit:contain;flex-shrink:0;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
+                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:80px;">
                       <div style="display:flex;flex-direction:column;gap:1px;">
-                        <span class="fixture-date" style="color:var(--gold);font-weight:700;font-size:0.75rem;">${dateStr}</span>
+                        <span class="fixture-date" style="color:var(--gold);font-weight:700;font-size:0.75rem;white-space:nowrap;">${dateStr}</span>
                         <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--chalk-dim);">${timeStr}</span>
                       </div>
+                      ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
                     </div>
                     <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
                       <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
@@ -1243,11 +1243,11 @@ async function renderMyTeam() {
 
                 return `
                   <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
-                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:6px;min-width:72px;">
-                      ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:18px;height:18px;object-fit:contain;flex-shrink:0;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
-                      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
-                        <span class="fixture-date" style="font-size:0.75rem;">${dateStr}</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.7rem;font-weight:800;line-height:1;">
+                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:80px;">
+                      <span class="fixture-date" style="font-size:0.75rem;white-space:nowrap;">${dateStr}</span>
+                      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
+                        ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:18px;height:18px;object-fit:contain;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.68rem;font-weight:800;line-height:1;">
                           ${outcomeLetter}
                         </span>
                       </div>
