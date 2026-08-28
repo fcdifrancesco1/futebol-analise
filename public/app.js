@@ -3406,19 +3406,6 @@ async function renderMyLineups() {
   const savedMap = UserLineupStore.getAll();
   const savedList = Object.values(savedMap).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-  const POPULAR_TEAMS = [
-    { id: 529, name: "Barcelona", logo: "https://media.api-sports.io/football/teams/529.png" },
-    { id: 541, name: "Real Madrid", logo: "https://media.api-sports.io/football/teams/541.png" },
-    { id: 50, name: "Manchester City", logo: "https://media.api-sports.io/football/teams/50.png" },
-    { id: 40, name: "Liverpool", logo: "https://media.api-sports.io/football/teams/40.png" },
-    { id: 42, name: "Arsenal", logo: "https://media.api-sports.io/football/teams/42.png" },
-    { id: 127, name: "Flamengo", logo: "https://media.api-sports.io/football/teams/127.png" },
-    { id: 121, name: "Palmeiras", logo: "https://media.api-sports.io/football/teams/121.png" },
-    { id: 85, name: "Paris Saint Germain", logo: "https://media.api-sports.io/football/teams/85.png" },
-    { id: 157, name: "Bayern München", logo: "https://media.api-sports.io/football/teams/157.png" },
-    { id: 505, name: "Inter", logo: "https://media.api-sports.io/football/teams/505.png" }
-  ];
-
   app.innerHTML = `
     ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: "Sua Escalação", href: "" }])}
     <div class="page-head">
@@ -3427,17 +3414,15 @@ async function renderMyLineups() {
       <p class="page-sub">Monte a escalação ideal do seu time, escolha o esquema tático e compare seu palpite com a escalação oficial do treinador!</p>
     </div>
 
-    <!-- Seção de Montar Nova Escalação -->
+    <!-- Barra de Busca de Clubes (Sem equipes sugeridas na tela) -->
     <div class="card" style="margin-bottom:24px;">
-      <h2 class="section-title" style="margin-top:0;">Escolha um Clube para Escalar</h2>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:12px;margin-top:14px;">
-        ${POPULAR_TEAMS.map(t => `
-          <a class="player-card" href="#/minha-escalacao/montar/${t.id}" style="padding:12px 8px;text-align:center;">
-            <img src="${t.logo}" alt="" style="width:42px;height:42px;object-fit:contain;margin-bottom:8px;">
-            <span style="font-size:0.85rem;font-weight:700;line-height:1.2;">${escapeHtml(t.name)}</span>
-            <span style="font-size:0.72rem;color:var(--gold);margin-top:6px;">Escalar Time →</span>
-          </a>
-        `).join("")}
+      <h2 class="section-title" style="margin-top:0;">Buscar Clube para Escalar</h2>
+      <div style="position:relative;margin-top:12px;">
+        <div style="display:flex;align-items:center;background:rgba(255,255,255,0.04);border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:0 14px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);">
+          <span style="font-size:1.1rem;color:var(--chalk-dim);margin-right:10px;">🔍</span>
+          <input type="text" id="input-team-search" placeholder="Digite o nome do clube que deseja escalar (ex: Barcelona, Flamengo, Arsenal, Real Madrid...)" autocomplete="off" style="width:100%;background:transparent;border:none;color:var(--chalk);padding:12px 0;font-family:var(--font-body);font-size:0.92rem;outline:none;">
+        </div>
+        <div id="team-search-results" style="margin-top:14px;display:none;"></div>
       </div>
     </div>
 
@@ -3448,12 +3433,11 @@ async function renderMyLineups() {
         <div class="card" style="text-align:center;padding:36px 20px;color:var(--chalk-dim);">
           <span style="font-size:2.5rem;display:block;margin-bottom:12px;">📋</span>
           <p style="font-weight:700;font-size:1.05rem;color:var(--chalk);margin:0;">Você ainda não montou nenhuma escalação.</p>
-          <span style="font-size:0.85rem;color:var(--chalk-dim);margin-top:6px;display:block;">Escolha um dos clubes acima ou acesse a página de qualquer jogo para escalar seus 11 titulares!</span>
+          <span style="font-size:0.85rem;color:var(--chalk-dim);margin-top:6px;display:block;">Busque qualquer clube na barra de pesquisa acima ou acesse a página de qualquer jogo para escalar seus 11 titulares!</span>
         </div>
       ` : `
         <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:16px;">
           ${savedList.map(l => {
-            const hasFixture = !!l.fixtureId;
             const updatedDate = new Date(l.updatedAt || Date.now()).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
             const totalPlayers = (l.startingXI || []).filter(p => !!p?.player).length;
 
@@ -3491,6 +3475,56 @@ async function renderMyLineups() {
       `}
     </div>
   `;
+
+  // Listener da Busca de Clubes
+  const searchInput = document.getElementById("input-team-search");
+  const resultsContainer = document.getElementById("team-search-results");
+  let debounceTimer;
+
+  if (searchInput && resultsContainer) {
+    searchInput.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      const q = searchInput.value.trim();
+      if (q.length < 3) {
+        resultsContainer.innerHTML = "";
+        resultsContainer.style.display = "none";
+        return;
+      }
+
+      resultsContainer.style.display = "block";
+      resultsContainer.innerHTML = `<div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">🔍 Buscando clubes...</div>`;
+
+      debounceTimer = setTimeout(async () => {
+        try {
+          const resp = await apiGet("teams", { search: q }, 60);
+          if (!resp || !resp.length) {
+            resultsContainer.innerHTML = `<div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Nenhum clube encontrado com "${escapeHtml(q)}".</div>`;
+            return;
+          }
+
+          resultsContainer.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px;">
+              ${resp.map(item => {
+                const t = item.team;
+                return `
+                  <a class="player-card" href="#/minha-escalacao/montar/${t.id}" style="padding:12px;display:flex;align-items:center;flex-direction:row;gap:12px;text-align:left;text-decoration:none;">
+                    <img src="${t.logo}" alt="" style="width:36px;height:36px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
+                    <div style="min-width:0;flex:1;">
+                      <div style="font-weight:700;font-size:0.88rem;color:var(--chalk);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.name)}</div>
+                      <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--gold);">${escapeHtml(t.country || "")}</div>
+                    </div>
+                    <span style="font-size:0.75rem;color:var(--cyan);font-weight:700;flex-shrink:0;">Escalar →</span>
+                  </a>
+                `;
+              }).join("")}
+            </div>
+          `;
+        } catch (err) {
+          resultsContainer.innerHTML = `<div style="padding:16px;text-align:center;color:#EF4444;font-size:0.85rem;">Erro ao buscar clubes: ${escapeHtml(err.message)}</div>`;
+        }
+      }, 350);
+    });
+  }
 
   document.querySelectorAll(".btn-delete-lineup").forEach(btn => {
     btn.addEventListener("click", () => {
