@@ -2052,20 +2052,24 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
         ])}
 
         <div class="player-hero">
-          <img class="player-avatar-large" src="${p.photo}" alt="">
-          <div>
-            <p class="page-eyebrow">${escapeHtml(s.team?.name || "")} · ${escapeHtml(s.games?.position || "")} ${s.games?.number ? `#${s.games.number}` : ''}</p>
-            <h1 class="page-title">${escapeHtml(p.name)}</h1>
-            <div style="display:flex;gap:14px;margin-top:8px;font-family:var(--font-mono);font-size:0.78rem;color:var(--chalk-dim);flex-wrap:wrap;">
-              <span>🎂 ${p.age ? p.age + ' anos' : '-'}</span>
-              <span>📍 ${escapeHtml(p.nationality || '-')}</span>
-              <span>📏 ${p.height || '-'}</span>
-              <span>⚖️ ${p.weight || '-'}</span>
+          <div class="player-hero-main-row">
+            <div class="player-hero-avatar-wrap">
+              <img class="player-avatar-large" src="${p.photo}" alt="" onerror="this.style.display='none'">
+            </div>
+            <div class="player-hero-text">
+              <p class="page-eyebrow">${escapeHtml(formatTeamName(s.team?.name || ""))} · ${escapeHtml(s.games?.position || "")} ${s.games?.number ? `#${s.games.number}` : ''}</p>
+              <h1 class="page-title">${escapeHtml(p.name)}</h1>
+            </div>
+            <div class="player-rating-badge">
+              <span class="rating-num">${rating > 0 ? rating : '-'}</span>
+              <span class="rating-label">Nota Média</span>
             </div>
           </div>
-          <div class="player-rating-badge">
-            <span class="rating-num">${rating > 0 ? rating : '-'}</span>
-            <span class="rating-label">Nota Média</span>
+          <div class="player-hero-meta">
+            <span>🎂 ${p.age ? p.age + ' anos' : '-'}</span>
+            <span>📍 ${escapeHtml(p.nationality || '-')}</span>
+            <span>📏 ${p.height || '-'}</span>
+            <span>⚖️ ${p.weight || '-'}</span>
           </div>
         </div>
 
@@ -2083,7 +2087,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           </div>
         </div>
 
-        <h2 class="section-title">${isPerGame ? 'Estatísticas por Jogo' : 'Estatísticas na Temporada'} (${escapeHtml(s.league?.name || "Geral")})</h2>
+        <h2 class="section-title">${isPerGame ? 'Estatísticas por Jogo' : 'Estatísticas na Temporada'} (${s.league?.id === 'TOTAL' ? 'Todas as Competições' : escapeHtml(formatTeamName(s.league?.name || 'Geral'))})</h2>
         <div class="stat-grid">
           <div class="stat-card-modern cyan">
             <div class="stat-card-header">
