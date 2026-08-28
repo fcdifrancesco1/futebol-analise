@@ -863,7 +863,7 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 
 .fixture-row {
   display: grid;
-  grid-template-columns: 78px 1fr auto 1fr;
+  grid-template-columns: 78px 1fr auto 1fr 28px;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
@@ -876,7 +876,7 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 
 @media (max-width: 640px) {
   .fixture-row {
-    grid-template-columns: 58px 1fr auto 1fr;
+    grid-template-columns: 58px 1fr auto 1fr 26px;
     gap: 6px;
     padding: 8px 8px;
   }
@@ -2963,4 +2963,36 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   border-color: #EF4444;
   transform: scale(1.18);
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
+}
+
+.btn-fixture-highlights {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: rgba(239, 68, 68, 0.18);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  padding: 0;
+  margin-left: auto;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.btn-fixture-highlights:hover {
+  background: #EF4444;
+  color: #FFFFFF;
+  border-color: #EF4444;
+  transform: scale(1.2);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.7);
+}
+
+.highlights-placeholder {
+  width: 26px;
+  height: 26px;
+  display: inline-block;
+  flex-shrink: 0;
 }

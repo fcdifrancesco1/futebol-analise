@@ -1196,6 +1196,11 @@ async function renderMyTeam() {
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
+                    <button type="button" class="btn-fixture-highlights" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </button>
                   </a>
                 `;
               }).join("")}
@@ -1271,6 +1276,11 @@ async function renderMyTeam() {
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
+                    <button type="button" class="btn-fixture-highlights" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </button>
                   </a>
                 `;
               }).join("")}
@@ -1328,14 +1338,22 @@ async function renderMyTeam() {
               <span class="match-stat-chip-label">🧤 Jogos sem Sofrer Gols</span>
               <span class="match-stat-chip-val" style="color:var(--gold);">${totalCleanSheets}</span>
             </div>
-            <div class="match-stat-chip">
-              <span class="match-stat-chip-label">🏟️ Vitórias em Casa</span>
-              <span class="match-stat-chip-val">${homeWins} de ${homePlayed}</span>
-            </div>
-            <div class="match-stat-chip">
-              <span class="match-stat-chip-label">✈️ Vitórias Fora</span>
-              <span class="match-stat-chip-val">${awayWins} de ${awayPlayed}</span>
-            </div>
+            ${(() => {
+              const homePct = homePlayed ? Math.round((homeWins / homePlayed) * 100) : 0;
+              const awayPct = awayPlayed ? Math.round((awayWins / awayPlayed) * 100) : 0;
+              const homePctColor = homePct >= 50 ? "#10B981" : "#EF4444";
+              const awayPctColor = awayPct >= 50 ? "#10B981" : "#EF4444";
+              return `
+                <div class="match-stat-chip">
+                  <span class="match-stat-chip-label">🏟️ Vitórias em Casa</span>
+                  <span class="match-stat-chip-val">${homeWins} de ${homePlayed} · <span style="color:${homePctColor};font-weight:800;">${homePct}%</span></span>
+                </div>
+                <div class="match-stat-chip">
+                  <span class="match-stat-chip-label">✈️ Vitórias Fora</span>
+                  <span class="match-stat-chip-val">${awayWins} de ${awayPlayed} · <span style="color:${awayPctColor};font-weight:800;">${awayPct}%</span></span>
+                </div>
+              `;
+            })()}
           </div>
         </div>
       ` : ""}
@@ -2496,6 +2514,7 @@ async function renderTeam(teamId, leagueId, season) {
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
+                    <span class="highlights-placeholder"></span>
                   </a>
                 `;
               }).join("")}
@@ -2571,6 +2590,7 @@ async function renderTeam(teamId, leagueId, season) {
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
+                    <span class="highlights-placeholder"></span>
                   </a>
                 `;
               }).join("")}
@@ -2982,6 +3002,13 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(f.teams.away.name)}</span>
                     </div>
+                    ${isFinished ? `
+                      <button type="button" class="btn-fixture-highlights" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}', '_blank', 'noopener,noreferrer');">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </button>
+                    ` : '<span class="highlights-placeholder"></span>'}
                   </a>`;
               }).join("")}
             </div>
