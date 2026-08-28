@@ -31,6 +31,7 @@
           <button class="tab active" data-nav="home">Ligas</button>
           <button class="tab" data-nav="today">Jogos do Dia</button>
           <button class="tab" data-nav="live">Ao Vivo <span class="live-indicator"></span></button>
+          <button class="tab" data-nav="mylineups">Sua Escalação 📋</button>
           <button class="tab" data-nav="compare">Comparador <span class="badge" id="compare-badge" hidden>0</span></button>
         </nav>
 
@@ -48,7 +49,7 @@
     <!-- Conteúdo Principal -->
     <main class="main-content" id="app"></main>
 
-    <!-- Menu Inferior Mobile (5 Abas incluindo Jogos do Dia e Alertas 🔔) -->
+    <!-- Menu Inferior Mobile -->
     <nav class="mobile-bottom-nav">
       <button class="bottom-nav-item active" data-nav="home">
         <span class="bottom-nav-icon">🏆</span>
@@ -56,15 +57,19 @@
       </button>
       <button class="bottom-nav-item" data-nav="today">
         <span class="bottom-nav-icon">📅</span>
-        <span class="bottom-nav-label">Jogos do Dia</span>
+        <span class="bottom-nav-label">Jogos</span>
       </button>
       <button class="bottom-nav-item" data-nav="live">
         <span class="bottom-nav-icon">🔴</span>
         <span class="bottom-nav-label">Ao Vivo</span>
       </button>
+      <button class="bottom-nav-item" data-nav="mylineups">
+        <span class="bottom-nav-icon">📋</span>
+        <span class="bottom-nav-label">Escalação</span>
+      </button>
       <button class="bottom-nav-item" data-nav="compare">
         <span class="bottom-nav-icon">⚡</span>
-        <span class="bottom-nav-label">Comparador</span>
+        <span class="bottom-nav-label">Comparar</span>
       </button>
       <button class="bottom-nav-item" id="bottom-nav-bell">
         <span class="bottom-nav-icon">🔔</span>
