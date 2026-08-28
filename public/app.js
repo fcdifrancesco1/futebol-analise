@@ -2300,10 +2300,11 @@ async function renderTeam(teamId, leagueId, season) {
   const content = document.getElementById("team-content");
 
   try {
-    const [stats, recentFixtures, teamSeasonFixtures] = await Promise.all([
+    const [stats, recentFixtures, teamSeasonFixtures, nextFixtures] = await Promise.all([
       apiGet("teams/statistics", { league: leagueId, season, team: teamId }, 5),
       apiGet("fixtures", { team: teamId, last: 5 }, 5),
-      apiGet("fixtures", { team: teamId, season, league: leagueId }, 5).catch(() => [])
+      apiGet("fixtures", { team: teamId, season, league: leagueId }, 5).catch(() => []),
+      apiGet("fixtures", { team: teamId, next: 5 }, 5).catch(() => [])
     ]);
 
     if (!stats || !stats.team) {
@@ -2385,7 +2386,7 @@ async function renderTeam(teamId, leagueId, season) {
         <img src="${t.logo}" alt="" style="width:64px;height:64px;object-fit:contain;">
         <div>
           <p class="page-eyebrow">${escapeHtml(league?.name || "")} · ${season}</p>
-          <h1 class="page-title" style="margin:0;">${escapeHtml(t.name)}</h1>
+          <h1 class="page-title" style="margin:0;">${escapeHtml(formatTeamName(t.name))}</h1>
         </div>
         <button class="btn ${isFav ? 'ghost' : ''} small" id="btn-toggle-team-fav" style="margin-left:auto;">
           ${isFav ? '⭐ Seguindo Alertas' : '🔔 Seguir Time'}
@@ -2449,14 +2450,137 @@ async function renderTeam(teamId, leagueId, season) {
         </div>
       </div>
 
-      <h2 class="section-title">Últimas Notícias do ${escapeHtml(t.name)}</h2>
+      <h2 class="section-title">Últimas Notícias do ${escapeHtml(formatTeamName(t.name))}</h2>
       <div id="team-page-news-container" class="news-feed-card" style="margin-bottom:20px;">
         <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Carregando manchetes...</div>
       </div>
 
-      <h2 class="section-title">Últimos Jogos (Clique para ver estatísticas)</h2>
-      <div class="card" style="margin-bottom:20px;">
-        ${renderRecentFixtures(recentFixtures, teamId)}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;margin-bottom:24px;">
+        <!-- 1. Próximas Partidas (5 jogos) -->
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
+            <span style="font-size:1.1rem;">⏳</span>
+            <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Próximas Partidas (5 Jogos)</h3>
+          </div>
+
+          ${(nextFixtures && nextFixtures.length) ? `
+            <div class="fixture-list">
+              ${nextFixtures.map(f => {
+                const dObj = new Date(f.fixture.date);
+                const dayNum = dObj.toLocaleDateString("pt-BR", { day: "2-digit" });
+                const monthName = dObj.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+                const timeStr = dObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const isHome = f.teams.home.id === teamId;
+                const leagueLogo = f.league?.logo;
+                const leagueName = formatTeamName(f.league?.name || "");
+
+                return `
+                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:65px;">
+                      <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;min-width:28px;">
+                        <span class="fixture-date" style="color:var(--gold);font-weight:800;font-size:0.95rem;">${dayNum}</span>
+                        <span style="font-size:0.68rem;color:var(--chalk-dim);text-transform:lowercase;font-weight:600;">${monthName}</span>
+                        <span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--chalk-dim);margin-top:2px;">${timeStr}</span>
+                      </div>
+                      ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
+                    </div>
+                    <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                      <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                      <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;">
+                      ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
+                      <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;padding:2px 8px;min-width:38px;">vs</span>
+                    </div>
+                    <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                      <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                      <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                    </div>
+                  </a>
+                `;
+              }).join("")}
+            </div>
+          ` : `
+            <div style="padding:20px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">
+              Nenhuma partida futura agendada no momento.
+            </div>
+          `}
+        </div>
+
+        <!-- 2. Últimos Resultados (5 jogos) -->
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
+            <span style="font-size:1.1rem;">✅</span>
+            <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Últimos Resultados (5 Jogos)</h3>
+          </div>
+
+          ${(recentFixtures && recentFixtures.length) ? `
+            <div class="fixture-list">
+              ${recentFixtures.map(f => {
+                const dObj = new Date(f.fixture.date);
+                const dayNum = dObj.toLocaleDateString("pt-BR", { day: "2-digit" });
+                const monthName = dObj.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+                const isHome = f.teams.home.id === teamId;
+                const homeGoals = f.goals.home ?? 0;
+                const awayGoals = f.goals.away ?? 0;
+                const leagueLogo = f.league?.logo;
+                const leagueName = formatTeamName(f.league?.name || "");
+
+                let outcomeLetter = "E";
+                let outcomeBg = "rgba(255,184,0,0.2)";
+                let outcomeColor = "#FFB800";
+                let outcomeBorder = "rgba(255,184,0,0.5)";
+
+                if (homeGoals !== awayGoals) {
+                  if ((isHome && homeGoals > awayGoals) || (!isHome && awayGoals > homeGoals)) {
+                    outcomeLetter = "V";
+                    outcomeBg = "rgba(16,185,129,0.2)";
+                    outcomeColor = "#10B981";
+                    outcomeBorder = "rgba(16,185,129,0.5)";
+                  } else {
+                    outcomeLetter = "D";
+                    outcomeBg = "rgba(239,68,68,0.2)";
+                    outcomeColor = "#EF4444";
+                    outcomeBorder = "rgba(239,68,68,0.5)";
+                  }
+                }
+
+                return `
+                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:65px;">
+                      <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;min-width:28px;">
+                        <span class="fixture-date" style="font-size:0.95rem;font-weight:800;color:var(--chalk);">${dayNum}</span>
+                        <span style="font-size:0.68rem;color:var(--chalk-dim);text-transform:lowercase;font-weight:600;">${monthName}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
+                        ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:18px;height:18px;object-fit:contain;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.68rem;font-weight:800;line-height:1;">
+                          ${outcomeLetter}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                      <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                      <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;">
+                      ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
+                      <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
+                    </div>
+                    <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                      <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                      <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                    </div>
+                  </a>
+                `;
+              }).join("")}
+            </div>
+          ` : `
+            <div style="padding:20px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">
+              Nenhum resultado recente encontrado.
+            </div>
+          `}
+        </div>
       </div>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
