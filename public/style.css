@@ -1313,9 +1313,43 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
    ============================================================ */
 .player-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
   margin-bottom: 24px;
+}
+
+.player-mode-btn-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 3px;
+}
+
+.player-mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--chalk-dim);
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.player-mode-btn:hover {
+  color: var(--chalk);
+}
+
+.player-mode-btn.active {
+  background: var(--gold);
+  color: #07111E;
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
 }
 
 .player-metrics-card {
