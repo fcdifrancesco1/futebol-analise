@@ -3640,14 +3640,19 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
     const min = e.time?.elapsed ?? 0;
     if (e.type === "Goal" && e.detail !== "Missed Penalty") {
       const pid = e.player?.id;
+      const isOwnGoal = (e.detail === "Own Goal" || (e.comments && /own goal/i.test(e.comments)));
       if (pid) {
-        playerEventsMap[pid] = playerEventsMap[pid] || { goals: 0, yellows: 0, reds: 0 };
-        playerEventsMap[pid].goals += 1;
+        playerEventsMap[pid] = playerEventsMap[pid] || { goals: 0, ownGoals: 0, yellows: 0, reds: 0 };
+        if (isOwnGoal) {
+          playerEventsMap[pid].ownGoals = (playerEventsMap[pid].ownGoals || 0) + 1;
+        } else {
+          playerEventsMap[pid].goals = (playerEventsMap[pid].goals || 0) + 1;
+        }
       }
     } else if (e.type === "Card") {
       const pid = e.player?.id;
       if (pid) {
-        playerEventsMap[pid] = playerEventsMap[pid] || { goals: 0, yellows: 0, reds: 0 };
+        playerEventsMap[pid] = playerEventsMap[pid] || { goals: 0, ownGoals: 0, yellows: 0, reds: 0 };
         if (e.detail === "Yellow Card") playerEventsMap[pid].yellows += 1;
         else playerEventsMap[pid].reds += 1;
       }
@@ -3655,24 +3660,38 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
       const pOutId = e.player?.id;
       const pInId = e.assist?.id;
       if (pOutId) {
-        playerEventsMap[pOutId] = playerEventsMap[pOutId] || { goals: 0, yellows: 0, reds: 0 };
+        playerEventsMap[pOutId] = playerEventsMap[pOutId] || { goals: 0, ownGoals: 0, yellows: 0, reds: 0 };
         playerEventsMap[pOutId].subOut = min;
       }
       if (pInId) {
-        playerEventsMap[pInId] = playerEventsMap[pInId] || { goals: 0, yellows: 0, reds: 0 };
+        playerEventsMap[pInId] = playerEventsMap[pInId] || { goals: 0, ownGoals: 0, yellows: 0, reds: 0 };
         playerEventsMap[pInId].subIn = min;
       }
     }
   });
 
-  function generateGoalAndCardBadges(pid) {
+  function generateGoalBadge(pid) {
     const ev = playerEventsMap[pid];
     if (!ev) return "";
-    const badges = [];
-    if (ev.goals > 0) badges.push(`<span class="event-pill goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `x${ev.goals}` : ''}</span>`);
-    if (ev.yellows > 0) badges.push(`<span class="event-pill yellow" title="Cartão Amarelo">🟨${ev.yellows > 1 ? `x${ev.yellows}` : ''}</span>`);
-    if (ev.reds > 0) badges.push(`<span class="event-pill red" title="Cartão Vermelho">🟥</span>`);
-    return badges.join("");
+    if (ev.goals > 0) {
+      return `<span class="pitch-goal-badge goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `<small style="font-size:0.55rem;font-weight:800;margin-left:1px;">${ev.goals}</small>` : ''}</span>`;
+    }
+    if (ev.ownGoals > 0) {
+      return `<span class="pitch-goal-badge own-goal" title="${ev.ownGoals} Gol(s) Contra">🔴${ev.ownGoals > 1 ? `<small style="font-size:0.55rem;font-weight:800;margin-left:1px;">${ev.ownGoals}</small>` : ''}</span>`;
+    }
+    return "";
+  }
+
+  function generateCardBadge(pid) {
+    const ev = playerEventsMap[pid];
+    if (!ev) return "";
+    if (ev.reds > 0) {
+      return `<span class="pitch-card-badge red" title="Cartão Vermelho">🟥</span>`;
+    }
+    if (ev.yellows > 0) {
+      return `<span class="pitch-card-badge yellow" title="Cartão Amarelo">🟨</span>`;
+    }
+    return "";
   }
 
   function generateSubBadge(pid) {
@@ -3692,6 +3711,7 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
     if (!ev) return "";
     const badges = [];
     if (ev.goals > 0) badges.push(`<span class="event-pill goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `x${ev.goals}` : ''}</span>`);
+    if (ev.ownGoals > 0) badges.push(`<span class="event-pill own-goal" title="${ev.ownGoals} Gol(s) Contra">🔴${ev.ownGoals > 1 ? `x${ev.ownGoals}` : ''}</span>`);
     if (ev.yellows > 0) badges.push(`<span class="event-pill yellow" title="Cartão Amarelo">🟨</span>`);
     if (ev.reds > 0) badges.push(`<span class="event-pill red" title="Cartão Vermelho">🟥</span>`);
     if (ev.subIn) badges.push(`<span class="event-pill sub-in" title="Entrou aos ${ev.subIn}'">⬆ ${ev.subIn}'</span>`);
@@ -3741,7 +3761,8 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
                   <div class="pitch-row">
                     ${rowPlayers.map(p => {
                       const pid = p.player?.id;
-                      const goalAndCardBadges = generateGoalAndCardBadges(pid);
+                      const goalBadge = generateGoalBadge(pid);
+                      const cardBadge = generateCardBadge(pid);
                       const subBadge = generateSubBadge(pid);
                       const photoUrl = pid ? `https://media.api-sports.io/football/players/${pid}.png` : 'https://media.api-sports.io/football/players/placeholder.png';
                       return `
@@ -3760,7 +3781,8 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
                           return `
                             <div class="pitch-player btn-open-match-player-modal" data-player-id="${pid}" data-team-id="${l.team.id}" style="cursor:pointer;" title="Clique para ver nota, mapa de calor e estatísticas de ${escapeHtml(p.player.name)}">
                               <div class="pitch-badge-wrapper">
-                                ${goalAndCardBadges ? `<div class="pitch-event-icons">${goalAndCardBadges}</div>` : ''}
+                                ${goalBadge}
+                                ${cardBadge}
                                 ${subBadge}
                                 ${ratingBadge}
                                 <div class="pitch-player-avatar-circle ${isAway ? 'away' : 'home'} ${isMVP ? 'is-mvp' : ''}">
