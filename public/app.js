@@ -3221,6 +3221,29 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           <div class="hero-score-col">
             <div class="hero-score-numbers">${fx.goals.home ?? "-"} : ${fx.goals.away ?? "-"}</div>
             <div class="hero-status-pill">${statusText}</div>
+            ${(() => {
+              const isFinished = ["FT", "AET", "PEN", "PST", "CANC", "ABD", "AWD", "WO"].includes(fx.fixture.status.short) || 
+                String(fx.fixture.status.long || "").toLowerCase().includes("finish") || 
+                String(fx.fixture.status.long || "").toLowerCase().includes("encerrado") ||
+                String(fx.fixture.status.long || "").toLowerCase().includes("final");
+              
+              if (isFinished) {
+                const searchQ = encodeURIComponent(`Melhores Momentos ${fx.teams.home.name} x ${fx.teams.away.name} ${fx.league?.name || ''}`);
+                return `
+                  <a href="https://www.youtube.com/results?search_query=${searchQ}" 
+                     target="_blank" 
+                     rel="noopener noreferrer" 
+                     class="btn-highlights-hero" 
+                     title="Assistir aos Melhores Momentos da partida no YouTube">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:middle;margin-right:4px;">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    Melhores Momentos
+                  </a>
+                `;
+              }
+              return "";
+            })()}
           </div>
 
           <div class="hero-team-col away">
@@ -3232,23 +3255,49 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         ${(homeGoals.length || awayGoals.length) ? `
           <div class="hero-goals-section">
             <div class="hero-goals-col home">
-              ${homeGoals.map(g => `
-                <div class="hero-goal-item">
-                  <span>⚽</span>
-                  <span class="player-name">${escapeHtml(g.player?.name || "")}</span>
-                  <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${g.detail === 'Penalty' ? ' (P)' : g.detail === 'Own Goal' ? ' (GC)' : ''}</span>
-                </div>
-              `).join("")}
+              ${homeGoals.map(g => {
+                const playerName = g.player?.name || "Gol";
+                const isOwnGoal = g.detail === 'Own Goal';
+                const isPen = g.detail === 'Penalty';
+                const searchQ = encodeURIComponent(`Gol ${playerName} ${fx.teams.home.name} ${fx.teams.away.name}`);
+                const ytUrl = `https://www.youtube.com/results?search_query=${searchQ}`;
+
+                return `
+                  <div class="hero-goal-item">
+                    <span>⚽</span>
+                    <span class="player-name">${escapeHtml(playerName)}</span>
+                    <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
+                    <a href="${ytUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(playerName)} no YouTube">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </a>
+                  </div>
+                `;
+              }).join("")}
             </div>
 
             <div class="hero-goals-col away">
-              ${awayGoals.map(g => `
-                <div class="hero-goal-item">
-                  <span>⚽</span>
-                  <span class="player-name">${escapeHtml(g.player?.name || "")}</span>
-                  <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${g.detail === 'Penalty' ? ' (P)' : g.detail === 'Own Goal' ? ' (GC)' : ''}</span>
-                </div>
-              `).join("")}
+              ${awayGoals.map(g => {
+                const playerName = g.player?.name || "Gol";
+                const isOwnGoal = g.detail === 'Own Goal';
+                const isPen = g.detail === 'Penalty';
+                const searchQ = encodeURIComponent(`Gol ${playerName} ${fx.teams.home.name} ${fx.teams.away.name}`);
+                const ytUrl = `https://www.youtube.com/results?search_query=${searchQ}`;
+
+                return `
+                  <div class="hero-goal-item">
+                    <span>⚽</span>
+                    <span class="player-name">${escapeHtml(playerName)}</span>
+                    <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
+                    <a href="${ytUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(playerName)} no YouTube">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </a>
+                  </div>
+                `;
+              }).join("")}
             </div>
           </div>
         ` : ""}
@@ -3960,16 +4009,28 @@ function renderFixtureEvents(events, fx) {
     <h2 class="section-title">Linha do Tempo</h2>
     <div class="card">
       <div class="fixture-list">
-        ${events.map(e => `
-          <div class="fixture-row" style="grid-template-columns:44px auto 1fr;">
-            <span class="fixture-date">${e.time.elapsed}'${e.time.extra ? "+" + e.time.extra : ""}</span>
-            <span>${e.type === "Goal" ? "⚽" : e.type === "Card" ? (e.detail === "Red Card" ? "🟥" : "🟨") : "🔁"}</span>
-            <div>
-              <strong>${escapeHtml(e.player?.name || "")}</strong>
-              <span style="color:var(--chalk-dim);font-size:0.75rem;">(${escapeHtml(e.detail || e.type)})</span>
-            </div>
-          </div>`
-        ).join("")}
+        ${events.map(e => {
+          const isGoal = e.type === "Goal" && e.detail !== "Missed Penalty";
+          const pName = e.player?.name || "Gol";
+          const ytGoalUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`Gol ${pName} ${fx.teams.home.name} ${fx.teams.away.name}`)}`;
+
+          return `
+            <div class="fixture-row" style="grid-template-columns:44px auto 1fr auto;">
+              <span class="fixture-date">${e.time.elapsed}'${e.time.extra ? "+" + e.time.extra : ""}</span>
+              <span>${e.type === "Goal" ? "⚽" : e.type === "Card" ? (e.detail === "Red Card" ? "🟥" : "🟨") : "🔁"}</span>
+              <div>
+                <strong>${escapeHtml(pName)}</strong>
+                <span style="color:var(--chalk-dim);font-size:0.75rem;">(${escapeHtml(e.detail || e.type)})</span>
+              </div>
+              ${isGoal ? `
+                <a href="${ytGoalUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(pName)} no YouTube">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </a>
+              ` : '<div></div>'}
+            </div>`;
+        }).join("")}
       </div>
     </div>`;
 }

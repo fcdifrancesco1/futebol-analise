@@ -2912,3 +2912,55 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   background: #10B981;
   color: #FFFFFF;
 }
+
+/* ============================================================
+   Botões de Vídeo de Gols & Melhores Momentos
+   ============================================================ */
+.btn-highlights-hero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  padding: 4px 12px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 20px;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.btn-highlights-hero:hover {
+  background: rgba(239, 68, 68, 0.35);
+  border-color: #EF4444;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+}
+
+.btn-goal-video {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 4px;
+  margin-left: 4px;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  vertical-align: middle;
+}
+.btn-goal-video:hover {
+  background: #EF4444;
+  color: #FFFFFF;
+  border-color: #EF4444;
+  transform: scale(1.18);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
+}
