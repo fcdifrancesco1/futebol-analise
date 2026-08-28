@@ -1196,11 +1196,7 @@ async function renderMyTeam() {
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
-                    <button type="button" class="btn-fixture-highlights" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z"/>
-                      </svg>
-                    </button>
+                    <span class="highlights-placeholder"></span>
                   </a>
                 `;
               }).join("")}
@@ -2590,7 +2586,11 @@ async function renderTeam(teamId, leagueId, season) {
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
-                    <span class="highlights-placeholder"></span>
+                    <button type="button" class="btn-fixture-highlights" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </button>
                   </a>
                 `;
               }).join("")}
