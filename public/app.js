@@ -660,6 +660,17 @@ async function router() {
   }
 }
 
+// Auto-recuperação de imagens bloqueadas por AdBlockers / Brave / DNS / Firewall
+window.addEventListener("error", (e) => {
+  if (e.target && e.target.tagName === "IMG") {
+    const img = e.target;
+    const src = img.src || "";
+    if (src.includes("media.api-sports.io") && !src.includes("/api/img?url=")) {
+      img.src = `/api/img?url=${encodeURIComponent(src)}`;
+    }
+  }
+}, true);
+
 window.addEventListener("hashchange", router);
 window.addEventListener("DOMContentLoaded", () => {
   NotificationManager.init();
