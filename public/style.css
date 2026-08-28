@@ -1674,16 +1674,18 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 
 .pitch-badge-wrapper {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 44px;
+  height: 44px;
+  display: block;
+  margin: 0 auto;
 }
 
 .pitch-player-avatar-circle {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  position: relative;
+  position: absolute;
+  inset: 0;
   background: var(--pitch-card-elevated);
   border: 2px solid var(--gold);
   overflow: hidden;
@@ -2817,21 +2819,90 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   font-weight: 700;
   color: var(--chalk);
 }
-/* Indicador de Substituição no Lado Esquerdo do Jogador (Sem Tempo) */
+
+
+
+/* ============================================================
+   4 Cantos do Jogador no Campo Tático
+   ============================================================ */
+
+/* 1. Canto Superior Esquerdo: GOLS (⚽ a favor / 🔴 contra) */
+.pitch-goal-badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  line-height: 1;
+  z-index: 10;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
+  pointer-events: none;
+}
+
+/* 2. Canto Superior Direito: NOTA DA PARTIDA */
+.pitch-player-rating-pill {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 6px;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  line-height: 1.2;
+  pointer-events: none;
+}
+.pitch-player-rating-pill.rating-high {
+  background: #10B981;
+  color: #07111E;
+  border: 1px solid #34D399;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+.pitch-player-rating-pill.rating-med {
+  background: #FFB800;
+  color: #07111E;
+  border: 1px solid #FCD34D;
+}
+.pitch-player-rating-pill.rating-low {
+  background: #EF4444;
+  color: #FFFFFF;
+  border: 1px solid #F87171;
+}
+
+/* 3. Canto Inferior Esquerdo: CARTÕES (🟨 Amarelo / 🟥 Vermelho) */
+.pitch-card-badge {
+  position: absolute;
+  bottom: -4px;
+  left: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  line-height: 1;
+  z-index: 10;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
+  pointer-events: none;
+}
+
+/* 4. Canto Inferior Direito: SETA DE SUBSTITUIÇÃO (⬇ Saída / ⬆ Entrada) */
 .pitch-sub-pill {
   position: absolute;
-  top: 50%;
-  left: -8px;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
+  bottom: -4px;
+  right: -6px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 6;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(0, 0, 0, 0.4);
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 .pitch-sub-pill.sub-out {
   background: #EF4444;

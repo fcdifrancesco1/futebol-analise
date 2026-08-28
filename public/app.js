@@ -3764,7 +3764,6 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
                       const goalBadge = generateGoalBadge(pid);
                       const cardBadge = generateCardBadge(pid);
                       const subBadge = generateSubBadge(pid);
-                      const bottomBadge = subBadge || (p.player.number ? `<div class="pitch-player-badge ${isAway ? 'away' : 'home'}">${p.player.number}</div>` : '');
                       const photoUrl = pid ? `https://media.api-sports.io/football/players/${pid}.png` : 'https://media.api-sports.io/football/players/placeholder.png';
                       return `
                         ${(() => {
@@ -3782,13 +3781,13 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
                           return `
                             <div class="pitch-player btn-open-match-player-modal" data-player-id="${pid}" data-team-id="${l.team.id}" style="cursor:pointer;" title="Clique para ver nota, mapa de calor e estatísticas de ${escapeHtml(p.player.name)}">
                               <div class="pitch-badge-wrapper">
-                                ${goalBadge}
-                                ${ratingBadge}
-                                ${cardBadge}
-                                ${bottomBadge}
                                 <div class="pitch-player-avatar-circle ${isAway ? 'away' : 'home'} ${isMVP ? 'is-mvp' : ''}">
                                   <img src="${photoUrl}" alt="" loading="lazy" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
                                 </div>
+                                ${goalBadge}
+                                ${ratingBadge}
+                                ${cardBadge}
+                                ${subBadge}
                               </div>
                               <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
                             </div>
