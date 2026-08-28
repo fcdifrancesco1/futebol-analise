@@ -2817,3 +2817,27 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   font-weight: 700;
   color: var(--chalk);
 }
+/* Indicador de Substituição no Lado Esquerdo do Jogador (Sem Tempo) */
+.pitch-sub-pill {
+  position: absolute;
+  top: 50%;
+  left: -8px;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+.pitch-sub-pill.sub-out {
+  background: #EF4444;
+  color: #FFFFFF;
+}
+.pitch-sub-pill.sub-in {
+  background: #10B981;
+  color: #FFFFFF;
+}

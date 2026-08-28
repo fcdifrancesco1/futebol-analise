@@ -659,11 +659,12 @@ function updateFavoriteTeamHeader() {
   if (fav) {
     btn.innerHTML = `
       <img src="${fav.logo}" alt="" class="fav-team-crest" onerror="this.style.display='none'">
-      <span class="fav-team-label">${escapeHtml(formatTeamName(fav.name))}</span>
-      <span style="font-size:0.65rem;opacity:0.6;">▾</span>
+      <span style="font-size:0.65rem;opacity:0.7;margin-left:2px;">▾</span>
     `;
+    btn.title = `Seu Time: ${formatTeamName(fav.name)} (Clique para trocar)`;
   } else {
     btn.innerHTML = `<span class="fav-team-label">⭐ Escolher Time</span>`;
+    btn.title = "Escolha seu time do coração";
   }
 }
 
@@ -3664,15 +3665,36 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
     }
   });
 
-  function generateEventBadges(pid) {
+  function generateGoalAndCardBadges(pid) {
     const ev = playerEventsMap[pid];
     if (!ev) return "";
     const badges = [];
     if (ev.goals > 0) badges.push(`<span class="event-pill goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `x${ev.goals}` : ''}</span>`);
     if (ev.yellows > 0) badges.push(`<span class="event-pill yellow" title="Cartão Amarelo">🟨${ev.yellows > 1 ? `x${ev.yellows}` : ''}</span>`);
     if (ev.reds > 0) badges.push(`<span class="event-pill red" title="Cartão Vermelho">🟥</span>`);
-    if (ev.subOut) badges.push(`<span class="event-pill sub-out" title="Substituído aos ${ev.subOut}'"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:2px;"><path d="M12 20l8-8h-6v-8h-4v8h-6z"/></svg>${ev.subOut}'</span>`);
-    if (ev.subIn) badges.push(`<span class="event-pill sub-in" title="Entrou aos ${ev.subIn}'"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:2px;"><path d="M12 4l-8 8h6v8h4v-8h6z"/></svg>${ev.subIn}'</span>`);
+    return badges.join("");
+  }
+
+  function generateSubBadge(pid) {
+    const ev = playerEventsMap[pid];
+    if (!ev) return "";
+    if (ev.subOut) {
+      return `<span class="pitch-sub-pill sub-out" title="Substituído aos ${ev.subOut}'"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l8-8h-6v-8h-4v8h-6z"/></svg></span>`;
+    }
+    if (ev.subIn) {
+      return `<span class="pitch-sub-pill sub-in" title="Entrou aos ${ev.subIn}'"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-8 8h6v8h4v-8h6z"/></svg></span>`;
+    }
+    return "";
+  }
+
+  function generateEventBadges(pid) {
+    const ev = playerEventsMap[pid];
+    if (!ev) return "";
+    const badges = [];
+    if (ev.goals > 0) badges.push(`<span class="event-pill goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `x${ev.goals}` : ''}</span>`);
+    if (ev.yellows > 0) badges.push(`<span class="event-pill yellow" title="Cartão Amarelo">🟨</span>`);
+    if (ev.reds > 0) badges.push(`<span class="event-pill red" title="Cartão Vermelho">🟥</span>`);
+    if (ev.subIn) badges.push(`<span class="event-pill sub-in" title="Entrou aos ${ev.subIn}'">⬆ ${ev.subIn}'</span>`);
     return badges.join("");
   }
 
@@ -3719,7 +3741,8 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
                   <div class="pitch-row">
                     ${rowPlayers.map(p => {
                       const pid = p.player?.id;
-                      const eventBadges = generateEventBadges(pid);
+                      const goalAndCardBadges = generateGoalAndCardBadges(pid);
+                      const subBadge = generateSubBadge(pid);
                       const photoUrl = pid ? `https://media.api-sports.io/football/players/${pid}.png` : 'https://media.api-sports.io/football/players/placeholder.png';
                       return `
                         ${(() => {
@@ -3733,17 +3756,17 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
                             const rClass = ratingNum >= 7.5 ? "rating-high" : ratingNum >= 6.5 ? "rating-med" : "rating-low";
                             ratingBadge = `<span class="pitch-player-rating-pill ${rClass}" title="Nota da Partida: ${ratingStr}">${ratingStr}</span>`;
                           }
-                          const mvpBadge = isMVP ? `<span class="pitch-player-mvp-crown" title="Craque do Jogo (MVP)">👑</span>` : "";
 
                           return `
                             <div class="pitch-player btn-open-match-player-modal" data-player-id="${pid}" data-team-id="${l.team.id}" style="cursor:pointer;" title="Clique para ver nota, mapa de calor e estatísticas de ${escapeHtml(p.player.name)}">
                               <div class="pitch-badge-wrapper">
+                                ${goalAndCardBadges ? `<div class="pitch-event-icons">${goalAndCardBadges}</div>` : ''}
+                                ${subBadge}
                                 ${ratingBadge}
                                 <div class="pitch-player-avatar-circle ${isAway ? 'away' : 'home'} ${isMVP ? 'is-mvp' : ''}">
                                   <img src="${photoUrl}" alt="" loading="lazy" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
                                 </div>
                                 <div class="pitch-player-badge ${isAway ? 'away' : 'home'}">${p.player.number ?? ""}</div>
-                                ${eventBadges ? `<div class="pitch-event-icons">${eventBadges}</div>` : ''}
                               </div>
                               <span class="pitch-player-name">${escapeHtml((p.player.name || "").split(" ").pop())}</span>
                             </div>
