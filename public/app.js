@@ -651,8 +651,11 @@ async function router() {
   } else if (parts[0] === "aovivo") {
     setActiveTab("live");
     await renderLive();
+  } else if (parts[0] === "meu-time" || parts[0] === "seu-time") {
+    setActiveTab("myteam");
+    await renderMyTeam();
   } else if (parts[0] === "compare") {
-    setActiveTab("compare");
+    setActiveTab("home");
     renderCompare();
   } else {
     setActiveTab("home");
@@ -690,7 +693,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const nav = el.dataset.nav;
       if (nav === "home") location.hash = "#/";
       if (nav === "today") location.hash = "#/jogos-do-dia";
-      if (nav === "compare") location.hash = "#/compare";
+      if (nav === "myteam") location.hash = "#/meu-time";
       if (nav === "live") location.hash = "#/aovivo";
       if (nav === "mylineups") location.hash = "#/minha-escalacao";
     });
@@ -955,49 +958,280 @@ async function loadTeamNews(teamName, containerId) {
   }
 }
 
+
+// ============================================================
+// View: Seu Time (Aba Central do Clube Favorito)
+// ============================================================
+async function renderMyTeam() {
+  const favTeam = UserPrefs.getFavoriteTeam();
+
+  if (!favTeam) {
+    app.innerHTML = `
+      <div class="page-head">
+        <p class="page-eyebrow">Personalização</p>
+        <h1 class="page-title">Seu Time ⭐</h1>
+        <p class="page-sub">Escolha o seu time do coração para acompanhar notícias em tempo real, próximos 5 jogos, últimos resultados, estatísticas e elenco.</p>
+      </div>
+
+      <div class="card" style="max-width:560px;margin:24px auto;padding:28px;text-align:center;">
+        <span style="font-size:3rem;display:block;margin-bottom:12px;">🛡️</span>
+        <h2 style="font-size:1.25rem;font-weight:800;color:var(--chalk);margin-bottom:8px;">Nenhum time selecionado</h2>
+        <p style="font-size:0.85rem;color:var(--chalk-dim);margin-bottom:20px;">
+          Pesquise e selecione qualquer clube do mundo para transformar esta aba na central exclusiva do seu time.
+        </p>
+        <button class="btn primary" id="btn-select-fav-team-main" style="font-weight:700;padding:10px 24px;">
+          ⭐ Escolher Meu Time Agora
+        </button>
+      </div>
+    `;
+
+    document.getElementById("btn-select-fav-team-main")?.addEventListener("click", () => showOnboardingModal(true));
+    return;
+  }
+
+  app.innerHTML = `
+    <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img src="${favTeam.logo}" alt="" style="width:52px;height:52px;object-fit:contain;" onerror="this.style.display='none'">
+        <div>
+          <p class="page-eyebrow" style="margin:0;">Central do Torcedor</p>
+          <h1 class="page-title" style="margin:0;font-size:1.6rem;color:var(--chalk);">${escapeHtml(favTeam.name)}</h1>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="btn ghost small" id="btn-change-fav-team-tab" style="font-size:0.78rem;">
+          🔄 Trocar Time
+        </button>
+      </div>
+    </div>
+
+    <!-- 1. Notícias em Tempo Real -->
+    <div class="news-feed-card" style="margin-bottom:24px;">
+      <div class="news-feed-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:1.3rem;">📰</span>
+          <div>
+            <h2 style="font-size:1.1rem;font-weight:700;margin:0;color:var(--chalk);display:flex;align-items:center;gap:8px;">
+              Últimas Notícias
+              <span style="font-size:0.68rem;background:rgba(239,68,68,0.2);color:#EF4444;border:1px solid rgba(239,68,68,0.4);padding:1px 6px;border-radius:10px;font-family:var(--font-mono);font-weight:700;">🔴 EM TEMPO REAL</span>
+            </h2>
+            <span style="font-size:0.75rem;color:var(--chalk-dim);">As 6 manchetes mais recentes dos principais portais de notícias</span>
+          </div>
+        </div>
+      </div>
+      <div id="myteam-news-container">
+        <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Carregando notícias de ${escapeHtml(favTeam.name)}...</div>
+      </div>
+    </div>
+
+    <!-- Conteúdo dos Jogos e Estatísticas -->
+    <div id="myteam-content-section">${skeletonCards(2)}</div>
+  `;
+
+  document.getElementById("btn-change-fav-team-tab")?.addEventListener("click", () => showOnboardingModal(true));
+  loadTeamNews(favTeam.name, "myteam-news-container");
+
+  const contentSection = document.getElementById("myteam-content-section");
+
+  try {
+    const [lastRes, nextRes] = await Promise.allSettled([
+      apiGet("fixtures", { team: favTeam.id, last: 5 }, 15),
+      apiGet("fixtures", { team: favTeam.id, next: 5 }, 15)
+    ]);
+
+    const lastFixtures = (lastRes.status === "fulfilled" && Array.isArray(lastRes.value)) ? lastRes.value : [];
+    const nextFixtures = (nextRes.status === "fulfilled" && Array.isArray(nextRes.value)) ? nextRes.value : [];
+
+    const primaryLeague = lastFixtures[0]?.league || nextFixtures[0]?.league || { id: 71, season: 2026, name: "Competição Principal" };
+    const leagueId = primaryLeague.id;
+    const season = primaryLeague.season || 2026;
+
+    let stats = null;
+    try {
+      const statsRes = await apiGet("teams/statistics", { team: favTeam.id, league: leagueId, season: season }, 30);
+      if (statsRes && statsRes.team) {
+        stats = statsRes;
+      }
+    } catch { /* fallback */ }
+
+    contentSection.innerHTML = `
+      <!-- Acesso Rápido ao Elenco -->
+      <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:24px;background:linear-gradient(90deg, rgba(0,229,255,0.08), rgba(255,184,0,0.08));border:1px solid rgba(0,229,255,0.25);flex-wrap:wrap;gap:12px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:1.6rem;">👥</span>
+          <div>
+            <strong style="font-size:1rem;color:var(--chalk);display:block;">Elenco Atual de ${escapeHtml(favTeam.name)}</strong>
+            <span style="font-size:0.78rem;color:var(--chalk-dim);">Jogadores, fotos, números de camisa, idades e posições</span>
+          </div>
+        </div>
+        <a class="btn primary small" href="#/time/${favTeam.id}/${leagueId}/${season}/elenco" style="font-weight:700;">
+          Ver Elenco Completo →
+        </a>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;margin-bottom:24px;">
+        <!-- 2. Próximas Partidas (5 jogos) -->
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
+            <span style="font-size:1.1rem;">⏳</span>
+            <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Próximas Partidas (5 Jogos)</h3>
+          </div>
+
+          ${nextFixtures.length ? `
+            <div class="fixture-list">
+              ${nextFixtures.map(f => {
+                const dateStr = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+                const timeStr = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const isHome = f.teams.home.id === favTeam.id;
+
+                return `
+                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes do confronto">
+                    <div class="fixture-date-col">
+                      <span class="fixture-date" style="color:var(--gold);font-weight:700;">${dateStr}</span>
+                      <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--chalk-dim);">${timeStr}</span>
+                    </div>
+                    <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                      <span>${escapeHtml(f.teams.home.name)}</span>
+                      <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                    </div>
+                    <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;">vs</span>
+                    <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                      <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                      <span>${escapeHtml(f.teams.away.name)}</span>
+                    </div>
+                  </a>
+                `;
+              }).join("")}
+            </div>
+          ` : `
+            <div style="padding:20px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">
+              Nenhuma partida futura agendada no momento.
+            </div>
+          `}
+        </div>
+
+        <!-- 3. Últimos Resultados (5 jogos) -->
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
+            <span style="font-size:1.1rem;">✅</span>
+            <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Últimos Resultados (5 Jogos)</h3>
+          </div>
+
+          ${lastFixtures.length ? `
+            <div class="fixture-list">
+              ${lastFixtures.map(f => {
+                const dateStr = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+                const isHome = f.teams.home.id === favTeam.id;
+                const homeGoals = f.goals.home ?? 0;
+                const awayGoals = f.goals.away ?? 0;
+
+                let outcomeBadge = "";
+                if (homeGoals === awayGoals) {
+                  outcomeBadge = `<span style="background:rgba(255,184,0,0.2);color:#FFB800;border:1px solid rgba(255,184,0,0.4);padding:1px 5px;border-radius:4px;font-size:0.65rem;font-weight:800;margin-left:4px;">E</span>`;
+                } else if ((isHome && homeGoals > awayGoals) || (!isHome && awayGoals > homeGoals)) {
+                  outcomeBadge = `<span style="background:rgba(16,185,129,0.2);color:#10B981;border:1px solid rgba(16,185,129,0.4);padding:1px 5px;border-radius:4px;font-size:0.65rem;font-weight:800;margin-left:4px;">V</span>`;
+                } else {
+                  outcomeBadge = `<span style="background:rgba(239,68,68,0.2);color:#EF4444;border:1px solid rgba(239,68,68,0.4);padding:1px 5px;border-radius:4px;font-size:0.65rem;font-weight:800;margin-left:4px;">D</span>`;
+                }
+
+                return `
+                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes do confronto">
+                    <div class="fixture-date-col">
+                      <span class="fixture-date">${dateStr}</span>
+                      ${outcomeBadge}
+                    </div>
+                    <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                      <span>${escapeHtml(f.teams.home.name)}</span>
+                      <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                    </div>
+                    <span class="fixture-score">${homeGoals} : ${awayGoals}</span>
+                    <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                      <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                      <span>${escapeHtml(f.teams.away.name)}</span>
+                    </div>
+                  </a>
+                `;
+              }).join("")}
+            </div>
+          ` : `
+            <div style="padding:20px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">
+              Nenhum resultado recente encontrado.
+            </div>
+          `}
+        </div>
+      </div>
+
+      <!-- 4. Estatísticas Gerais na Temporada -->
+      ${stats ? `
+        <div class="card" style="padding:20px;margin-bottom:24px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:1.3rem;">📊</span>
+              <div>
+                <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:var(--chalk);">Estatísticas Gerais na Temporada</h3>
+                <span style="font-size:0.75rem;color:var(--chalk-dim);">${escapeHtml(primaryLeague.name)} · Temporada ${season}</span>
+              </div>
+            </div>
+
+            ${stats.form ? `
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="font-size:0.72rem;color:var(--chalk-dim);font-family:var(--font-mono);margin-right:4px;">Forma Recente:</span>
+                ${stats.form.slice(-5).split("").map(ch => {
+                  const isW = ch === "W" || ch === "V";
+                  const isD = ch === "D" || ch === "E";
+                  const color = isW ? "#10B981" : isD ? "#FFB800" : "#EF4444";
+                  const letter = isW ? "V" : isD ? "E" : "D";
+                  return `<span style="background:${color}22;color:${color};border:1px solid ${color}66;font-size:0.7rem;font-weight:800;font-family:var(--font-mono);padding:2px 6px;border-radius:4px;">${letter}</span>`;
+                }).join("")}
+              </div>
+            ` : ""}
+          </div>
+
+          <div class="match-stat-chip-grid" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;">
+            <div class="match-stat-chip">
+              <span class="match-stat-chip-label">🏆 Jogos / Vitórias</span>
+              <span class="match-stat-chip-val">${stats.fixtures?.played?.total ?? 0}J · <span style="color:#10B981;">${stats.fixtures?.wins?.total ?? 0}V</span></span>
+            </div>
+            <div class="match-stat-chip">
+              <span class="match-stat-chip-label">🤝 Empates / Derrotas</span>
+              <span class="match-stat-chip-val"><span style="color:#FFB800;">${stats.fixtures?.draws?.total ?? 0}E</span> · <span style="color:#EF4444;">${stats.fixtures?.loses?.total ?? 0}D</span></span>
+            </div>
+            <div class="match-stat-chip">
+              <span class="match-stat-chip-label">⚽ Gols Pró (Média)</span>
+              <span class="match-stat-chip-val" style="color:var(--cyan);">${stats.goals?.for?.total?.total ?? 0} (${stats.goals?.for?.average?.total ?? "0.0"})</span>
+            </div>
+            <div class="match-stat-chip">
+              <span class="match-stat-chip-label">🛡️ Gols Contra (Média)</span>
+              <span class="match-stat-chip-val">${stats.goals?.against?.total?.total ?? 0} (${stats.goals?.against?.average?.total ?? "0.0"})</span>
+            </div>
+            <div class="match-stat-chip">
+              <span class="match-stat-chip-label">🧤 Jogos sem Sofrer Gols</span>
+              <span class="match-stat-chip-val" style="color:var(--gold);">${stats.clean_sheet?.total ?? 0}</span>
+            </div>
+            <div class="match-stat-chip">
+              <span class="match-stat-chip-label">🏟️ Vitórias em Casa</span>
+              <span class="match-stat-chip-val">${stats.fixtures?.wins?.home ?? 0} de ${stats.fixtures?.played?.home ?? 0}</span>
+            </div>
+            <div class="match-stat-chip">
+              <span class="match-stat-chip-label">✈️ Vitórias Fora</span>
+              <span class="match-stat-chip-val">${stats.fixtures?.wins?.away ?? 0} de ${stats.fixtures?.played?.away ?? 0}</span>
+            </div>
+          </div>
+        </div>
+      ` : ""}
+    `;
+  } catch (err) {
+    contentSection.innerHTML = errorBox("Erro ao carregar dados do seu time.");
+  }
+}
+
 // ============================================================
 // View: Home
 // ============================================================
 function renderHome() {
-  const favTeam = UserPrefs.getFavoriteTeam();
-
   app.innerHTML = `
-    <!-- Feed de Notícias do Time Favorito -->
-    <div id="home-fav-team-news-section">
-      ${favTeam ? `
-        <div class="news-feed-card">
-          <div class="news-feed-header">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <img src="${favTeam.logo}" alt="" style="width:34px;height:34px;object-fit:contain;" onerror="this.style.display='none'">
-              <div>
-                <h2 style="font-size:1.1rem;font-weight:700;margin:0;color:var(--chalk);display:flex;align-items:center;gap:8px;">
-                  Notícias do ${escapeHtml(favTeam.name)}
-                  <span style="font-size:0.68rem;background:rgba(239,68,68,0.2);color:#EF4444;border:1px solid rgba(239,68,68,0.4);padding:1px 6px;border-radius:10px;font-family:var(--font-mono);font-weight:700;">🔴 EM TEMPO REAL</span>
-                </h2>
-                <span style="font-size:0.75rem;color:var(--chalk-dim);">Principais manchetes e atualizações dos grandes portais de notícias</span>
-              </div>
-            </div>
-            <button class="btn ghost small" id="btn-change-fav-team" style="font-size:0.75rem;">Trocar Time</button>
-          </div>
-          <div id="fav-team-news-container">
-            <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Carregando últimas manchetes...</div>
-          </div>
-        </div>
-      ` : `
-        <div class="match-lineup-prompt-card" style="margin-bottom:24px;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span style="font-size:1.8rem;">⭐</span>
-            <div>
-              <strong style="font-size:0.95rem;color:var(--chalk);display:block;">Escolha seu Time do Coração!</strong>
-              <span style="font-size:0.78rem;color:var(--chalk-dim);">Receba as manchetes mais recentes do seu clube em tempo real e alertas de gols.</span>
-            </div>
-          </div>
-          <button class="btn primary small" id="btn-open-onboarding-home" style="font-weight:700;">⭐ Escolher Time</button>
-        </div>
-      `}
-    </div>
-
-    <div class="page-head" style="margin-top:8px;">
+    <div class="page-head">
       <p class="page-eyebrow">Competições Oficiais</p>
       <h1 class="page-title">Escolha uma Liga</h1>
       <p class="page-sub">Classificação detalhada, rodadas completas, estatísticas avançadas e alertas de gols.</p>
@@ -1012,13 +1246,6 @@ function renderHome() {
       ).join("")}
     </div>
   `;
-
-  document.getElementById("btn-change-fav-team")?.addEventListener("click", () => showOnboardingModal(true));
-  document.getElementById("btn-open-onboarding-home")?.addEventListener("click", () => showOnboardingModal(true));
-
-  if (favTeam) {
-    loadTeamNews(favTeam.name, "fav-team-news-container");
-  }
 }
 
 // ============================================================
