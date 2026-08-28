@@ -3673,11 +3673,13 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
   function generateGoalBadge(pid) {
     const ev = playerEventsMap[pid];
     if (!ev) return "";
+    const redSoccerBall = `<svg width="15" height="15" viewBox="0 0 36 36" style="display:inline-block;vertical-align:middle;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.8));"><circle cx="18" cy="18" r="17" fill="#EF4444" stroke="#B91C1C" stroke-width="1.5"/><polygon points="18,11 23,15 21,21 15,21 13,15" fill="#7F1D1D" stroke="#FCA5A5" stroke-width="0.75"/><line x1="18" y1="11" x2="18" y2="2" stroke="#FCA5A5" stroke-width="1"/><line x1="23" y1="15" x2="31" y2="12" stroke="#FCA5A5" stroke-width="1"/><line x1="21" y1="21" x2="28" y2="28" stroke="#FCA5A5" stroke-width="1"/><line x1="15" y1="21" x2="8" y2="28" stroke="#FCA5A5" stroke-width="1"/><line x1="13" y1="15" x2="5" y2="12" stroke="#FCA5A5" stroke-width="1"/></svg>`;
+
     if (ev.goals > 0) {
       return `<span class="pitch-goal-badge goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `<small style="font-size:0.55rem;font-weight:800;margin-left:1px;">${ev.goals}</small>` : ''}</span>`;
     }
     if (ev.ownGoals > 0) {
-      return `<span class="pitch-goal-badge own-goal" title="${ev.ownGoals} Gol(s) Contra">🔴${ev.ownGoals > 1 ? `<small style="font-size:0.55rem;font-weight:800;margin-left:1px;">${ev.ownGoals}</small>` : ''}</span>`;
+      return `<span class="pitch-goal-badge own-goal" title="${ev.ownGoals} Gol(s) Contra">${redSoccerBall}${ev.ownGoals > 1 ? `<small style="font-size:0.55rem;font-weight:800;margin-left:1px;color:#EF4444;">${ev.ownGoals}</small>` : ''}</span>`;
     }
     return "";
   }

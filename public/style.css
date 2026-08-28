@@ -2826,11 +2826,11 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
    4 Cantos do Jogador no Campo Tático
    ============================================================ */
 
-/* 1. Canto Superior Esquerdo: GOLS (⚽ a favor / 🔴 contra) */
+/* 1. Canto Superior Esquerdo: GOLS (⚽ a favor / Bola Vermelha contra) */
 .pitch-goal-badge {
   position: absolute;
-  top: -6px;
-  left: -6px;
+  top: -8px;
+  left: -8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2841,18 +2841,18 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   pointer-events: none;
 }
 
-/* 2. Canto Superior Direito: NOTA DA PARTIDA */
+/* 2. Canto Superior Direito: NOTA DA PARTIDA (Mais para cima e para a direita) */
 .pitch-player-rating-pill {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: -9px;
+  right: -9px;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   font-weight: 800;
   padding: 1px 5px;
   border-radius: 6px;
   z-index: 10;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
   line-height: 1.2;
   pointer-events: none;
 }
