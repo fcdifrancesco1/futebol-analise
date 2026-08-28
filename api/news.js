@@ -1,6 +1,6 @@
 // api/news.js
 // Agregador Serverless de Manchetes e Notícias Esportivas em Tempo Real
-// Consulta o feed RSS do Google Notícias para o clube solicitado e formata as manchetes com links externos.
+// Consulta o feed RSS do Google Notícias para o clube solicitado, ordena da mais recente para a mais antiga e retorna o top 6.
 
 module.exports = async (req, res) => {
   const team = req.query.team;
@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     let match;
 
-    while ((match = itemRegex.exec(xml)) !== null && items.length < 12) {
+    while ((match = itemRegex.exec(xml)) !== null) {
       const itemContent = match[1];
       const titleMatch = itemContent.match(/<title>([\s\S]*?)<\/title>/);
       const linkMatch = itemContent.match(/<link>([\s\S]*?)<\/link>/);
@@ -62,11 +62,13 @@ module.exports = async (req, res) => {
 
       const link = linkMatch ? linkMatch[1].trim() : "";
       const pubDateStr = pubDateMatch ? pubDateMatch[1].trim() : "";
+      let timestamp = 0;
       let timeAgo = "";
 
       if (pubDateStr) {
         try {
           const pubDate = new Date(pubDateStr);
+          timestamp = pubDate.getTime();
           const now = new Date();
           const diffMs = now - pubDate;
           const diffMins = Math.floor(diffMs / (1000 * 60));
@@ -91,16 +93,23 @@ module.exports = async (req, res) => {
           source: source || "Portal de Notícias",
           link,
           pubDate: pubDateStr,
+          timestamp,
           timeAgo: timeAgo || "Recente"
         });
       }
     }
 
-    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=900");
+    // Ordenar estritamente da mais nova para a mais antiga
+    items.sort((a, b) => b.timestamp - a.timestamp);
+
+    // Limitar rigorosamente às 6 notícias mais recentes
+    const top6 = items.slice(0, 6);
+
+    res.setHeader("Cache-Control", "public, max-age=180, s-maxage=300");
     res.status(200).json({
       team: cleanTeam,
-      count: items.length,
-      items
+      count: top6.length,
+      items: top6
     });
   } catch (err) {
     res.status(502).json({

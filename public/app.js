@@ -924,7 +924,10 @@ async function loadTeamNews(teamName, containerId) {
     const resp = await fetch(`/api/news?team=${encodeURIComponent(teamName)}`);
     if (!resp.ok) throw new Error("Erro ao carregar notícias");
     const data = await resp.json();
-    const items = data.items || [];
+    let items = data.items || [];
+
+    // Ordena da mais nova para mais velha e limita a exatamente 6 notícias
+    items = items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 6);
 
     if (!items.length) {
       container.innerHTML = `<div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Nenhuma notícia recente encontrada no momento.</div>`;
