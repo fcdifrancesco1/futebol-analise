@@ -55,12 +55,14 @@ const state = {
 
 const apiCache = new Map();
 
-const app = document.getElementById("app");
-const toastEl = document.getElementById("toast");
-const quotaHint = document.getElementById("quota-hint");
-const compareBadge = document.getElementById("compare-badge");
+let app = document.getElementById("app");
+let toastEl = document.getElementById("toast");
+let quotaHint = document.getElementById("quota-hint");
+let compareBadge = document.getElementById("compare-badge");
 
 function toast(msg, isError = true) {
+  if (!toastEl) toastEl = document.getElementById("toast");
+  if (!toastEl) return;
   toastEl.textContent = msg;
   toastEl.hidden = false;
   toastEl.style.borderColor = isError ? "var(--terracotta)" : "var(--gold)";
@@ -69,17 +71,23 @@ function toast(msg, isError = true) {
 }
 
 function updateCompareBadge() {
-  const count = (state.compareSlots.a ? 1 : 0) + (state.compareSlots.b ? 1 : 0);
-  if (count > 0) {
-    compareBadge.textContent = count;
-    compareBadge.hidden = false;
-  } else {
-    compareBadge.hidden = true;
+  if (!compareBadge) compareBadge = document.getElementById("compare-badge");
+  const count = (state.compareSlots?.a ? 1 : 0) + (state.compareSlots?.b ? 1 : 0);
+  if (compareBadge) {
+    if (count > 0) {
+      compareBadge.textContent = count;
+      compareBadge.hidden = false;
+    } else {
+      compareBadge.hidden = true;
+    }
   }
 }
 
 function markUpdated(fromCache = false) {
-  quotaHint.textContent = (fromCache ? "⚡ Cache " : "Atualizado ") + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  if (!quotaHint) quotaHint = document.getElementById("quota-hint");
+  if (quotaHint) {
+    quotaHint.textContent = (fromCache ? "⚡ Cache " : "Atualizado ") + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  }
 }
 
 // ---------- Requisições à API de Futebol com Cache ----------
@@ -859,6 +867,8 @@ function setActiveTab(name) {
 }
 
 async function router() {
+  if (!app) app = document.getElementById("app") || document.querySelector("main") || document.body;
+
   if (state.liveTimer) {
     clearInterval(state.liveTimer);
     state.liveTimer = null;
