@@ -609,6 +609,16 @@ function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function formatTeamName(name) {
+  if (!name) return "";
+  return String(name)
+    .replace(/\bDA\b/g, "da")
+    .replace(/\bDE\b/g, "de")
+    .replace(/\bDO\b/g, "do")
+    .replace(/\bDOS\b/g, "dos")
+    .replace(/\bDAS\b/g, "das");
+}
+
 // ============================================================
 // Preferências do Usuário & Time Favorito
 // ============================================================
@@ -649,7 +659,7 @@ function updateFavoriteTeamHeader() {
   if (fav) {
     btn.innerHTML = `
       <img src="${fav.logo}" alt="" class="fav-team-crest" onerror="this.style.display='none'">
-      <span class="fav-team-label">${escapeHtml(fav.name)}</span>
+      <span class="fav-team-label">${escapeHtml(formatTeamName(fav.name))}</span>
       <span style="font-size:0.65rem;opacity:0.6;">▾</span>
     `;
   } else {
@@ -1018,13 +1028,15 @@ async function renderMyTeam() {
     return;
   }
 
+  const teamFormattedName = formatTeamName(favTeam.name);
+
   app.innerHTML = `
     <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;">
       <div style="display:flex;align-items:center;gap:14px;">
         <img src="${favTeam.logo}" alt="" style="width:52px;height:52px;object-fit:contain;" onerror="this.style.display='none'">
         <div>
           <p class="page-eyebrow" style="margin:0;">Central do Torcedor</p>
-          <h1 class="page-title" style="margin:0;font-size:1.6rem;color:var(--chalk);">${escapeHtml(favTeam.name)}</h1>
+          <h1 class="page-title" style="margin:0;font-size:1.6rem;color:var(--chalk);">${escapeHtml(teamFormattedName)}</h1>
         </div>
       </div>
 
@@ -1050,7 +1062,7 @@ async function renderMyTeam() {
         </div>
       </div>
       <div id="myteam-news-container">
-        <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Carregando notícias de ${escapeHtml(favTeam.name)}...</div>
+        <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Carregando notícias de ${escapeHtml(teamFormattedName)}...</div>
       </div>
     </div>
 
@@ -1064,25 +1076,69 @@ async function renderMyTeam() {
   const contentSection = document.getElementById("myteam-content-section");
 
   try {
-    const [lastRes, nextRes] = await Promise.allSettled([
+    const currentYear = new Date().getFullYear();
+    const [lastRes, nextRes, leaguesRes] = await Promise.allSettled([
       apiGet("fixtures", { team: favTeam.id, last: 5 }, 15),
-      apiGet("fixtures", { team: favTeam.id, next: 5 }, 15)
+      apiGet("fixtures", { team: favTeam.id, next: 5 }, 15),
+      apiGet("leagues", { team: favTeam.id, season: currentYear }, 60)
     ]);
 
     const lastFixtures = (lastRes.status === "fulfilled" && Array.isArray(lastRes.value)) ? lastRes.value : [];
     const nextFixtures = (nextRes.status === "fulfilled" && Array.isArray(nextRes.value)) ? nextRes.value : [];
+    const teamLeagues = (leaguesRes.status === "fulfilled" && Array.isArray(leaguesRes.value)) ? leaguesRes.value : [];
 
-    const primaryLeague = lastFixtures[0]?.league || nextFixtures[0]?.league || { id: 71, season: 2026, name: "Competição Principal" };
+    // Competição e temporada principal para o link do elenco
+    const primaryLeague = lastFixtures[0]?.league || nextFixtures[0]?.league || teamLeagues[0]?.league || { id: 71, season: currentYear, name: "Competição Principal" };
     const leagueId = primaryLeague.id;
-    const season = primaryLeague.season || 2026;
+    const season = primaryLeague.season || currentYear;
 
-    let stats = null;
-    try {
-      const statsRes = await apiGet("teams/statistics", { team: favTeam.id, league: leagueId, season: season }, 30);
-      if (statsRes && statsRes.team) {
-        stats = statsRes;
-      }
-    } catch { /* fallback */ }
+    // Buscar e agregar estatísticas de TODAS as competições da temporada
+    let totalPlayed = 0, totalWins = 0, totalDraws = 0, totalLoses = 0;
+    let totalGf = 0, totalGa = 0, totalCleanSheets = 0;
+    let homeWins = 0, homePlayed = 0, awayWins = 0, awayPlayed = 0;
+    const leagueNamesSet = new Set();
+
+    if (teamLeagues.length) {
+      const statsResponses = await Promise.allSettled(
+        teamLeagues.map(l => apiGet("teams/statistics", { team: favTeam.id, league: l.league.id, season: season }, 30))
+      );
+
+      statsResponses.forEach((res, idx) => {
+        if (res.status === "fulfilled" && res.value?.fixtures) {
+          const s = res.value;
+          const p = s.fixtures.played?.total || 0;
+          if (p > 0) {
+            leagueNamesSet.add(teamLeagues[idx]?.league?.name || "Liga");
+            totalPlayed += p;
+            totalWins += s.fixtures.wins?.total || 0;
+            totalDraws += s.fixtures.draws?.total || 0;
+            totalLoses += s.fixtures.loses?.total || 0;
+            totalGf += s.goals?.for?.total?.total || 0;
+            totalGa += s.goals?.against?.total?.total || 0;
+            totalCleanSheets += s.clean_sheet?.total || 0;
+            homeWins += s.fixtures.wins?.home || 0;
+            homePlayed += s.fixtures.played?.home || 0;
+            awayWins += s.fixtures.wins?.away || 0;
+            awayPlayed += s.fixtures.played?.away || 0;
+          }
+        }
+      });
+    }
+
+    // Forma Recente calculada sobre os últimos 5 jogos de TODAS as competições (da mais antiga para a mais recente)
+    const sortedLast = [...lastFixtures].sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
+    const recentFormList = sortedLast.map(f => {
+      const isHome = f.teams.home.id === favTeam.id;
+      const hG = f.goals.home ?? 0;
+      const aG = f.goals.away ?? 0;
+      if (hG === aG) return { letter: "E", color: "#FFB800" };
+      if ((isHome && hG > aG) || (!isHome && aG > hG)) return { letter: "V", color: "#10B981" };
+      return { letter: "D", color: "#EF4444" };
+    });
+
+    const hasStats = totalPlayed > 0;
+    const avgGf = totalPlayed ? (totalGf / totalPlayed).toFixed(1) : "0.0";
+    const avgGa = totalPlayed ? (totalGa / totalPlayed).toFixed(1) : "0.0";
 
     contentSection.innerHTML = `
       <!-- Acesso Rápido ao Elenco -->
@@ -1090,7 +1146,7 @@ async function renderMyTeam() {
         <div style="display:flex;align-items:center;gap:12px;">
           <span style="font-size:1.6rem;">👥</span>
           <div>
-            <strong style="font-size:1rem;color:var(--chalk);display:block;">Elenco Atual de ${escapeHtml(favTeam.name)}</strong>
+            <strong style="font-size:1rem;color:var(--chalk);display:block;">Elenco Atual de ${escapeHtml(teamFormattedName)}</strong>
             <span style="font-size:0.78rem;color:var(--chalk-dim);">Jogadores, fotos, números de camisa, idades e posições</span>
           </div>
         </div>
@@ -1121,13 +1177,13 @@ async function renderMyTeam() {
                       <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--chalk-dim);">${timeStr}</span>
                     </div>
                     <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
-                      <span>${escapeHtml(f.teams.home.name)}</span>
+                      <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
                     <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;">vs</span>
                     <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span>${escapeHtml(f.teams.away.name)}</span>
+                      <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
                   </a>
                 `;
@@ -1155,29 +1211,41 @@ async function renderMyTeam() {
                 const homeGoals = f.goals.home ?? 0;
                 const awayGoals = f.goals.away ?? 0;
 
-                let outcomeBadge = "";
-                if (homeGoals === awayGoals) {
-                  outcomeBadge = `<span style="background:rgba(255,184,0,0.2);color:#FFB800;border:1px solid rgba(255,184,0,0.4);padding:1px 5px;border-radius:4px;font-size:0.65rem;font-weight:800;margin-left:4px;">E</span>`;
-                } else if ((isHome && homeGoals > awayGoals) || (!isHome && awayGoals > homeGoals)) {
-                  outcomeBadge = `<span style="background:rgba(16,185,129,0.2);color:#10B981;border:1px solid rgba(16,185,129,0.4);padding:1px 5px;border-radius:4px;font-size:0.65rem;font-weight:800;margin-left:4px;">V</span>`;
-                } else {
-                  outcomeBadge = `<span style="background:rgba(239,68,68,0.2);color:#EF4444;border:1px solid rgba(239,68,68,0.4);padding:1px 5px;border-radius:4px;font-size:0.65rem;font-weight:800;margin-left:4px;">D</span>`;
+                let outcomeLetter = "E";
+                let outcomeBg = "rgba(255,184,0,0.2)";
+                let outcomeColor = "#FFB800";
+                let outcomeBorder = "rgba(255,184,0,0.5)";
+
+                if (homeGoals !== awayGoals) {
+                  if ((isHome && homeGoals > awayGoals) || (!isHome && awayGoals > homeGoals)) {
+                    outcomeLetter = "V";
+                    outcomeBg = "rgba(16,185,129,0.2)";
+                    outcomeColor = "#10B981";
+                    outcomeBorder = "rgba(16,185,129,0.5)";
+                  } else {
+                    outcomeLetter = "D";
+                    outcomeBg = "rgba(239,68,68,0.2)";
+                    outcomeColor = "#EF4444";
+                    outcomeBorder = "rgba(239,68,68,0.5)";
+                  }
                 }
 
                 return `
                   <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes do confronto">
-                    <div class="fixture-date-col">
-                      <span class="fixture-date">${dateStr}</span>
-                      ${outcomeBadge}
+                    <div class="fixture-date-col" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:65px;">
+                      <span class="fixture-date" style="font-size:0.75rem;">${dateStr}</span>
+                      <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.72rem;font-weight:800;line-height:1;">
+                        ${outcomeLetter}
+                      </span>
                     </div>
                     <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
-                      <span>${escapeHtml(f.teams.home.name)}</span>
+                      <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
                     <span class="fixture-score">${homeGoals} : ${awayGoals}</span>
                     <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span>${escapeHtml(f.teams.away.name)}</span>
+                      <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
                   </a>
                 `;
@@ -1191,28 +1259,26 @@ async function renderMyTeam() {
         </div>
       </div>
 
-      <!-- 4. Estatísticas Gerais na Temporada -->
-      ${stats ? `
+      <!-- 4. Estatísticas Gerais na Temporada (Todas as Competições) -->
+      ${hasStats ? `
         <div class="card" style="padding:20px;margin-bottom:24px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:12px;flex-wrap:wrap;gap:8px;">
             <div style="display:flex;align-items:center;gap:10px;">
               <span style="font-size:1.3rem;">📊</span>
               <div>
                 <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:var(--chalk);">Estatísticas Gerais na Temporada</h3>
-                <span style="font-size:0.75rem;color:var(--chalk-dim);">${escapeHtml(primaryLeague.name)} · Temporada ${season}</span>
+                <span style="font-size:0.75rem;color:var(--chalk-dim);">Todas as Competições Oficiais · Temporada ${season}</span>
               </div>
             </div>
 
-            ${stats.form ? `
-              <div style="display:flex;align-items:center;gap:4px;">
+            ${recentFormList.length ? `
+              <div style="display:flex;align-items:center;gap:5px;">
                 <span style="font-size:0.72rem;color:var(--chalk-dim);font-family:var(--font-mono);margin-right:4px;">Forma Recente:</span>
-                ${stats.form.slice(-5).split("").map(ch => {
-                  const isW = ch === "W" || ch === "V";
-                  const isD = ch === "D" || ch === "E";
-                  const color = isW ? "#10B981" : isD ? "#FFB800" : "#EF4444";
-                  const letter = isW ? "V" : isD ? "E" : "D";
-                  return `<span style="background:${color}22;color:${color};border:1px solid ${color}66;font-size:0.7rem;font-weight:800;font-family:var(--font-mono);padding:2px 6px;border-radius:4px;">${letter}</span>`;
-                }).join("")}
+                ${recentFormList.map(item => `
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;background:${item.color}22;color:${item.color};border:1px solid ${item.color};border-radius:4px;font-size:0.72rem;font-weight:800;font-family:var(--font-mono);line-height:1;">
+                    ${item.letter}
+                  </span>
+                `).join("")}
               </div>
             ` : ""}
           </div>
@@ -1220,31 +1286,31 @@ async function renderMyTeam() {
           <div class="match-stat-chip-grid" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;">
             <div class="match-stat-chip">
               <span class="match-stat-chip-label">🏆 Jogos / Vitórias</span>
-              <span class="match-stat-chip-val">${stats.fixtures?.played?.total ?? 0}J · <span style="color:#10B981;">${stats.fixtures?.wins?.total ?? 0}V</span></span>
+              <span class="match-stat-chip-val">${totalPlayed}J · <span style="color:#10B981;">${totalWins}V</span></span>
             </div>
             <div class="match-stat-chip">
               <span class="match-stat-chip-label">🤝 Empates / Derrotas</span>
-              <span class="match-stat-chip-val"><span style="color:#FFB800;">${stats.fixtures?.draws?.total ?? 0}E</span> · <span style="color:#EF4444;">${stats.fixtures?.loses?.total ?? 0}D</span></span>
+              <span class="match-stat-chip-val"><span style="color:#FFB800;">${totalDraws}E</span> · <span style="color:#EF4444;">${totalLoses}D</span></span>
             </div>
             <div class="match-stat-chip">
               <span class="match-stat-chip-label">⚽ Gols Pró (Média)</span>
-              <span class="match-stat-chip-val" style="color:var(--cyan);">${stats.goals?.for?.total?.total ?? 0} (${stats.goals?.for?.average?.total ?? "0.0"})</span>
+              <span class="match-stat-chip-val" style="color:var(--cyan);">${totalGf} (${avgGf})</span>
             </div>
             <div class="match-stat-chip">
               <span class="match-stat-chip-label">🛡️ Gols Contra (Média)</span>
-              <span class="match-stat-chip-val">${stats.goals?.against?.total?.total ?? 0} (${stats.goals?.against?.average?.total ?? "0.0"})</span>
+              <span class="match-stat-chip-val">${totalGa} (${avgGa})</span>
             </div>
             <div class="match-stat-chip">
               <span class="match-stat-chip-label">🧤 Jogos sem Sofrer Gols</span>
-              <span class="match-stat-chip-val" style="color:var(--gold);">${stats.clean_sheet?.total ?? 0}</span>
+              <span class="match-stat-chip-val" style="color:var(--gold);">${totalCleanSheets}</span>
             </div>
             <div class="match-stat-chip">
               <span class="match-stat-chip-label">🏟️ Vitórias em Casa</span>
-              <span class="match-stat-chip-val">${stats.fixtures?.wins?.home ?? 0} de ${stats.fixtures?.played?.home ?? 0}</span>
+              <span class="match-stat-chip-val">${homeWins} de ${homePlayed}</span>
             </div>
             <div class="match-stat-chip">
               <span class="match-stat-chip-label">✈️ Vitórias Fora</span>
-              <span class="match-stat-chip-val">${stats.fixtures?.wins?.away ?? 0} de ${stats.fixtures?.played?.away ?? 0}</span>
+              <span class="match-stat-chip-val">${awayWins} de ${awayPlayed}</span>
             </div>
           </div>
         </div>
