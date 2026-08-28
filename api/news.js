@@ -1,6 +1,7 @@
 // api/news.js
 // Agregador Serverless de Manchetes e Notícias Esportivas em Tempo Real
-// Consulta o feed RSS do Google Notícias para o clube solicitado, ordena da mais recente para a mais antiga e retorna o top 6.
+// Consulta o feed RSS do Google Notícias, aplica filtros rigorosos de desambiguação de clubes,
+// ordena da mais recente para a mais antiga e retorna o top 6 notícias precisas.
 
 module.exports = async (req, res) => {
   const team = req.query.team;
@@ -10,9 +11,15 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const cleanTeam = team.trim();
-  const query = encodeURIComponent(`${cleanTeam} futebol`);
-  const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+  let cleanTeam = team.trim()
+    .replace(/\bDA\b/gi, "da")
+    .replace(/\bDE\b/gi, "de")
+    .replace(/\bDO\b/gi, "do");
+
+  // Se o nome tiver mais de 1 palavra (ex: "Vasco da Gama", "Real Madrid"), usa aspas para busca exata
+  const isMultiWord = cleanTeam.includes(" ");
+  const queryStr = isMultiWord ? `"${cleanTeam}"` : `"${cleanTeam}" futebol`;
+  const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(queryStr)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
 
   try {
     const rssResp = await fetch(rssUrl, {
@@ -31,6 +38,41 @@ module.exports = async (req, res) => {
     const items = [];
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     let match;
+
+    // Dicionário de termos negativos para desambiguação de homônimos / divisões estaduais menores
+    const EXCLUSIONS = {
+      vasco: [
+        "vasco-pi", "vasco-ac", "vasco-se", "vasco-ap", "atlético-pi", "atletico-pi",
+        "piauiense", "piauí", "piaui", "acreano", "garanhuns", "içara", "série a2 do piauí", "campeonato piauiense"
+      ],
+      botafogo: [
+        "botafogo-sp", "botafogo-pb", "botafogo-ba", "botafogo da paraíba",
+        "botafogo de ribeirão", "paraibano", "paulistão a2"
+      ],
+      flamengo: [
+        "flamengo-pi", "flamengo-sp", "flamengo-se", "flamengo-ba",
+        "flamengo de guarulhos", "flamengo de arcoverde", "piauiense"
+      ],
+      fluminense: [
+        "fluminense de feira", "flu de feira", "fluminense-pi", "fluminense-ba", "piauiense"
+      ],
+      barcelona: [
+        "barcelona de ilhéus", "barcelona-ro", "barcelona-ba", "barcelona de guayaquil", "baiano"
+      ],
+      athletico: [
+        "atlético-pi", "atletico-ce", "atletico-ba"
+      ],
+      santos: [
+        "santos-ap", "santos-pb"
+      ],
+      operario: [
+        "operário-ms", "operário-mt"
+      ]
+    };
+
+    const teamLower = cleanTeam.toLowerCase();
+    const teamKey = Object.keys(EXCLUSIONS).find(k => teamLower.includes(k));
+    const negativeList = teamKey ? EXCLUSIONS[teamKey] : [];
 
     while ((match = itemRegex.exec(xml)) !== null) {
       const itemContent = match[1];
@@ -59,6 +101,13 @@ module.exports = async (req, res) => {
         .replace(/&amp;/g, "&")
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">");
+
+      const lowerTitle = rawTitle.toLowerCase();
+
+      // Filtro de exclusão de homônimos / clubes de divisões inferiores não correspondentes
+      if (negativeList.some(neg => lowerTitle.includes(neg))) {
+        continue;
+      }
 
       const link = linkMatch ? linkMatch[1].trim() : "";
       const pubDateStr = pubDateMatch ? pubDateMatch[1].trim() : "";
