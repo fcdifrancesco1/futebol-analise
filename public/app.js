@@ -1159,6 +1159,85 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
     const p = entry.player;
     const statsList = entry.statistics || [];
 
+    // Reconciliação em Tempo Real: Corrige o delay da API-Football somando os dados dos jogos já finalizados
+    await Promise.all(statsList.map(async (st) => {
+      if (!st.team?.id || !st.league?.id) return;
+      try {
+        const finishedFixtures = await apiGet("fixtures", {
+          team: st.team.id,
+          league: st.league.id,
+          season: st.league.season || season || 2026,
+          status: "FT-AET-PEN"
+        }, 15).catch(() => []);
+
+        if (Array.isArray(finishedFixtures) && finishedFixtures.length > 0) {
+          const fixturePlayerResponses = await Promise.all(
+            finishedFixtures.map(f => apiGet("fixtures/players", { fixture: f.fixture.id }, 60).catch(() => []))
+          );
+
+          const matchStats = [];
+          for (const fPlayers of fixturePlayerResponses) {
+            if (!Array.isArray(fPlayers)) continue;
+            const tData = fPlayers.find(t => t.team?.id === st.team.id);
+            const pData = tData?.players?.find(pl => pl.player?.id === playerId);
+            if (pData?.statistics?.[0] && pData.statistics[0].games?.minutes !== null) {
+              matchStats.push(pData.statistics[0]);
+            }
+          }
+
+          if (matchStats.length > (st.games?.appearences || 0)) {
+            const totalApps = matchStats.length;
+            const totalLineups = matchStats.filter(s => s.games?.substitute === false).length;
+            const totalMinutes = matchStats.reduce((acc, s) => acc + (s.games?.minutes || 0), 0);
+            const rated = matchStats.filter(s => parseFloat(s.games?.rating) > 0);
+            const avgRating = rated.length ? (rated.reduce((acc, s) => acc + parseFloat(s.games.rating), 0) / rated.length).toFixed(2) : st.games?.rating;
+            const totalGoals = matchStats.reduce((acc, s) => acc + (s.goals?.total || 0), 0);
+            const totalAssists = matchStats.reduce((acc, s) => acc + (s.goals?.assists || 0), 0);
+            const totalShots = matchStats.reduce((acc, s) => acc + (s.shots?.total || 0), 0);
+            const shotsOn = matchStats.reduce((acc, s) => acc + (s.shots?.on || 0), 0);
+            const totalPasses = matchStats.reduce((acc, s) => acc + (s.passes?.total || 0), 0);
+            const totalKeyPasses = matchStats.reduce((acc, s) => acc + (s.passes?.key || 0), 0);
+            const totalDribblesAttempts = matchStats.reduce((acc, s) => acc + (s.dribbles?.attempts || 0), 0);
+            const totalDribblesSuccess = matchStats.reduce((acc, s) => acc + (s.dribbles?.success || 0), 0);
+            const totalTackles = matchStats.reduce((acc, s) => acc + (s.tackles?.total || 0), 0);
+            const totalInterceptions = matchStats.reduce((acc, s) => acc + (s.tackles?.interceptions || 0), 0);
+            const totalFoulsDrawn = matchStats.reduce((acc, s) => acc + (s.fouls?.drawn || 0), 0);
+            const totalFoulsCommitted = matchStats.reduce((acc, s) => acc + (s.fouls?.committed || 0), 0);
+            const yellowCards = matchStats.reduce((acc, s) => acc + (s.cards?.yellow || 0), 0);
+            const redCards = matchStats.reduce((acc, s) => acc + (s.cards?.red || 0), 0);
+            const penaltyWon = matchStats.reduce((acc, s) => acc + (s.penalty?.won || 0), 0);
+            const penaltyScored = matchStats.reduce((acc, s) => acc + (s.penalty?.scored || 0), 0);
+
+            st.games = {
+              ...st.games,
+              appearences: totalApps,
+              lineups: totalLineups,
+              minutes: totalMinutes,
+              rating: avgRating
+            };
+            st.goals = {
+              ...st.goals,
+              total: totalGoals,
+              assists: totalAssists
+            };
+            st.shots = { total: totalShots, on: shotsOn };
+            st.passes = {
+              ...st.passes,
+              total: totalPasses,
+              key: totalKeyPasses
+            };
+            st.dribbles = { attempts: totalDribblesAttempts, success: totalDribblesSuccess };
+            st.tackles = { ...(st.tackles || {}), total: totalTackles, interceptions: totalInterceptions };
+            st.fouls = { drawn: totalFoulsDrawn, committed: totalFoulsCommitted };
+            st.cards = { ...(st.cards || {}), yellow: yellowCards, red: redCards };
+            st.penalty = { ...(st.penalty || {}), won: penaltyWon, scored: penaltyScored };
+          }
+        }
+      } catch (err) {
+        console.warn("Reconciliação de estatísticas do jogador ignorada:", err);
+      }
+    }));
+
     const totalStats = {
       team: { name: statsList[0]?.team?.name || "Clube", logo: statsList[0]?.team?.logo },
       league: { id: "TOTAL", name: "Total da Temporada (Todas as Competições)" },
