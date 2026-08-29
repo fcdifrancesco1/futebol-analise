@@ -1282,13 +1282,52 @@ function initApp() {
     });
   }
 
-  // Auto-refresh instantâneo ao retornar de segundo plano / desbloquear tela
+  // ============================================================
+  // LOOP GLOBAL DE AUTO-REFRESH (A CADA 30 SEGUNDOS EXATOS)
+  // Mantém todas as telas, placares e cabeçalho sempre atualizados
+  // ============================================================
+  if (window._globalRefreshTimer) {
+    clearInterval(window._globalRefreshTimer);
+  }
+
+  async function executeGlobal30sRefresh() {
+    markUpdated(false);
+
+    const hash = location.hash || "#/";
+    try {
+      if (hash.startsWith("#/jogo/")) {
+        const fixtureId = Number(hash.replace("#/jogo/", "").split("/")[0]);
+        if (fixtureId) {
+          apiCache.delete(`fixtures_${JSON.stringify({ id: fixtureId })}`);
+          apiCache.delete(`fixtures/events_${JSON.stringify({ fixture: fixtureId })}`);
+          apiCache.delete(`fixtures/statistics_${JSON.stringify({ fixture: fixtureId })}`);
+          apiCache.delete(`fixtures/players_${JSON.stringify({ fixture: fixtureId })}`);
+          renderFixture(fixtureId, true);
+        }
+      } else if (hash === "#/aovivo") {
+        fetchLiveMatches(true);
+      } else if (hash === "#/jogos-do-dia" || hash.startsWith("#/jogos-do-dia/")) {
+        const datePart = hash.replace("#/jogos-do-dia", "").replace("/", "");
+        const targetDate = datePart || getLocalDateString(new Date());
+        const activeFilter = document.querySelector(".matches-day-filter-btn.active")?.dataset?.filter || "all";
+        fetchAndRenderDayMatches(targetDate, activeFilter);
+      } else if (hash === "#/meu-time") {
+        renderMyTeam();
+      }
+    } catch (e) {
+      console.warn("Auto-refresh cycle error:", e);
+    }
+  }
+
+  window._globalRefreshTimer = setInterval(executeGlobal30sRefresh, 30000);
+
+  // Auto-refresh instantâneo ao retornar de segundo plano / focar janela
   let lastBackgroundTime = Date.now();
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       const elapsedBg = Date.now() - lastBackgroundTime;
-      if (elapsedBg > 5000) { // se ficou mais de 5s fora, atualiza instantaneamente
-        handleResumeApp();
+      if (elapsedBg > 5000) {
+        executeGlobal30sRefresh();
       }
     } else {
       lastBackgroundTime = Date.now();
@@ -1298,28 +1337,9 @@ function initApp() {
   window.addEventListener("focus", () => {
     const elapsedBg = Date.now() - lastBackgroundTime;
     if (elapsedBg > 5000) {
-      handleResumeApp();
+      executeGlobal30sRefresh();
     }
   });
-
-  function handleResumeApp() {
-    lastBackgroundTime = Date.now();
-    const hash = location.hash || "#/";
-    if (hash.startsWith("#/jogo/")) {
-      const fixtureId = Number(hash.replace("#/jogo/", "").split("/")[0]);
-      if (fixtureId) {
-        apiCache.delete(`fixtures_${JSON.stringify({ id: fixtureId })}`);
-        apiCache.delete(`fixtures/events_${JSON.stringify({ fixture: fixtureId })}`);
-        apiCache.delete(`fixtures/statistics_${JSON.stringify({ fixture: fixtureId })}`);
-        renderFixture(fixtureId, true);
-      }
-    } else if (hash === "#/aovivo") {
-      fetchLiveMatches(true);
-    } else if (hash === "#/jogos-do-dia" || hash.startsWith("#/jogos-do-dia/")) {
-      const datePart = hash.replace("#/jogos-do-dia", "").replace("/", "");
-      renderMatchesOfDay(datePart);
-    }
-  }
 
   router();
 }
