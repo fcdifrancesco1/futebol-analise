@@ -45,7 +45,7 @@ const state = {
   compareSlots: { a: null, b: null },
   homeSide: null,
   liveTimer: null,
-  liveIntervalSeconds: 45,
+  liveIntervalSeconds: 30,
   currentTableFilter: "all",
   fifaTab: "summary",
   lastComparisonData: null,
@@ -987,6 +987,45 @@ function initApp() {
         }
       }
     });
+  }
+
+  // Auto-refresh instantâneo ao retornar de segundo plano / desbloquear tela
+  let lastBackgroundTime = Date.now();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      const elapsedBg = Date.now() - lastBackgroundTime;
+      if (elapsedBg > 5000) { // se ficou mais de 5s fora, atualiza instantaneamente
+        handleResumeApp();
+      }
+    } else {
+      lastBackgroundTime = Date.now();
+    }
+  });
+
+  window.addEventListener("focus", () => {
+    const elapsedBg = Date.now() - lastBackgroundTime;
+    if (elapsedBg > 5000) {
+      handleResumeApp();
+    }
+  });
+
+  function handleResumeApp() {
+    lastBackgroundTime = Date.now();
+    const hash = location.hash || "#/";
+    if (hash.startsWith("#/jogo/")) {
+      const fixtureId = Number(hash.replace("#/jogo/", "").split("/")[0]);
+      if (fixtureId) {
+        apiCache.delete(`fixtures_${JSON.stringify({ id: fixtureId })}`);
+        apiCache.delete(`fixtures/events_${JSON.stringify({ fixture: fixtureId })}`);
+        apiCache.delete(`fixtures/statistics_${JSON.stringify({ fixture: fixtureId })}`);
+        renderFixture(fixtureId, true);
+      }
+    } else if (hash === "#/aovivo") {
+      fetchLiveMatches(true);
+    } else if (hash === "#/jogos-do-dia" || hash.startsWith("#/jogos-do-dia/")) {
+      const datePart = hash.replace("#/jogos-do-dia", "").replace("/", "");
+      renderMatchesOfDay(datePart);
+    }
   }
 
   router();
