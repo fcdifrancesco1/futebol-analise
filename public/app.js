@@ -3592,21 +3592,12 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
                 const playerName = g.player?.name || "Gol";
                 const isOwnGoal = g.detail === 'Own Goal';
                 const isPen = g.detail === 'Penalty';
-                const searchQ = encodeURIComponent(`Gol ${playerName} ${fx.teams.home.name} ${fx.teams.away.name}`);
-                const ytUrl = `https://www.youtube.com/results?search_query=${searchQ}`;
 
                 return `
                   <div class="hero-goal-item">
                     <span>⚽</span>
                     <span class="player-name">${escapeHtml(playerName)}</span>
                     <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
-                    ${isFinished ? `
-                      <a href="${ytUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(playerName)} no YouTube">
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M8 5v14l11-7z"/>
-                        </svg>
-                      </a>
-                    ` : ''}
                   </div>
                 `;
               }).join("")}
@@ -3617,21 +3608,12 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
                 const playerName = g.player?.name || "Gol";
                 const isOwnGoal = g.detail === 'Own Goal';
                 const isPen = g.detail === 'Penalty';
-                const searchQ = encodeURIComponent(`Gol ${playerName} ${fx.teams.home.name} ${fx.teams.away.name}`);
-                const ytUrl = `https://www.youtube.com/results?search_query=${searchQ}`;
 
                 return `
                   <div class="hero-goal-item">
                     <span>⚽</span>
                     <span class="player-name">${escapeHtml(playerName)}</span>
                     <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
-                    ${isFinished ? `
-                      <a href="${ytUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(playerName)} no YouTube">
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M8 5v14l11-7z"/>
-                        </svg>
-                      </a>
-                    ` : ''}
                   </div>
                 `;
               }).join("")}
