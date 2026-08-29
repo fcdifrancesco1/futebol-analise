@@ -3689,7 +3689,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       </div>
 
       <!-- Banner de Escalação do Usuário -->
-      ${renderMatchLineupPrompt(fx, lineupsArr)}
+      ${renderMatchBroadcastGuide(fx)}
 
       <!-- Campo Tático 2D -->
       <div id="fixture-lineups-section" style="margin-bottom:24px;">
@@ -5916,48 +5916,151 @@ async function renderLineupComparison(lineupId) {
   `;
 }
 
-// 4. Banner Atalho na Tela de Partida
-function renderMatchLineupPrompt(fx, lineupsArr) {
-  if (!fx || !fx.teams) return "";
-  const hId = fx.teams.home.id;
-  const aId = fx.teams.away.id;
-  const fId = fx.fixture.id;
 
-  const userHomeLineup = UserLineupStore.get(`lineup_fx_${fId}_${hId}`) || UserLineupStore.get(`lineup_team_${hId}`);
-  const userAwayLineup = UserLineupStore.get(`lineup_fx_${fId}_${aId}`) || UserLineupStore.get(`lineup_team_${aId}`);
+// ============================================================
+// GUIA DE TRANSMISSÃO OFICIAL: Onde Assistir ao Vivo
+// ============================================================
 
-  if (userHomeLineup || userAwayLineup) {
-    const existing = userHomeLineup || userAwayLineup;
-    const hasOfficial = Array.isArray(lineupsArr) && lineupsArr.length > 0;
-    return `
-      <div class="match-lineup-prompt-card">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:1.6rem;">📋</span>
-          <div>
-            <strong style="font-size:0.95rem;color:var(--chalk);display:block;">Você montou a escalação do ${escapeHtml(existing.teamName)}!</strong>
-            <span style="font-size:0.78rem;color:var(--chalk-dim);">${hasOfficial ? 'A escalação oficial já saiu! Veja quantos jogadores você acertou.' : 'Aguardando a divulgação oficial do treinador.'}</span>
-          </div>
-        </div>
-        <a class="btn primary small" href="#/minha-escalacao/comparar/${existing.id}" style="font-weight:700;">
-          ${hasOfficial ? '🎯 Ver Comparação e Acertos →' : '📋 Ver / Editar Minha Escalação →'}
-        </a>
-      </div>
-    `;
+function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
+  const tA = homeTeam?.name || "Time Mandante";
+  const tB = awayTeam?.name || "Time Visitante";
+  const queryYT = encodeURIComponent(`${tA} x ${tB} ao vivo`);
+
+  // Brasileirão Série A (71)
+  if (leagueId === 71) {
+    return [
+      { name: "Premiere", color: "#0056B3", bg: "rgba(0, 86, 179, 0.2)", border: "rgba(0, 86, 179, 0.5)", url: "https://globoplay.globo.com/premiere/", icon: "📺" },
+      { name: "SporTV", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/", icon: "⚽" },
+      { name: "TV Globo", color: "#FF6600", bg: "rgba(255, 102, 0, 0.2)", border: "rgba(255, 102, 0, 0.5)", url: "https://globoplay.globo.com/", icon: "📺" },
+      { name: "CazéTV (YouTube)", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}`, icon: "▶" },
+      { name: "Prime Video", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.2)", border: "rgba(0, 168, 225, 0.5)", url: "https://www.primevideo.com/", icon: "🎬" }
+    ];
   }
 
+  // Brasileirão Série B (72)
+  if (leagueId === 72) {
+    return [
+      { name: "Premiere", color: "#0056B3", bg: "rgba(0, 86, 179, 0.2)", border: "rgba(0, 86, 179, 0.5)", url: "https://globoplay.globo.com/premiere/", icon: "📺" },
+      { name: "SporTV", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/", icon: "⚽" },
+      { name: "Canal GOAT (YouTube)", color: "#FACC15", bg: "rgba(250, 204, 21, 0.2)", border: "rgba(250, 204, 21, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('Canal GOAT ' + tA + ' x ' + tB)}`, icon: "🐐" },
+      { name: "TV Brasil", color: "#10B981", bg: "rgba(16, 185, 129, 0.2)", border: "rgba(16, 185, 129, 0.5)", url: "https://tvbrasil.ebc.com.br/", icon: "📺" }
+    ];
+  }
+
+  // Copa do Brasil (73)
+  if (leagueId === 73) {
+    return [
+      { name: "Globo / SporTV", color: "#FF6600", bg: "rgba(255, 102, 0, 0.2)", border: "rgba(255, 102, 0, 0.5)", url: "https://globoplay.globo.com/", icon: "📺" },
+      { name: "Premiere", color: "#0056B3", bg: "rgba(0, 86, 179, 0.2)", border: "rgba(0, 86, 179, 0.5)", url: "https://globoplay.globo.com/premiere/", icon: "📺" },
+      { name: "Prime Video", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.2)", border: "rgba(0, 168, 225, 0.5)", url: "https://www.primevideo.com/", icon: "🎬" }
+    ];
+  }
+
+  // Copa Libertadores (13) & Sul-Americana (11)
+  if (leagueId === 13 || leagueId === 11) {
+    return [
+      { name: "Disney+", color: "#0063E5", bg: "rgba(0, 99, 229, 0.2)", border: "rgba(0, 99, 229, 0.5)", url: "https://www.disneyplus.com/", icon: "⭐" },
+      { name: "ESPN", color: "#CC0000", bg: "rgba(204, 0, 0, 0.2)", border: "rgba(204, 0, 0, 0.5)", url: "https://www.espn.com.br/watch/", icon: "🏆" },
+      { name: "Paramount+", color: "#0064FF", bg: "rgba(0, 100, 255, 0.2)", border: "rgba(0, 100, 255, 0.5)", url: "https://www.paramountplus.com/", icon: "🏔️" },
+      { name: leagueId === 13 ? "TV Globo" : "SBT", color: "#10B981", bg: "rgba(16, 185, 129, 0.2)", border: "rgba(16, 185, 129, 0.5)", url: leagueId === 13 ? "https://globoplay.globo.com/" : "https://www.sbt.com.br/ao-vivo", icon: "📺" }
+    ];
+  }
+
+  // Champions League (2)
+  if (leagueId === 2) {
+    return [
+      { name: "Max (HBO Max)", color: "#002BE7", bg: "rgba(0, 43, 231, 0.25)", border: "rgba(0, 43, 231, 0.6)", url: "https://www.max.com/", icon: "👑" },
+      { name: "TNT / Space", color: "#E50914", bg: "rgba(229, 9, 20, 0.2)", border: "rgba(229, 9, 20, 0.5)", url: "https://www.max.com/", icon: "📺" },
+      { name: "SBT", color: "#10B981", bg: "rgba(16, 185, 129, 0.2)", border: "rgba(16, 185, 129, 0.5)", url: "https://www.sbt.com.br/ao-vivo", icon: "📺" },
+      { name: "YouTube Ao Vivo", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${queryYT}`, icon: "▶" }
+    ];
+  }
+
+  // Bundesliga (78)
+  if (leagueId === 78) {
+    return [
+      { name: "Canal GOAT (YouTube)", color: "#FACC15", bg: "rgba(250, 204, 21, 0.2)", border: "rgba(250, 204, 21, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('Canal GOAT ' + tA + ' x ' + tB)}`, icon: "🐐" },
+      { name: "CazéTV (YouTube)", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}`, icon: "▶" },
+      { name: "SporTV", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/", icon: "⚽" },
+      { name: "OneFootball", color: "#00E5FF", bg: "rgba(0, 229, 255, 0.2)", border: "rgba(0, 229, 255, 0.5)", url: "https://onefootball.com/pt-br/inicio", icon: "📱" }
+    ];
+  }
+
+  // Premier League (39), La Liga (140), Serie A (135)
+  if (leagueId === 39 || leagueId === 140 || leagueId === 135) {
+    return [
+      { name: "Disney+", color: "#0063E5", bg: "rgba(0, 99, 229, 0.2)", border: "rgba(0, 99, 229, 0.5)", url: "https://www.disneyplus.com/", icon: "⭐" },
+      { name: "ESPN", color: "#CC0000", bg: "rgba(204, 0, 0, 0.2)", border: "rgba(204, 0, 0, 0.5)", url: "https://www.espn.com.br/watch/", icon: "🏆" },
+      { name: "YouTube Ao Vivo", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${queryYT}`, icon: "▶" }
+    ];
+  }
+
+  // Liga Saudita (307)
+  if (leagueId === 307) {
+    return [
+      { name: "Canal GOAT (YouTube)", color: "#FACC15", bg: "rgba(250, 204, 21, 0.2)", border: "rgba(250, 204, 21, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('Canal GOAT ' + tA + ' x ' + tB)}`, icon: "🐐" },
+      { name: "BandSports", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://bandsports.band.uol.com.br/", icon: "📺" },
+      { name: "YouTube Ao Vivo", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${queryYT}`, icon: "▶" }
+    ];
+  }
+
+  // Ligue 1 (61) / Europa League (3) / Conference League (4)
+  if (leagueId === 61 || leagueId === 3 || leagueId === 4) {
+    return [
+      { name: "CazéTV (YouTube)", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}`, icon: "▶" },
+      { name: "Band / Bandplay", color: "#10B981", bg: "rgba(16, 185, 129, 0.2)", border: "rgba(16, 185, 129, 0.5)", url: "https://www.band.uol.com.br/ao-vivo", icon: "📺" },
+      { name: "Prime Video", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.2)", border: "rgba(0, 168, 225, 0.5)", url: "https://www.primevideo.com/", icon: "🎬" }
+    ];
+  }
+
+  // Fallback Geral
+  return [
+    { name: "YouTube Ao Vivo", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${queryYT}`, icon: "▶" },
+    { name: "Disney+", color: "#0063E5", bg: "rgba(0, 99, 229, 0.2)", border: "rgba(0, 99, 229, 0.5)", url: "https://www.disneyplus.com/", icon: "⭐" },
+    { name: "Max (HBO Max)", color: "#002BE7", bg: "rgba(0, 43, 231, 0.25)", border: "rgba(0, 43, 231, 0.6)", url: "https://www.max.com/", icon: "👑" },
+    { name: "Globoplay / Premiere", color: "#FF6600", bg: "rgba(255, 102, 0, 0.2)", border: "rgba(255, 102, 0, 0.5)", url: "https://globoplay.globo.com/", icon: "📺" }
+  ];
+}
+
+function renderMatchBroadcastGuide(fx) {
+  if (!fx || !fx.teams) return "";
+  const broadcasters = getLeagueBroadcasters(fx.league?.id, fx.teams.home, fx.teams.away, fx);
+
   return `
-    <div class="match-lineup-prompt-card">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:1.6rem;">📋</span>
-        <div>
-          <strong style="font-size:0.95rem;color:var(--chalk);display:block;">Qual seria a sua escalação para este jogo?</strong>
-          <span style="font-size:0.78rem;color:var(--chalk-dim);">Escale o time titular ideal e compare seu palpite com a escalação oficial quando ela sair!</span>
+    <div class="match-broadcast-card">
+      <div class="match-broadcast-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="match-broadcast-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--gold);">
+              <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+              <polyline points="17 2 12 7 7 2"></polyline>
+            </svg>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <h3 style="margin:0;font-size:1.05rem;font-weight:800;color:var(--chalk);">Onde Assistir ao Vivo</h3>
+              <span style="font-family:var(--font-mono);font-size:0.7rem;background:rgba(255,184,0,0.15);color:var(--gold);padding:2px 8px;border-radius:12px;font-weight:700;border:1px solid rgba(255,184,0,0.3);">TRANSMISSÃO OFICIAL</span>
+            </div>
+            <p style="margin:3px 0 0 0;font-size:0.8rem;color:var(--chalk-dim);">
+              Transmissão de <strong style="color:var(--chalk);">${escapeHtml(fx.teams.home.name)} × ${escapeHtml(fx.teams.away.name)}</strong> nos canais e plataformas oficiais:
+            </p>
+          </div>
         </div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <a class="btn ghost small" href="#/minha-escalacao/montar/${hId}/${fId}">Escalar ${escapeHtml(fx.teams.home.name)}</a>
-        <a class="btn ghost small" href="#/minha-escalacao/montar/${aId}/${fId}">Escalar ${escapeHtml(fx.teams.away.name)}</a>
+
+      <div class="match-broadcast-buttons">
+        ${broadcasters.map(b => `
+          <a href="${b.url}" target="_blank" rel="noopener noreferrer" class="btn-broadcast-item" style="--btn-color:${b.color};--btn-bg:${b.bg};--btn-border:${b.border};" title="Assistir no ${escapeHtml(b.name)}">
+            <span class="btn-broadcast-icon">${b.icon}</span>
+            <span class="btn-broadcast-name">${escapeHtml(b.name)}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-broadcast-arrow">
+              <line x1="7" y1="17" x2="17" y2="7"></line>
+              <polyline points="7 7 17 7 17 17"></polyline>
+            </svg>
+          </a>
+        `).join("")}
       </div>
     </div>
   `;
 }
+
