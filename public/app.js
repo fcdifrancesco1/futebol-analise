@@ -384,8 +384,8 @@ function markUpdated(fromCache = false) {
   }
 }
 
-// ---------- Requisições à API de Futebol com Cache ----------
-async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
+// ---------- Requisições à API de Futebol com Cache e Resiliência ----------
+async function apiGet(endpoint, params = {}, ttlMinutes = 15, retryCount = 1) {
   const clean = {};
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== "") clean[k] = v;
@@ -393,8 +393,9 @@ async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
   const qs = new URLSearchParams({ endpoint, ...clean }).toString();
   const cacheKey = `ap_cache_${endpoint}_${qs}`;
 
+  const memoryItem = apiCache.get(cacheKey);
+
   if (ttlMinutes > 0) {
-    const memoryItem = apiCache.get(cacheKey);
     if (memoryItem && Date.now() - memoryItem.timestamp < ttlMinutes * 60 * 1000) {
       markUpdated(true);
       return memoryItem.data;
@@ -413,29 +414,56 @@ async function apiGet(endpoint, params = {}, ttlMinutes = 15) {
     } catch { /* sessionStorage */ }
   }
 
-  const res = await fetch(`${FN_URL}?${qs}`);
-  let data;
   try {
-    data = await res.json();
-  } catch {
-    throw new Error("Resposta inválida do servidor.");
-  }
-  if (!res.ok) {
-    throw new Error(data.error || data.message || `Erro ${res.status} ao consultar dados.`);
-  }
-  if (data.errors && !Array.isArray(data.errors) && Object.keys(data.errors).length) {
-    const firstErr = Object.values(data.errors)[0];
-    throw new Error(typeof firstErr === "string" ? firstErr : "A API retornou um erro.");
-  }
+    const res = await fetch(`${FN_URL}?${qs}`);
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error("Resposta inválida do servidor.");
+    }
 
-  if (ttlMinutes > 0) {
-    const cacheObj = { data: data.response, timestamp: Date.now() };
-    apiCache.set(cacheKey, cacheObj);
-    try { sessionStorage.setItem(cacheKey, JSON.stringify(cacheObj)); } catch { /* quota */ }
-  }
+    if (!res.ok) {
+      if (retryCount > 0 && (res.status >= 500 || res.status === 429)) {
+        await new Promise(r => setTimeout(r, 1200));
+        return apiGet(endpoint, params, ttlMinutes, retryCount - 1);
+      }
+      if (memoryItem?.data) {
+        console.warn(`Aviso: Servidor retornou ${res.status}, exibindo dados em cache seguro.`);
+        markUpdated(true);
+        return memoryItem.data;
+      }
+      throw new Error(data.error || data.message || `Erro ${res.status} ao consultar dados.`);
+    }
 
-  markUpdated(false);
-  return data.response;
+    if (data.errors && !Array.isArray(data.errors) && Object.keys(data.errors).length) {
+      const firstErr = Object.values(data.errors)[0];
+      if (memoryItem?.data) {
+        return memoryItem.data;
+      }
+      throw new Error(typeof firstErr === "string" ? firstErr : "A API retornou um erro.");
+    }
+
+    if (ttlMinutes > 0) {
+      const cacheObj = { data: data.response, timestamp: Date.now() };
+      apiCache.set(cacheKey, cacheObj);
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(cacheObj)); } catch { /* quota */ }
+    }
+
+    markUpdated(false);
+    return data.response;
+  } catch (err) {
+    if (retryCount > 0) {
+      await new Promise(r => setTimeout(r, 1200));
+      return apiGet(endpoint, params, ttlMinutes, retryCount - 1);
+    }
+    if (memoryItem?.data) {
+      console.warn("Aviso: Falha temporária de rede, exibindo dados em cache.");
+      markUpdated(true);
+      return memoryItem.data;
+    }
+    throw err;
+  }
 }
 
 // ============================================================
@@ -1290,7 +1318,10 @@ function initApp() {
     clearInterval(window._globalRefreshTimer);
   }
 
+  let isGlobalRefreshing = false;
   async function executeGlobal30sRefresh() {
+    if (isGlobalRefreshing) return;
+    isGlobalRefreshing = true;
     markUpdated(false);
 
     const hash = location.hash || "#/";
@@ -1299,23 +1330,25 @@ function initApp() {
         const fixtureId = Number(hash.replace("#/jogo/", "").split("/")[0]);
         if (fixtureId) {
           apiCache.delete(`fixtures_${JSON.stringify({ id: fixtureId })}`);
-          apiCache.delete(`fixtures/events_${JSON.stringify({ fixture: fixtureId })}`);
-          apiCache.delete(`fixtures/statistics_${JSON.stringify({ fixture: fixtureId })}`);
-          apiCache.delete(`fixtures/players_${JSON.stringify({ fixture: fixtureId })}`);
-          renderFixture(fixtureId, true);
+          apiCache.delete(`fixtures/events_${JSON.stringify({ fixture: fixtureId })} `);
+          apiCache.delete(`fixtures/statistics_${JSON.stringify({ fixture: fixtureId })} `);
+          apiCache.delete(`fixtures/players_${JSON.stringify({ fixture: fixtureId })} `);
+          await renderFixture(fixtureId, true);
         }
       } else if (hash === "#/aovivo") {
-        fetchLiveMatches(true);
+        await fetchLiveMatches(true);
       } else if (hash === "#/jogos-do-dia" || hash.startsWith("#/jogos-do-dia/")) {
         const datePart = hash.replace("#/jogos-do-dia", "").replace("/", "");
         const targetDate = datePart || getLocalDateString(new Date());
         const activeFilter = document.querySelector(".matches-day-filter-btn.active")?.dataset?.filter || "all";
-        fetchAndRenderDayMatches(targetDate, activeFilter);
+        await fetchAndRenderDayMatches(targetDate, activeFilter);
       } else if (hash === "#/meu-time") {
-        renderMyTeam();
+        await renderMyTeam();
       }
     } catch (e) {
       console.warn("Auto-refresh cycle error:", e);
+    } finally {
+      isGlobalRefreshing = false;
     }
   }
 
@@ -3434,7 +3467,11 @@ async function fetchLiveMatches(isForced = false) {
         </div>
       </div>`;
   } catch (err) {
-    content.innerHTML = errorBox(err.message);
+    if (content.querySelector(".fixture-row")) {
+      console.warn("Aviso: Falha temporária ao sincronizar ao vivo, mantendo dados atuais:", err.message);
+    } else {
+      content.innerHTML = errorBox(err.message);
+    }
   }
 }
 

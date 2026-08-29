@@ -51,22 +51,28 @@ module.exports = async (req, res) => {
   const qs = new URLSearchParams(rest).toString();
   const url = `https://${API_HOST}/${endpoint}${qs ? "?" + qs : ""}`;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+
   try {
     const apiResp = await fetch(url, {
       headers: {
         "x-apisports-key": API_KEY,
       },
+      signal: controller.signal,
     });
 
+    clearTimeout(timeout);
     const data = await apiResp.json();
 
     res.status(apiResp.status);
     res.setHeader("Cache-Control", "public, max-age=60, s-maxage=60");
     res.json(data);
   } catch (err) {
+    clearTimeout(timeout);
     res.status(502).json({
-      error: "Falha ao consultar a API-Football.",
-      details: err.message,
+      error: "Falha temporária ao consultar a API-Football.",
+      details: err.name === "AbortError" ? "Timeout na resposta do servidor esportivo." : err.message,
     });
   }
 };
