@@ -1266,8 +1266,9 @@ async function renderMyTeam() {
                     <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:60px;">
                       ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
                       <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
-                      <button type="button" class="btn-fixture-highlights-center" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="margin-left:1px;"><path d="M8 5v14l11-7z"/></svg>
+                      <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                        <span style="font-size:0.6rem;line-height:1;">▶</span>
+                        <span>Melhores Momentos</span>
                       </button>
                     </div>
                     <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
@@ -2577,8 +2578,9 @@ async function renderTeam(teamId, leagueId, season) {
                     <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:60px;">
                       ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
                       <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
-                      <button type="button" class="btn-fixture-highlights-center" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="margin-left:1px;"><path d="M8 5v14l11-7z"/></svg>
+                      <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                        <span style="font-size:0.6rem;line-height:1;">▶</span>
+                        <span>Melhores Momentos</span>
                       </button>
                     </div>
                     <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
@@ -2994,8 +2996,9 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
                     <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:54px;">
                       ${scoreDisplay}
                       ${isFinished ? `
-                        <button type="button" class="btn-fixture-highlights-center" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}', '_blank', 'noopener,noreferrer');">
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="margin-left:1px;"><path d="M8 5v14l11-7z"/></svg>
+                        <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}', '_blank', 'noopener,noreferrer');">
+                          <span style="font-size:0.6rem;line-height:1;">▶</span>
+                          <span>Melhores Momentos</span>
                         </button>
                       ` : ''}
                     </div>

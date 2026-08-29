@@ -2965,28 +2965,40 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
 }
 
-.btn-fixture-highlights-center {
+.btn-fixture-highlights-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  background: rgba(239, 68, 68, 0.18);
+  gap: 4px;
+  margin-top: 4px;
+  padding: 3px 10px;
+  background: rgba(239, 68, 68, 0.15);
   color: #F87171;
-  border: 1px solid rgba(239, 68, 68, 0.45);
-  border-radius: 50%;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 16px;
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 0;
-  margin-top: 3px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  text-decoration: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
-.btn-fixture-highlights-center:hover {
-  background: #EF4444;
+.btn-fixture-highlights-pill:hover {
+  background: rgba(239, 68, 68, 0.35);
   color: #FFFFFF;
   border-color: #EF4444;
-  transform: scale(1.2);
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(239, 68, 68, 0.4);
+}
+
+@media (max-width: 480px) {
+  .btn-fixture-highlights-pill {
+    font-size: 0.58rem;
+    padding: 2px 7px;
+    gap: 3px;
+  }
 }
 
 
