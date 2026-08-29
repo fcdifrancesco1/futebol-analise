@@ -138,6 +138,7 @@ module.exports = async (req, res) => {
                   title: `📋 ESCALAÇÕES CONFIRMADAS!`,
                   body: `As escalações oficiais de ${fx.teams.home.name} × ${fx.teams.away.name} já estão no ar!`,
                   icon: fx.teams.home.logo,
+                  badge: "https://futebol-analise.vercel.app/badge-96.png",
                                     tag: `lineups-${fixtureId}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
@@ -159,6 +160,7 @@ module.exports = async (req, res) => {
             title: `⏱️ BOLA ROLANDO!`, 
             body: `⏱️ Começou ${fx.teams.home.name} × ${fx.teams.away.name} pela ${fx.league.name}!`,
             icon: fx.teams.home.logo,
+                  badge: "https://futebol-analise.vercel.app/badge-96.png",
             tag: `kickoff-${fixtureId}`,
             data: { url: `/#/jogo/${fixtureId}` }
           });
@@ -175,6 +177,7 @@ module.exports = async (req, res) => {
             title: `⏸️ INTERVALO: ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
             body: `Fim do primeiro tempo! Placar parcial: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
             icon: fx.teams.home.logo,
+                  badge: "https://futebol-analise.vercel.app/badge-96.png",
                         tag: `halftime-${fixtureId}`,
             data: { url: `/#/jogo/${fixtureId}` }
           });
@@ -191,6 +194,7 @@ module.exports = async (req, res) => {
             title: `🏁 FIM DE JOGO: ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
             body: `Partida encerrada! Placar final: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
             icon: fx.teams.home.logo,
+                  badge: "https://futebol-analise.vercel.app/badge-96.png",
                         tag: `fulltime-${fixtureId}`,
             data: { url: `/#/jogo/${fixtureId}` }
           });

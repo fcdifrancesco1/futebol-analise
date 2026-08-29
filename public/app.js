@@ -1196,7 +1196,6 @@ async function renderMyTeam() {
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
-                    <span class="highlights-placeholder"></span>
                   </a>
                 `;
               }).join("")}
@@ -1264,19 +1263,17 @@ async function renderMyTeam() {
                       <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:60px;">
                       ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
                       <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
+                      <button type="button" class="btn-fixture-highlights-center" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="margin-left:1px;"><path d="M8 5v14l11-7z"/></svg>
+                      </button>
                     </div>
                     <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
-                    <button type="button" class="btn-fixture-highlights" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z"/>
-                      </svg>
-                    </button>
                   </a>
                 `;
               }).join("")}
@@ -2510,7 +2507,6 @@ async function renderTeam(teamId, leagueId, season) {
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
-                    <span class="highlights-placeholder"></span>
                   </a>
                 `;
               }).join("")}
@@ -2578,19 +2574,17 @@ async function renderTeam(teamId, leagueId, season) {
                       <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:60px;">
                       ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
                       <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
+                      <button type="button" class="btn-fixture-highlights-center" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="margin-left:1px;"><path d="M8 5v14l11-7z"/></svg>
+                      </button>
                     </div>
                     <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
-                    <button type="button" class="btn-fixture-highlights" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z"/>
-                      </svg>
-                    </button>
                   </a>
                 `;
               }).join("")}
@@ -2997,18 +2991,18 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
                       <span>${escapeHtml(f.teams.home.name)}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
-                    ${scoreDisplay}
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:54px;">
+                      ${scoreDisplay}
+                      ${isFinished ? `
+                        <button type="button" class="btn-fixture-highlights-center" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}', '_blank', 'noopener,noreferrer');">
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="margin-left:1px;"><path d="M8 5v14l11-7z"/></svg>
+                        </button>
+                      ` : ''}
+                    </div>
                     <div class="fixture-team-item">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span>${escapeHtml(f.teams.away.name)}</span>
                     </div>
-                    ${isFinished ? `
-                      <button type="button" class="btn-fixture-highlights" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}', '_blank', 'noopener,noreferrer');">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M8 5v14l11-7z"/>
-                        </svg>
-                      </button>
-                    ` : '<span class="highlights-placeholder"></span>'}
                   </a>`;
               }).join("")}
             </div>

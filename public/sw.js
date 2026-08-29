@@ -2,7 +2,7 @@
 // Service Worker — FutStats PWA & Push Notifications
 // ============================================================
 
-const CACHE_NAME = "futstats-cache-v41";
+const CACHE_NAME = "futstats-cache-v42";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
@@ -76,7 +76,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body,
     icon: data.icon || "/icon-192.png",
-    badge: data.badge || "/icon-192.png",
+    badge: data.badge || "/badge-96.png",
     vibrate: [200, 100, 200, 100, 200],
     data: data.data || { url: "/#/" },
     tag: data.tag || "match-event-" + Date.now(),
