@@ -5929,10 +5929,10 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
   // Brasileirão Série A (71)
   if (leagueId === 71) {
     return [
-      { name: "Premiere", logo: "/broadcast-logos/premiere.svg", color: "#0056B3", bg: "rgba(0, 86, 179, 0.2)", border: "rgba(0, 86, 179, 0.5)", url: "https://globoplay.globo.com/premiere/" },
-      { name: "SporTV", logo: "/broadcast-logos/sportv.svg", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/" },
-      { name: "TV Globo", logo: "/broadcast-logos/globo.svg", color: "#FF6600", bg: "rgba(255, 102, 0, 0.2)", border: "rgba(255, 102, 0, 0.5)", url: "https://globoplay.globo.com/" },
-      { name: "CazéTV", logo: "/broadcast-logos/cazetv.svg", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` },
+      { name: "Premiere", logo: "/broadcast-logos/premiere.png", color: "#0056B3", bg: "rgba(0, 86, 179, 0.2)", border: "rgba(0, 86, 179, 0.5)", url: "https://globoplay.globo.com/premiere/" },
+      { name: "SporTV", logo: "/broadcast-logos/sportv.jpg", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/" },
+      { name: "TV Globo", logo: "/broadcast-logos/globo.jpg", color: "#FF6600", bg: "rgba(255, 102, 0, 0.2)", border: "rgba(255, 102, 0, 0.5)", url: "https://globoplay.globo.com/" },
+      { name: "CazéTV", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` },
       { name: "Prime Video", logo: "/broadcast-logos/prime-video.svg", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.2)", border: "rgba(0, 168, 225, 0.5)", url: "https://www.primevideo.com/" }
     ];
   }
@@ -5940,8 +5940,8 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
   // Brasileirão Série B (72)
   if (leagueId === 72) {
     return [
-      { name: "Premiere", logo: "/broadcast-logos/premiere.svg", color: "#0056B3", bg: "rgba(0, 86, 179, 0.2)", border: "rgba(0, 86, 179, 0.5)", url: "https://globoplay.globo.com/premiere/" },
-      { name: "SporTV", logo: "/broadcast-logos/sportv.svg", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/" },
+      { name: "Premiere", logo: "/broadcast-logos/premiere.png", color: "#0056B3", bg: "rgba(0, 86, 179, 0.2)", border: "rgba(0, 86, 179, 0.5)", url: "https://globoplay.globo.com/premiere/" },
+      { name: "SporTV", logo: "/broadcast-logos/sportv.jpg", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/" },
       { name: "Canal GOAT", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.2)", border: "rgba(250, 204, 21, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('Canal GOAT ' + tA + ' x ' + tB)}` },
       { name: "YouTube", logo: "/broadcast-logos/youtube.svg", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${queryYT}` }
     ];
@@ -5950,9 +5950,9 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
   // Copa do Brasil (73)
   if (leagueId === 73) {
     return [
-      { name: "TV Globo", logo: "/broadcast-logos/globo.svg", color: "#FF6600", bg: "rgba(255, 102, 0, 0.2)", border: "rgba(255, 102, 0, 0.5)", url: "https://globoplay.globo.com/" },
-      { name: "SporTV", logo: "/broadcast-logos/sportv.svg", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/" },
-      { name: "Premiere", logo: "/broadcast-logos/premiere.svg", color: "#0056B3", bg: "rgba(0, 86, 179, 0.2)", border: "rgba(0, 86, 179, 0.5)", url: "https://globoplay.globo.com/premiere/" },
+      { name: "TV Globo", logo: "/broadcast-logos/globo.jpg", color: "#FF6600", bg: "rgba(255, 102, 0, 0.2)", border: "rgba(255, 102, 0, 0.5)", url: "https://globoplay.globo.com/" },
+      { name: "SporTV", logo: "/broadcast-logos/sportv.jpg", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/" },
+      { name: "Premiere", logo: "/broadcast-logos/premiere.png", color: "#0056B3", bg: "rgba(0, 86, 179, 0.2)", border: "rgba(0, 86, 179, 0.5)", url: "https://globoplay.globo.com/premiere/" },
       { name: "Prime Video", logo: "/broadcast-logos/prime-video.svg", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.2)", border: "rgba(0, 168, 225, 0.5)", url: "https://www.primevideo.com/" }
     ];
   }
@@ -5963,7 +5963,7 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
       { name: "Disney+", logo: "/broadcast-logos/disney-plus.webp", color: "#0063E5", bg: "rgba(0, 99, 229, 0.2)", border: "rgba(0, 99, 229, 0.5)", url: "https://www.disneyplus.com/" },
       { name: "ESPN", logo: "/broadcast-logos/espn.png", color: "#CC0000", bg: "rgba(204, 0, 0, 0.2)", border: "rgba(204, 0, 0, 0.5)", url: "https://www.espn.com.br/watch/" },
       { name: "Paramount+", logo: "/broadcast-logos/paramount.svg", color: "#0064FF", bg: "rgba(0, 100, 255, 0.2)", border: "rgba(0, 100, 255, 0.5)", url: "https://www.paramountplus.com/" },
-      { name: leagueId === 13 ? "TV Globo" : "SBT", logo: leagueId === 13 ? "/broadcast-logos/globo.svg" : "/broadcast-logos/sbt.svg", color: "#10B981", bg: "rgba(16, 185, 129, 0.2)", border: "rgba(16, 185, 129, 0.5)", url: leagueId === 13 ? "https://globoplay.globo.com/" : "https://www.sbt.com.br/ao-vivo" }
+      { name: leagueId === 13 ? "TV Globo" : "SBT", logo: leagueId === 13 ? "/broadcast-logos/globo.jpg" : "/broadcast-logos/sbt.svg", color: "#10B981", bg: "rgba(16, 185, 129, 0.2)", border: "rgba(16, 185, 129, 0.5)", url: leagueId === 13 ? "https://globoplay.globo.com/" : "https://www.sbt.com.br/ao-vivo" }
     ];
   }
 
@@ -5980,8 +5980,8 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
   if (leagueId === 78) {
     return [
       { name: "Canal GOAT", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.2)", border: "rgba(250, 204, 21, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('Canal GOAT ' + tA + ' x ' + tB)}` },
-      { name: "CazéTV", logo: "/broadcast-logos/cazetv.svg", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` },
-      { name: "SporTV", logo: "/broadcast-logos/sportv.svg", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/" },
+      { name: "CazéTV", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` },
+      { name: "SporTV", logo: "/broadcast-logos/sportv.jpg", color: "#00A650", bg: "rgba(0, 166, 80, 0.2)", border: "rgba(0, 166, 80, 0.5)", url: "https://globoplay.globo.com/sportv/" },
       { name: "OneFootball", logo: "/broadcast-logos/onefootball.svg", color: "#00E5FF", bg: "rgba(0, 229, 255, 0.2)", border: "rgba(0, 229, 255, 0.5)", url: "https://onefootball.com/pt-br/inicio" }
     ];
   }
@@ -6007,7 +6007,7 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
   // Ligue 1 (61) / Europa League (3) / Conference League (4)
   if (leagueId === 61 || leagueId === 3 || leagueId === 4) {
     return [
-      { name: "CazéTV", logo: "/broadcast-logos/cazetv.svg", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` },
+      { name: "CazéTV", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` },
       { name: "Band", logo: "/broadcast-logos/band.svg", color: "#10B981", bg: "rgba(16, 185, 129, 0.2)", border: "rgba(16, 185, 129, 0.5)", url: "https://www.band.uol.com.br/ao-vivo" },
       { name: "Prime Video", logo: "/broadcast-logos/prime-video.svg", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.2)", border: "rgba(0, 168, 225, 0.5)", url: "https://www.primevideo.com/" }
     ];
@@ -6018,7 +6018,7 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
     { name: "YouTube Ao Vivo", logo: "/broadcast-logos/youtube.svg", color: "#EF4444", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.5)", url: `https://www.youtube.com/results?search_query=${queryYT}` },
     { name: "Disney+", logo: "/broadcast-logos/disney-plus.webp", color: "#0063E5", bg: "rgba(0, 99, 229, 0.2)", border: "rgba(0, 99, 229, 0.5)", url: "https://www.disneyplus.com/" },
     { name: "HBO Max", logo: "/broadcast-logos/hbo-max.jpg", color: "#002BE7", bg: "rgba(0, 43, 231, 0.25)", border: "rgba(0, 43, 231, 0.6)", url: "https://www.max.com/" },
-    { name: "Globoplay", logo: "/broadcast-logos/globo.svg", color: "#FF6600", bg: "rgba(255, 102, 0, 0.2)", border: "rgba(255, 102, 0, 0.5)", url: "https://globoplay.globo.com/" }
+    { name: "Globoplay", logo: "/broadcast-logos/globo.jpg", color: "#FF6600", bg: "rgba(255, 102, 0, 0.2)", border: "rgba(255, 102, 0, 0.5)", url: "https://globoplay.globo.com/" }
   ];
 }
 
