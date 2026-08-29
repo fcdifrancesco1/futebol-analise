@@ -3057,70 +3057,87 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 .match-broadcast-buttons {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-.btn-broadcast-item {
+.btn-broadcast-card {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--btn-bg, rgba(255, 255, 255, 0.06));
-  color: var(--chalk);
+  gap: 10px;
+  padding: 6px 16px 6px 8px;
+  background: var(--btn-bg, rgba(255, 255, 255, 0.05));
   border: 1px solid var(--btn-border, rgba(255, 255, 255, 0.15));
-  border-radius: 10px;
-  font-family: var(--font-body);
-  font-size: 0.82rem;
-  font-weight: 700;
+  border-radius: 12px;
+  color: var(--chalk);
   text-decoration: none;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   cursor: pointer;
 }
 
-.btn-broadcast-item:hover {
+.btn-broadcast-card:hover {
   background: var(--btn-color, var(--gold));
   color: #051322;
   border-color: var(--btn-color, var(--gold));
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
-.btn-broadcast-icon {
-  font-size: 1rem;
-  line-height: 1;
+.btn-broadcast-logo-wrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.btn-broadcast-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .btn-broadcast-name {
   font-family: var(--font-display);
-  letter-spacing: 0.01em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .btn-broadcast-arrow {
   opacity: 0.6;
   transition: transform 0.2s ease, opacity 0.2s ease;
+  flex-shrink: 0;
 }
 
-.btn-broadcast-item:hover .btn-broadcast-arrow {
+.btn-broadcast-card:hover .btn-broadcast-arrow {
   opacity: 1;
   transform: translate(2px, -2px);
   stroke: #051322;
 }
 
 @media (max-width: 600px) {
-  .match-broadcast-card {
-    padding: 14px;
-    gap: 12px;
-  }
   .match-broadcast-buttons {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
     gap: 8px;
   }
-  .btn-broadcast-item {
-    justify-content: center;
-    padding: 8px 10px;
+  .btn-broadcast-card {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  .btn-broadcast-logo-wrap {
+    width: 28px;
+    height: 28px;
+  }
+  .btn-broadcast-name {
     font-size: 0.76rem;
   }
 }
