@@ -5993,8 +5993,17 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
     ];
   }
 
-  // 6. Premier League (39), La Liga (140), Serie A (135)
-  if (leagueId === 39 || leagueId === 140 || leagueId === 135) {
+  // 6. La Liga Espanhola (140)
+  if (leagueId === 140) {
+    return [
+      { name: "Disney+", tag: "100% dos Jogos Ao Vivo", logo: "/broadcast-logos/disney-plus.webp", color: "#0063E5", bg: "rgba(0, 99, 229, 0.15)", border: "rgba(0, 99, 229, 0.4)", url: "https://www.disneyplus.com/" },
+      { name: "ESPN", tag: "TV Fechada", logo: "/broadcast-logos/espn.png", color: "#CC0000", bg: "rgba(204, 0, 0, 0.15)", border: "rgba(204, 0, 0, 0.4)", url: "https://www.espn.com.br/watch/" },
+      { name: "CazéTV", tag: "YouTube Grátis", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` }
+    ];
+  }
+
+  // 7. Premier League (39) e Serie A Italiana (135)
+  if (leagueId === 39 || leagueId === 135) {
     return [
       { name: "Disney+", tag: "100% dos Jogos Ao Vivo", logo: "/broadcast-logos/disney-plus.webp", color: "#0063E5", bg: "rgba(0, 99, 229, 0.15)", border: "rgba(0, 99, 229, 0.4)", url: "https://www.disneyplus.com/" },
       { name: "ESPN", tag: "TV Fechada", logo: "/broadcast-logos/espn.png", color: "#CC0000", bg: "rgba(204, 0, 0, 0.15)", border: "rgba(204, 0, 0, 0.4)", url: "https://www.espn.com.br/watch/" }
