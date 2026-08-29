@@ -18,6 +18,7 @@ const LEAGUES = [
   { id: 61, name: "Ligue 1", country: "França", calendarYear: false, isCup: false },
   { id: 78, name: "Bundesliga", country: "Alemanha", calendarYear: false, isCup: false },
   { id: 135, name: "Serie A", country: "Itália", calendarYear: false, isCup: false },
+  { id: 307, name: "Liga Profissional Saudita", country: "Arábia Saudita", calendarYear: false, isCup: false },
   { id: 2, name: "Champions League", country: "UEFA", calendarYear: false, isCup: true },
   { id: 3, name: "Europa League", country: "UEFA", calendarYear: false, isCup: true },
   { id: 4, name: "Conference League", country: "UEFA", calendarYear: false, isCup: true },

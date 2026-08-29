@@ -2,18 +2,19 @@
 // Service Worker — FutStats PWA & Push Notifications
 // ============================================================
 
-const CACHE_NAME = "futstats-cache-v43";
+const CACHE_NAME = "futstats-cache-v44";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
   "/style.css",
-  "/style.css?v=41",
+  "/style.css?v=44",
   "/app.js",
-  "/app.js?v=41",
+  "/app.js?v=44",
   "/manifest.json",
   "/fundo.jpeg",
   "/icon-192.png",
-  "/icon-512.png"
+  "/icon-512.png",
+  "/badge-96.png"
 ];
 
 self.addEventListener("install", (e) => {
