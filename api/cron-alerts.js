@@ -103,7 +103,7 @@ module.exports = async (req, res) => {
       const awayId = fx.teams.away.id;
       const elapsed = fx.fixture.status.elapsed;
       const statusShort = fx.fixture.status.short;
-      const score = `${fx.goals.home ?? 0} x ${fx.goals.away ?? 0}`;
+      const baseScore = `${fx.goals.home ?? 0} x ${fx.goals.away ?? 0}`;
 
       // Filtrar inscritos que seguem os times OU esta partida específica
       const matchingSubs = subscribers.filter(sub => {
@@ -139,7 +139,7 @@ module.exports = async (req, res) => {
                   body: `As escalações oficiais de ${fx.teams.home.name} × ${fx.teams.away.name} já estão no ar!`,
                   icon: fx.teams.home.logo,
                   badge: "https://futebol-analise.vercel.app/badge-96.png",
-                                    tag: `lineups-${fixtureId}`,
+                  tag: `lineups-${fixtureId}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
               }
@@ -160,7 +160,7 @@ module.exports = async (req, res) => {
             title: `⏱️ BOLA ROLANDO!`, 
             body: `⏱️ Começou ${fx.teams.home.name} × ${fx.teams.away.name} pela ${fx.league.name}!`,
             icon: fx.teams.home.logo,
-                  badge: "https://futebol-analise.vercel.app/badge-96.png",
+            badge: "https://futebol-analise.vercel.app/badge-96.png",
             tag: `kickoff-${fixtureId}`,
             data: { url: `/#/jogo/${fixtureId}` }
           });
@@ -174,11 +174,11 @@ module.exports = async (req, res) => {
           if (prefs.halftime === false) continue;
 
           await dispatchPushOnce(sub, {
-            title: `⏸️ INTERVALO: ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
-            body: `Fim do primeiro tempo! Placar parcial: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
+            title: `⏸️ INTERVALO: ${fx.teams.home.name} ${baseScore} ${fx.teams.away.name}`,
+            body: `Fim do primeiro tempo! Placar parcial: ${fx.teams.home.name} ${baseScore} ${fx.teams.away.name}.`,
             icon: fx.teams.home.logo,
-                  badge: "https://futebol-analise.vercel.app/badge-96.png",
-                        tag: `halftime-${fixtureId}`,
+            badge: "https://futebol-analise.vercel.app/badge-96.png",
+            tag: `halftime-${fixtureId}`,
             data: { url: `/#/jogo/${fixtureId}` }
           });
         }
@@ -191,11 +191,11 @@ module.exports = async (req, res) => {
           if (prefs.fulltime === false) continue;
 
           await dispatchPushOnce(sub, {
-            title: `🏁 FIM DE JOGO: ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
-            body: `Partida encerrada! Placar final: ${fx.teams.home.name} ${score} ${fx.teams.away.name}.`,
+            title: `🏁 FIM DE JOGO: ${fx.teams.home.name} ${baseScore} ${fx.teams.away.name}`,
+            body: `Partida encerrada! Placar final: ${fx.teams.home.name} ${baseScore} ${fx.teams.away.name}.`,
             icon: fx.teams.home.logo,
-                  badge: "https://futebol-analise.vercel.app/badge-96.png",
-                        tag: `fulltime-${fixtureId}`,
+            badge: "https://futebol-analise.vercel.app/badge-96.png",
+            tag: `fulltime-${fixtureId}`,
             data: { url: `/#/jogo/${fixtureId}` }
           });
         }
@@ -210,33 +210,60 @@ module.exports = async (req, res) => {
           const eventsData = await eventsResp.json();
           const events = eventsData.response || [];
 
-          // Filtrar eventos dos últimos 2 minutos
+          // Calcular o placar real atual baseado na contagem de gols da lista de eventos
+          let realHomeGoals = 0;
+          let realAwayGoals = 0;
+          events.forEach(e => {
+            if (e.type === "Goal" && e.detail !== "Missed Penalty") {
+              if (e.team?.id === homeId) realHomeGoals++;
+              else if (e.team?.id === awayId) realAwayGoals++;
+            }
+          });
+
+          // Filtrar eventos dos últimos 3 minutos
           const recentEvents = events.filter(e => {
-            const eventMin = e.time.elapsed;
-            return elapsed && (elapsed - eventMin <= 2 && elapsed - eventMin >= 0);
+            const eventMin = e.time?.elapsed;
+            return elapsed && (elapsed - eventMin <= 3 && elapsed - eventMin >= 0);
           });
 
           for (const ev of recentEvents) {
             const teamName = ev.team?.name || "Seu time";
-            const playerName = ev.player?.name || "Jogador";
+            const rawPlayer = ev.player?.name;
+            const isOwnGoal = ev.detail === "Own Goal";
+            const isPen = ev.detail === "Penalty";
 
             // GOL
             if (ev.type === "Goal" && ev.detail !== "Missed Penalty") {
+              // Garante que o time que marcou tenha pelo menos 1 gol ou o valor real acumulado
+              const finalHomeGoals = Math.max(realHomeGoals, fx.goals?.home ?? 0, (ev.team?.id === homeId ? 1 : 0));
+              const finalAwayGoals = Math.max(realAwayGoals, fx.goals?.away ?? 0, (ev.team?.id === awayId ? 1 : 0));
+              const dynamicScore = `${finalHomeGoals} x ${finalAwayGoals}`;
+
+              let playerPhrase = "";
+              if (rawPlayer && rawPlayer.trim() && rawPlayer.toLowerCase() !== "jogador") {
+                playerPhrase = `${rawPlayer}${isPen ? ' (pênalti)' : isOwnGoal ? ' (contra)' : ''} marca aos ${ev.time.elapsed}'!`;
+              } else {
+                playerPhrase = `Gol ${isOwnGoal ? 'contra ' : ''}do ${teamName} aos ${ev.time.elapsed}'!`;
+              }
+
               for (const sub of matchingSubs) {
                 const prefs = sub.preferences || {};
                 if (prefs.goals === false) continue;
 
                 await dispatchPushOnce(sub, {
                   title: `⚽ GOL DO ${teamName.toUpperCase()}!`, 
-                  body: `⚽ ${playerName} marca aos ${ev.time.elapsed}'! ${fx.teams.home.name} ${score} ${fx.teams.away.name}`,
+                  body: `⚽ ${playerPhrase} ${fx.teams.home.name} ${dynamicScore} ${fx.teams.away.name}`,
                   icon: ev.team?.logo || fx.teams.home.logo,
-                  tag: `goal-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
+                  badge: "https://futebol-analise.vercel.app/badge-96.png",
+                  tag: `goal-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ev.team?.id || ''}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
               }
             } 
             // CARTÃO VERMELHO
             else if (ev.type === "Card" && (ev.detail === "Red Card" || ev.detail === "Yellow Red")) {
+              const playerName = (rawPlayer && rawPlayer.trim() && rawPlayer.toLowerCase() !== "jogador") ? rawPlayer : teamName;
+              
               for (const sub of matchingSubs) {
                 const prefs = sub.preferences || {};
                 if (prefs.redcards === false) continue;
@@ -245,6 +272,7 @@ module.exports = async (req, res) => {
                   title: `🟥 CARTÃO VERMELHO!`, 
                   body: `🟥 ${playerName} (${teamName}) foi expulso aos ${ev.time.elapsed}'!`,
                   icon: ev.team?.logo || fx.teams.home.logo,
+                  badge: "https://futebol-analise.vercel.app/badge-96.png",
                   tag: `redcard-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
