@@ -1838,7 +1838,7 @@ async function renderStandingsFromCache(leagueId, season) {
 
     let tablesToRender = officialStandings;
 
-    // Se houver jogos finalizados, reconcilia a tabela para garantir sincronismo em tempo real imediato
+    // Se houver jogos finalizados, reconcilia a tabela aplicando as regras oficiais de desempate da liga
     if (finishedFixtures.length > 0) {
       const officialNotes = {};
       officialStandings.flat().forEach(t => {
@@ -1853,22 +1853,144 @@ async function renderStandingsFromCache(leagueId, season) {
         tablesToRender = officialStandings.map(groupTable => {
           const groupTeamIds = new Set(groupTable.map(t => t.team.id));
           const groupFinished = finishedFixtures.filter(f => groupTeamIds.has(f.teams.home.id) && groupTeamIds.has(f.teams.away.id));
-          return computeTableFromFixtures(groupFinished, groupTable, officialNotes);
+          return computeTableFromFixtures(groupFinished, groupTable, officialNotes, leagueId);
         });
       } else {
-        tablesToRender = [computeTableFromFixtures(finishedFixtures, officialStandings[0], officialNotes)];
+        tablesToRender = [computeTableFromFixtures(finishedFixtures, officialStandings[0], officialNotes, leagueId)];
       }
     }
 
     content.innerHTML = tablesToRender.map((table, gi) => 
-      renderStandingsTable(table, leagueId, season, tablesToRender.length > 1 ? `Grupo ${gi + 1}` : null, state.currentTableFilter)
+      renderStandingsTable(table, leagueId, season, tablesToRender.length > 1 ? `Grupo ${gi + 1}` : null, state.currentTableFilter, finishedFixtures)
     ).join("");
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
 }
 
-function computeTableFromFixtures(fixtures, templateTable, officialNotes) {
+// ============================================================
+// MOTOR DE CRITÉRIOS DE DESEMPATE OFICIAIS POR COMPETIÇÃO
+// ============================================================
+
+/**
+ * Ordena a tabela de classificação de acordo com o regulamento oficial de cada liga:
+ * 
+ * 🇧🇷 Brasileirão Série A / Série B (71, 72):
+ *    1º Pontos | 2º Vitórias | 3º Saldo de Gols | 4º Gols Pró | 5º Confronto Direto
+ * 
+ * 🇪🇸 La Liga (140), 🇮🇹 Serie A (135), 🇸🇦 Liga Saudita (307):
+ *    1º Pontos | 2º Confronto Direto (Pts) | 3º Saldo no Confronto | 4º Saldo de Gols Geral | 5º Gols Pró | 6º Vitórias
+ * 
+ * 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (39), 🇩🇪 Bundesliga (78), 🇫🇷 Ligue 1 (61), 🏆 UEFA (2, 3, 4), 🌎 CONMEBOL (13, 11):
+ *    1º Pontos | 2º Saldo de Gols Geral | 3º Gols Pró Geral | 4º Confronto Direto | 5º Gols Fora de Casa | 6º Vitórias
+ */
+function sortStandingsByLeagueRules(table, leagueId, fixtures = [], filter = "all") {
+  const isBrazil = (leagueId === 71 || leagueId === 72 || leagueId === 73);
+  const isHeadToHeadFirst = (leagueId === 140 || leagueId === 135 || leagueId === 307);
+
+  const getStats = (t) => {
+    if (filter === "home") {
+      const p = t.home || { win: 0, draw: 0, lose: 0, goals: { for: 0, against: 0 } };
+      return {
+        pts: (p.win * 3 + p.draw),
+        win: p.win,
+        gf: p.goals.for,
+        ga: p.goals.against,
+        diff: p.goals.for - p.goals.against,
+        awayGf: 0,
+        awayWins: 0
+      };
+    }
+    if (filter === "away") {
+      const p = t.away || { win: 0, draw: 0, lose: 0, goals: { for: 0, against: 0 } };
+      return {
+        pts: (p.win * 3 + p.draw),
+        win: p.win,
+        gf: p.goals.for,
+        ga: p.goals.against,
+        diff: p.goals.for - p.goals.against,
+        awayGf: p.goals.for,
+        awayWins: p.win
+      };
+    }
+    const a = t.all || { win: 0, draw: 0, lose: 0, goals: { for: 0, against: 0 } };
+    const aw = t.away || { win: 0, goals: { for: 0 } };
+    return {
+      pts: t.points || 0,
+      win: a.win || 0,
+      gf: a.goals.for || 0,
+      ga: a.goals.against || 0,
+      diff: (a.goals.for || 0) - (a.goals.against || 0),
+      awayGf: aw.goals.for || 0,
+      awayWins: aw.win || 0
+    };
+  };
+
+  const getHeadToHead = (teamAId, teamBId) => {
+    if (!fixtures || !fixtures.length) return { ptsA: 0, ptsB: 0, diffA: 0, diffB: 0, played: 0 };
+    const h2h = fixtures.filter(f => 
+      (f.teams?.home?.id === teamAId && f.teams?.away?.id === teamBId) ||
+      (f.teams?.home?.id === teamBId && f.teams?.away?.id === teamAId)
+    );
+    let ptsA = 0, ptsB = 0, gfA = 0, gfB = 0;
+    h2h.forEach(f => {
+      const hGoals = f.goals?.home ?? 0;
+      const aGoals = f.goals?.away ?? 0;
+      if (f.teams.home.id === teamAId) {
+        gfA += hGoals; gfB += aGoals;
+        if (hGoals > aGoals) ptsA += 3;
+        else if (hGoals === aGoals) { ptsA += 1; ptsB += 1; }
+        else ptsB += 3;
+      } else {
+        gfA += aGoals; gfB += hGoals;
+        if (aGoals > hGoals) ptsA += 3;
+        else if (hGoals === aGoals) { ptsA += 1; ptsB += 1; }
+        else ptsB += 3;
+      }
+    });
+    return { ptsA, ptsB, diffA: gfA - gfB, diffB: gfB - gfA, played: h2h.length };
+  };
+
+  return [...table].sort((a, b) => {
+    const sA = getStats(a);
+    const sB = getStats(b);
+
+    // 1. PONTUAÇÃO (Geral em todas as ligas)
+    if (sB.pts !== sA.pts) return sB.pts - sA.pts;
+
+    // === CRITÉRIO BRASIL (Série A & Série B): 1º Vitórias, 2º Saldo de Gols, 3º Gols Pró, 4º Confronto Direto
+    if (isBrazil) {
+      if (sB.win !== sA.win) return sB.win - sA.win;
+      if (sB.diff !== sA.diff) return sB.diff - sA.diff;
+      if (sB.gf !== sA.gf) return sB.gf - sA.gf;
+      const h2h = getHeadToHead(a.team?.id, b.team?.id);
+      if (h2h.played > 0 && h2h.ptsB !== h2h.ptsA) return h2h.ptsB - h2h.ptsA;
+      return (a.team?.name || "").localeCompare(b.team?.name || "");
+    }
+
+    // === CRITÉRIO ESPANHA / ITÁLIA / SAUDITA: 1º Confronto Direto, 2º Saldo Confronto, 3º Saldo Geral, 4º Gols Pró
+    if (isHeadToHeadFirst) {
+      const h2h = getHeadToHead(a.team?.id, b.team?.id);
+      if (h2h.played > 0 && h2h.ptsB !== h2h.ptsA) return h2h.ptsB - h2h.ptsA;
+      if (h2h.played > 0 && h2h.diffB !== h2h.diffA) return h2h.diffB - h2h.diffA;
+      if (sB.diff !== sA.diff) return sB.diff - sA.diff;
+      if (sB.gf !== sA.gf) return sB.gf - sA.gf;
+      if (sB.win !== sA.win) return sB.win - sA.win;
+      return (a.team?.name || "").localeCompare(b.team?.name || "");
+    }
+
+    // === CRITÉRIO PREMIER LEAGUE / BUNDESLIGA / LIGUE 1 / UEFA: 1º Saldo de Gols Geral, 2º Gols Pró, 3º Confronto Direto, 4º Gols Fora
+    if (sB.diff !== sA.diff) return sB.diff - sA.diff;
+    if (sB.gf !== sA.gf) return sB.gf - sA.gf;
+    const h2h = getHeadToHead(a.team?.id, b.team?.id);
+    if (h2h.played > 0 && h2h.ptsB !== h2h.ptsA) return h2h.ptsB - h2h.ptsA;
+    if (sB.awayGf !== sA.awayGf) return sB.awayGf - sA.awayGf;
+    if (sB.win !== sA.win) return sB.win - sA.win;
+    return (a.team?.name || "").localeCompare(b.team?.name || "");
+  });
+}
+
+function computeTableFromFixtures(fixtures, templateTable, officialNotes, leagueId) {
   const teamsMap = {};
 
   templateTable.forEach(t => {
@@ -1950,25 +2072,11 @@ function computeTableFromFixtures(fixtures, templateTable, officialNotes) {
     t.form = t.matches.map(m => m.res).join('');
   });
 
-  result.sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    const diffA = a.all.goals.for - a.all.goals.against;
-    const diffB = b.all.goals.for - b.all.goals.against;
-    if (diffB !== diffA) return diffB - diffA;
-    if (b.all.goals.for !== a.all.goals.for) return b.all.goals.for - a.all.goals.for;
-    return a.team.name.localeCompare(b.team.name);
-  });
-
-  return result;
+  return sortStandingsByLeagueRules(result, leagueId, fixtures, "all");
 }
 
-function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all") {
-  let sortedTable = [...table];
-  if (filter === "home") {
-    sortedTable.sort((a, b) => (b.home.win * 3 + b.home.draw) - (a.home.win * 3 + a.home.draw));
-  } else if (filter === "away") {
-    sortedTable.sort((a, b) => (b.away.win * 3 + b.away.draw) - (a.away.win * 3 + a.away.draw));
-  }
+function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all", finishedFixtures = []) {
+  const sortedTable = sortStandingsByLeagueRules(table, leagueId, finishedFixtures, filter);
 
   const rows = sortedTable.map((row, idx) => {
     const stat = filter === "home" ? row.home : filter === "away" ? row.away : row.all;
