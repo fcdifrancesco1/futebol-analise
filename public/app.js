@@ -8,20 +8,31 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const VAPID_PUBLIC_KEY = "BMjC-8Rjccu_uZoj0BaFDXpUatXC1yShp_foJEdb0uixT398zbT4JlvTfRDeRswaBqRQx6ezRF8mAutCCfE-Q6A";
 
 const LEAGUES = [
+  // Ligas Nacionais
   { id: 71, name: "Brasileirão Série A", country: "Brasil", calendarYear: true, isCup: false },
   { id: 72, name: "Brasileirão Série B", country: "Brasil", calendarYear: true, isCup: false },
-  { id: 13, name: "Copa Libertadores", country: "América do Sul", calendarYear: true, isCup: true },
-  { id: 11, name: "Copa Sul-Americana", country: "América do Sul", calendarYear: true, isCup: true },
-  { id: 73, name: "Copa do Brasil", country: "Brasil", calendarYear: true, isCup: true },
   { id: 140, name: "La Liga", country: "Espanha", calendarYear: false, isCup: false },
   { id: 39, name: "Premier League", country: "Inglaterra", calendarYear: false, isCup: false },
   { id: 61, name: "Ligue 1", country: "França", calendarYear: false, isCup: false },
   { id: 78, name: "Bundesliga", country: "Alemanha", calendarYear: false, isCup: false },
   { id: 135, name: "Serie A", country: "Itália", calendarYear: false, isCup: false },
   { id: 307, name: "Liga Profissional Saudita", country: "Arábia Saudita", calendarYear: false, isCup: false },
+
+  // Copas Continentais
   { id: 2, name: "Champions League", country: "UEFA", calendarYear: false, isCup: true },
   { id: 3, name: "Europa League", country: "UEFA", calendarYear: false, isCup: true },
   { id: 4, name: "Conference League", country: "UEFA", calendarYear: false, isCup: true },
+  { id: 13, name: "Copa Libertadores", country: "América do Sul", calendarYear: true, isCup: true },
+  { id: 11, name: "Copa Sul-Americana", country: "América do Sul", calendarYear: true, isCup: true },
+
+  // Copas Nacionais
+  { id: 73, name: "Copa do Brasil", country: "Brasil", calendarYear: true, isCup: true },
+  { id: 143, name: "Copa do Rei", country: "Espanha", calendarYear: false, isCup: true },
+  { id: 45, name: "Copa da Inglaterra", country: "Inglaterra", calendarYear: false, isCup: true },
+  { id: 48, name: "Copa da Liga Inglesa", country: "Inglaterra", calendarYear: false, isCup: true },
+  { id: 137, name: "Copa da Itália", country: "Itália", calendarYear: false, isCup: true },
+  { id: 66, name: "Copa da França", country: "França", calendarYear: false, isCup: true },
+  { id: 81, name: "Copa da Alemanha", country: "Alemanha", calendarYear: false, isCup: true }
 ];
 
 
@@ -6137,6 +6148,23 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
     return [
       { name: "Canal GOAT", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.15)", border: "rgba(250, 204, 21, 0.4)", url: goatUrl },
       { name: "BandSports", tag: "TV Fechada", logo: "/broadcast-logos/band.svg", color: "#00A650", bg: "rgba(0, 166, 80, 0.15)", border: "rgba(0, 166, 80, 0.4)", url: "https://bandsports.band.uol.com.br/" }
+    ];
+  }
+
+  // Copas Nacionais Europeias
+  // Copa do Rei (143), Copa da Inglaterra (45), Copa da Liga Inglesa (48), Copa da Itália (137), Copa da Alemanha (81)
+  if (leagueId === 143 || leagueId === 45 || leagueId === 48 || leagueId === 137 || leagueId === 81) {
+    return [
+      { name: "Disney+", tag: "100% dos Jogos Ao Vivo", logo: "/broadcast-logos/disney-plus.webp", color: "#0063E5", bg: "rgba(0, 99, 229, 0.15)", border: "rgba(0, 99, 229, 0.4)", url: "https://www.disneyplus.com/" },
+      { name: "ESPN", tag: "TV Fechada", logo: "/broadcast-logos/espn.png", color: "#CC0000", bg: "rgba(204, 0, 0, 0.15)", border: "rgba(204, 0, 0, 0.4)", url: "https://www.espn.com.br/watch/" }
+    ];
+  }
+
+  // Copa da França (66)
+  if (leagueId === 66) {
+    return [
+      { name: "CazéTV", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: cazeTvUrl },
+      { name: "Prime Video", tag: "Streaming", logo: "/broadcast-logos/prime-video.svg", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.15)", border: "rgba(0, 168, 225, 0.4)", url: "https://www.primevideo.com/" }
     ];
   }
 
