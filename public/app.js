@@ -7,6 +7,18 @@ const SUPABASE_URL = "https://aqihpureclilnstdacii.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxaWhwdXJlY2xpbG5zdGRhY2lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3ODIyODksImV4cCI6MjEwMzM1ODI4OX0.2odEs0rD_tBsEbHhaLlu1JMOXkJrqs8WKhboasPgvWw";
 const VAPID_PUBLIC_KEY = "BMjC-8Rjccu_uZoj0BaFDXpUatXC1yShp_foJEdb0uixT398zbT4JlvTfRDeRswaBqRQx6ezRF8mAutCCfE-Q6A";
 
+const COUNTRIES = [
+  { id: "brasil", name: "Brasil", flag: "🇧🇷", leagues: [71, 72, 73] },
+  { id: "inglaterra", name: "Inglaterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", leagues: [39, 45, 48] },
+  { id: "espanha", name: "Espanha", flag: "🇪🇸", leagues: [140, 143] },
+  { id: "alemanha", name: "Alemanha", flag: "🇩🇪", leagues: [78, 81] },
+  { id: "italia", name: "Itália", flag: "🇮🇹", leagues: [135, 137] },
+  { id: "franca", name: "França", flag: "🇫🇷", leagues: [61, 66] },
+  { id: "arabia-saudita", name: "Arábia Saudita", flag: "🇸🇦", leagues: [307] },
+  { id: "uefa", name: "UEFA (Europa)", flag: "🏆", leagues: [2, 3, 4] },
+  { id: "conmebol", name: "América do Sul", flag: "🌎", leagues: [13, 11] },
+];
+
 const LEAGUES = [
   // Ligas Nacionais
   { id: 71, name: "Brasileirão Série A", country: "Brasil", calendarYear: true, isCup: false },
@@ -1265,9 +1277,13 @@ async function router() {
   } else if (parts[0] === "compare") {
     setActiveTab("home");
     renderCompare();
-  } else {
+  } else if (parts[0] === "ligas") {
     setActiveTab("home");
     renderHome();
+  } else {
+    // Página padrão ao abrir o site e app: Jogos do Dia
+    setActiveTab("today");
+    await renderMatchesOfDay(parts[1]);
   }
 }
 
@@ -1300,7 +1316,7 @@ function initApp() {
   document.querySelectorAll("[data-nav]").forEach(el => {
     el.addEventListener("click", () => {
       const nav = el.dataset.nav;
-      if (nav === "home") location.hash = "#/";
+      if (nav === "home") location.hash = "#/ligas";
       if (nav === "today") location.hash = "#/jogos-do-dia";
       if (nav === "myteam") location.hash = "#/meu-time";
       if (nav === "live") location.hash = "#/aovivo";
@@ -1757,21 +1773,58 @@ async function renderMyTeam() {
 // ============================================================
 // View: Home
 // ============================================================
+
+function toggleCountryCard(headerEl) {
+  const card = headerEl.closest(".country-card");
+  if (card) {
+    card.classList.toggle("open");
+  }
+}
+window.toggleCountryCard = toggleCountryCard;
+
 function renderHome() {
+  const countryCardsHtml = COUNTRIES.map((c, idx) => {
+    const leaguesInCountry = c.leagues.map(id => LEAGUES.find(l => l.id === id)).filter(Boolean);
+    const countText = `${leaguesInCountry.length} ${leaguesInCountry.length === 1 ? 'Competição' : 'Competições'}`;
+    const previewLogos = leaguesInCountry.map(l => `<img src="https://media.api-sports.io/football/leagues/${l.id}.png" alt="" style="width:20px;height:20px;object-fit:contain;" onerror="this.style.display='none'">`).join('');
+
+    return `
+      <div class="country-card ${idx === 0 ? 'open' : ''}" data-country="${c.id}">
+        <div class="country-header" onclick="toggleCountryCard(this)">
+          <div class="country-flag-icon">${c.flag}</div>
+          <div class="country-info">
+            <h3 class="country-name">${escapeHtml(c.name)}</h3>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
+              <span class="country-badge-count">${countText}</span>
+              <div style="display:flex;align-items:center;gap:5px;opacity:0.85;">${previewLogos}</div>
+            </div>
+          </div>
+          <div class="country-chevron">▼</div>
+        </div>
+        <div class="country-body">
+          ${leaguesInCountry.map(l => `
+            <a class="league-sub-item" href="#/liga/${l.id}/${defaultSeasonFor(l)}">
+              <img class="league-sub-logo" src="https://media.api-sports.io/football/leagues/${l.id}.png" alt="" loading="lazy" onerror="this.style.display='none'">
+              <div class="league-sub-details">
+                <span class="league-sub-name">${escapeHtml(l.name)}</span>
+                <span class="league-sub-type">${l.isCup ? '🏆 Copa Mata-Mata' : '📊 Pontos Corridos'}</span>
+              </div>
+              <span class="league-sub-arrow">→</span>
+            </a>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
   app.innerHTML = `
     <div class="page-head">
       <p class="page-eyebrow">Competições Oficiais</p>
-      <h1 class="page-title">Escolha uma Liga</h1>
-      <p class="page-sub">Classificação detalhada, rodadas completas, estatísticas avançadas e alertas de gols.</p>
+      <h1 class="page-title">Escolha um País ou Região</h1>
+      <p class="page-sub">Clique no país para expandir e escolher a liga nacional, copa ou torneio continental com estatísticas completas.</p>
     </div>
-    <div class="league-grid">
-      ${LEAGUES.map(l => `
-        <a class="league-card" href="#/liga/${l.id}/${defaultSeasonFor(l)}">
-          <img class="league-logo" src="https://media.api-sports.io/football/leagues/${l.id}.png" alt="" loading="lazy" onerror="this.style.display='none'">
-          <div class="league-country">${escapeHtml(l.country)}</div>
-          <div class="league-name">${escapeHtml(l.name)}</div>
-        </a>`
-      ).join("")}
+    <div class="country-accordion-grid">
+      ${countryCardsHtml}
     </div>
   `;
 }

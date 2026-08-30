@@ -3141,3 +3141,193 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
     font-size: 0.76rem;
   }
 }
+
+/* ============================================================
+   Cards de Países & Competições Expansíveis (Accordion)
+   ============================================================ */
+.country-accordion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.country-card {
+  background: var(--pitch-card);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--pitch-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.country-card:hover {
+  border-color: rgba(255, 184, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.country-card.open {
+  border-color: var(--gold);
+  box-shadow: var(--shadow-glow);
+}
+
+.country-header {
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.2s ease;
+}
+
+.country-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.country-flag-icon {
+  font-size: 2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.country-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.country-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--chalk);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.country-badge-count {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.country-chevron {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--chalk-dim);
+  font-size: 0.8rem;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.country-card.open .country-chevron {
+  transform: rotate(180deg);
+  background: rgba(255, 184, 0, 0.15);
+  color: var(--gold);
+}
+
+.country-body {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, padding 0.3s ease;
+  padding: 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid transparent;
+}
+
+.country-card.open .country-body {
+  max-height: 500px;
+  opacity: 1;
+  padding: 14px;
+  border-top-color: rgba(255, 255, 255, 0.05);
+}
+
+.league-sub-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  text-decoration: none;
+  color: var(--chalk);
+  transition: all 0.2s ease;
+}
+
+.league-sub-item:hover {
+  background: rgba(255, 184, 0, 0.08);
+  border-color: rgba(255, 184, 0, 0.35);
+  transform: translateX(4px);
+}
+
+.league-sub-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.league-sub-details {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.league-sub-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--chalk);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.league-sub-type {
+  font-size: 0.72rem;
+  color: var(--chalk-dim);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+}
+
+.league-sub-arrow {
+  color: var(--gold);
+  font-size: 1.1rem;
+  font-weight: 700;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.league-sub-item:hover .league-sub-arrow {
+  transform: translateX(3px);
+}
