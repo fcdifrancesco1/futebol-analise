@@ -6034,9 +6034,13 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
   const tB = awayTeam?.name || "Time Visitante";
   const hLower = String(tA).toLowerCase();
   const aLower = String(tB).toLowerCase();
-  const queryYT = encodeURIComponent(`${tA} x ${tB} ao vivo`);
 
-  // Clubes da Liga Forte União (LFU) - Mandantes com transmissão na CazéTV / Prime Video / Record / Premiere
+  // Links oficiais das transmissões ao vivo dos canais do YouTube (evita vídeos antigos gravados)
+  const cazeTvUrl = "https://www.youtube.com/@CazeTV/streams";
+  const goatUrl = "https://www.youtube.com/@canalgoatbr/streams";
+  const searchLiveYT = `https://www.youtube.com/results?search_query=${encodeURIComponent(tA + ' x ' + tB + ' ao vivo')}&sp=CAM%253D`;
+
+  // Clubes da Liga Forte União (LFU) - Mandantes com jogos selecionados na CazéTV / Prime Video / Premiere
   const LFU_HOME_TEAMS = [
     "vasco", "cruzeiro", "corinthians", "internacional", "fluminense",
     "fortaleza", "athletico", "criciuma", "criciúma", "juventude", "cuiaba", "cuiabá", "atletico-go", "atlético-go"
@@ -6048,12 +6052,12 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
   if (leagueId === 71) {
     if (isLfuHome) {
       return [
-        { name: "CazéTV", tag: "Ao Vivo no YouTube", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` },
-        { name: "Prime Video", tag: "Streaming", logo: "/broadcast-logos/prime-video.svg", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.15)", border: "rgba(0, 168, 225, 0.4)", url: "https://www.primevideo.com/" },
-        { name: "Premiere", tag: "Pay-per-view", logo: "/broadcast-logos/premiere.png", color: "#0056B3", bg: "rgba(0, 86, 179, 0.15)", border: "rgba(0, 86, 179, 0.4)", url: "https://globoplay.globo.com/premiere/" }
+        { name: "Premiere", tag: "Todos os Jogos (Pay-per-view)", logo: "/broadcast-logos/premiere.png", color: "#0056B3", bg: "rgba(0, 86, 179, 0.15)", border: "rgba(0, 86, 179, 0.4)", url: "https://globoplay.globo.com/premiere/" },
+        { name: "Prime Video", tag: "Jogos Selecionados (Streaming)", logo: "/broadcast-logos/prime-video.svg", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.15)", border: "rgba(0, 168, 225, 0.4)", url: "https://www.primevideo.com/" },
+        { name: "CazéTV", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: cazeTvUrl }
       ];
     } else {
-      // Mandantes da Libra (Flamengo, Palmeiras, São Paulo, Atlético-MG, Grêmio, Bahia, Bragantino, Vitória)
+      // Mandantes da Libra (Flamengo, Palmeiras, São Paulo, Atlético-MG, Grêmio, Bahia, Bragantino, Vitória, Santos)
       return [
         { name: "Premiere", tag: "Exclusivo Pay-per-view", logo: "/broadcast-logos/premiere.png", color: "#0056B3", bg: "rgba(0, 86, 179, 0.15)", border: "rgba(0, 86, 179, 0.4)", url: "https://globoplay.globo.com/premiere/" },
         { name: "SporTV", tag: "TV Fechada", logo: "/broadcast-logos/sportv.jpg", color: "#00A650", bg: "rgba(0, 166, 80, 0.15)", border: "rgba(0, 166, 80, 0.4)", url: "https://globoplay.globo.com/sportv/" },
@@ -6067,7 +6071,7 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
     return [
       { name: "Premiere", tag: "Todos os Jogos", logo: "/broadcast-logos/premiere.png", color: "#0056B3", bg: "rgba(0, 86, 179, 0.15)", border: "rgba(0, 86, 179, 0.4)", url: "https://globoplay.globo.com/premiere/" },
       { name: "SporTV", tag: "TV Fechada", logo: "/broadcast-logos/sportv.jpg", color: "#00A650", bg: "rgba(0, 166, 80, 0.15)", border: "rgba(0, 166, 80, 0.4)", url: "https://globoplay.globo.com/sportv/" },
-      { name: "Canal GOAT", tag: "YouTube Grátis", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.15)", border: "rgba(250, 204, 21, 0.4)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('Canal GOAT ' + tA + ' x ' + tB)}` },
+      { name: "Canal GOAT", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.15)", border: "rgba(250, 204, 21, 0.4)", url: goatUrl },
       { name: "TV Brasil", tag: "TV Aberta", logo: "/broadcast-logos/band.svg", color: "#10B981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.4)", url: "https://tvbrasil.ebc.com.br/" }
     ];
   }
@@ -6097,7 +6101,7 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
     return [
       { name: "HBO Max", tag: "100% dos Jogos Ao Vivo", logo: "/broadcast-logos/hbo-max.jpg", color: "#002BE7", bg: "rgba(0, 43, 231, 0.2)", border: "rgba(0, 43, 231, 0.5)", url: "https://www.max.com/" },
       { name: "SBT", tag: "TV Aberta (Terças)", logo: "/broadcast-logos/sbt.svg", color: "#10B981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.4)", url: "https://www.sbt.com.br/ao-vivo" },
-      { name: "YouTube", tag: "Buscar Transmissão", logo: "/broadcast-logos/youtube.svg", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: `https://www.youtube.com/results?search_query=${queryYT}` }
+      { name: "YouTube", tag: "Buscar Transmissão", logo: "/broadcast-logos/youtube.svg", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: searchLiveYT }
     ];
   }
 
@@ -6106,7 +6110,7 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
     return [
       { name: "Disney+", tag: "100% dos Jogos Ao Vivo", logo: "/broadcast-logos/disney-plus.webp", color: "#0063E5", bg: "rgba(0, 99, 229, 0.15)", border: "rgba(0, 99, 229, 0.4)", url: "https://www.disneyplus.com/" },
       { name: "ESPN", tag: "TV Fechada", logo: "/broadcast-logos/espn.png", color: "#CC0000", bg: "rgba(204, 0, 0, 0.15)", border: "rgba(204, 0, 0, 0.4)", url: "https://www.espn.com.br/watch/" },
-      { name: "CazéTV", tag: "YouTube Grátis", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` }
+      { name: "CazéTV", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: cazeTvUrl }
     ];
   }
 
@@ -6118,28 +6122,28 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
     ];
   }
 
-  // 7. Bundesliga (78)
+  // 8. Bundesliga (78)
   if (leagueId === 78) {
     return [
-      { name: "Canal GOAT", tag: "YouTube Grátis", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.15)", border: "rgba(250, 204, 21, 0.4)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('Canal GOAT ' + tA + ' x ' + tB)}` },
-      { name: "CazéTV", tag: "YouTube Grátis", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` },
+      { name: "Canal GOAT", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.15)", border: "rgba(250, 204, 21, 0.4)", url: goatUrl },
+      { name: "CazéTV", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: cazeTvUrl },
       { name: "SporTV", tag: "TV Fechada", logo: "/broadcast-logos/sportv.jpg", color: "#00A650", bg: "rgba(0, 166, 80, 0.15)", border: "rgba(0, 166, 80, 0.4)", url: "https://globoplay.globo.com/sportv/" },
       { name: "OneFootball", tag: "App / Site", logo: "/broadcast-logos/onefootball.svg", color: "#00E5FF", bg: "rgba(0, 229, 255, 0.15)", border: "rgba(0, 229, 255, 0.4)", url: "https://onefootball.com/pt-br/inicio" }
     ];
   }
 
-  // 8. Liga Saudita (307)
+  // 9. Liga Saudita (307)
   if (leagueId === 307) {
     return [
-      { name: "Canal GOAT", tag: "Ao Vivo no YouTube", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.15)", border: "rgba(250, 204, 21, 0.4)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('Canal GOAT ' + tA + ' x ' + tB)}` },
+      { name: "Canal GOAT", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.15)", border: "rgba(250, 204, 21, 0.4)", url: goatUrl },
       { name: "BandSports", tag: "TV Fechada", logo: "/broadcast-logos/band.svg", color: "#00A650", bg: "rgba(0, 166, 80, 0.15)", border: "rgba(0, 166, 80, 0.4)", url: "https://bandsports.band.uol.com.br/" }
     ];
   }
 
-  // 9. Ligue 1 (61) / Europa League (3) / Conference League (4)
+  // 10. Ligue 1 (61) / Europa League (3) / Conference League (4)
   if (leagueId === 61 || leagueId === 3 || leagueId === 4) {
     return [
-      { name: "CazéTV", tag: "Ao Vivo no YouTube", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: `https://www.youtube.com/results?search_query=${encodeURIComponent('CazéTV ' + tA + ' x ' + tB)}` },
+      { name: "CazéTV", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: cazeTvUrl },
       { name: "Band", tag: "TV Aberta", logo: "/broadcast-logos/band.svg", color: "#10B981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.4)", url: "https://www.band.uol.com.br/ao-vivo" },
       { name: "Prime Video", tag: "Streaming", logo: "/broadcast-logos/prime-video.svg", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.15)", border: "rgba(0, 168, 225, 0.4)", url: "https://www.primevideo.com/" }
     ];
