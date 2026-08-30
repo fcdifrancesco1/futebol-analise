@@ -8,15 +8,15 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const VAPID_PUBLIC_KEY = "BMjC-8Rjccu_uZoj0BaFDXpUatXC1yShp_foJEdb0uixT398zbT4JlvTfRDeRswaBqRQx6ezRF8mAutCCfE-Q6A";
 
 const COUNTRIES = [
-  { id: "brasil", name: "Brasil", flag: "🇧🇷", leagues: [71, 72, 73] },
-  { id: "inglaterra", name: "Inglaterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", leagues: [39, 45, 48] },
-  { id: "espanha", name: "Espanha", flag: "🇪🇸", leagues: [140, 143] },
-  { id: "alemanha", name: "Alemanha", flag: "🇩🇪", leagues: [78, 81] },
-  { id: "italia", name: "Itália", flag: "🇮🇹", leagues: [135, 137] },
-  { id: "franca", name: "França", flag: "🇫🇷", leagues: [61, 66] },
-  { id: "arabia-saudita", name: "Arábia Saudita", flag: "🇸🇦", leagues: [307] },
-  { id: "uefa", name: "UEFA (Europa)", flag: "🏆", leagues: [2, 3, 4] },
-  { id: "conmebol", name: "América do Sul", flag: "🌎", leagues: [13, 11] },
+  { id: "brasil", name: "Brasil", flagImg: "/flags/br.png", leagues: [71, 72, 73] },
+  { id: "inglaterra", name: "Inglaterra", flagImg: "/flags/gb-eng.png", leagues: [39, 45, 48] },
+  { id: "espanha", name: "Espanha", flagImg: "/flags/es.png", leagues: [140, 143] },
+  { id: "alemanha", name: "Alemanha", flagImg: "/flags/de.png", leagues: [78, 81] },
+  { id: "italia", name: "Itália", flagImg: "/flags/it.png", leagues: [135, 137] },
+  { id: "franca", name: "França", flagImg: "/flags/fr.png", leagues: [61, 66] },
+  { id: "arabia-saudita", name: "Arábia Saudita", flagImg: "/flags/sa.png", leagues: [307] },
+  { id: "uefa", name: "UEFA (Europa)", flagImg: "/flags/eu.png", leagues: [2, 3, 4] },
+  { id: "conmebol", name: "América do Sul", flagImg: "/flags/conmebol.png", leagues: [13, 11] },
 ];
 
 const LEAGUES = [
@@ -1791,7 +1791,7 @@ function renderHome() {
     return `
       <div class="country-card ${idx === 0 ? 'open' : ''}" data-country="${c.id}">
         <div class="country-header" onclick="toggleCountryCard(this)">
-          <div class="country-flag-icon">${c.flag}</div>
+          <div class="country-flag-icon"><img class="country-flag-img" src="${c.flagImg}" alt="${escapeHtml(c.name)}" loading="lazy"></div>
           <div class="country-info">
             <h3 class="country-name">${escapeHtml(c.name)}</h3>
             <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
