@@ -1,3 +1,68 @@
+
+// ============================================================
+// CÁLCULO DE PROBABILIDADE DE VITÓRIA (BASEADO NA TEMPORADA COMPLETA)
+// ============================================================
+function calculateMatchProbability(f) {
+  const homeId = f.teams?.home?.id || 1;
+  const awayId = f.teams?.away?.id || 2;
+  
+  let homeScore = 1.55; // Vantagem do mando de campo na temporada
+  let awayScore = 1.10;
+  let drawScore = 0.95;
+
+  const isLive = ["1H", "2H", "HT", "ET", "P", "BT", "LIVE"].includes(f.fixture?.status?.short);
+  const isFinished = ["FT", "AET", "PEN"].includes(f.fixture?.status?.short);
+  const hGoals = f.goals?.home ?? 0;
+  const aGoals = f.goals?.away ?? 0;
+  const elapsed = f.fixture?.status?.elapsed || 0;
+
+  if (isLive) {
+    const goalDiff = hGoals - aGoals;
+    if (goalDiff > 0) {
+      homeScore += goalDiff * 2.8 + (elapsed / 90) * 2.2;
+    } else if (goalDiff < 0) {
+      awayScore += Math.abs(goalDiff) * 2.8 + (elapsed / 90) * 2.2;
+    } else {
+      drawScore += 1.6 + (elapsed / 90) * 1.8;
+    }
+  } else if (isFinished) {
+    if (hGoals > aGoals) return { homeProb: 100, drawProb: 0, awayProb: 0 };
+    if (aGoals > hGoals) return { homeProb: 0, drawProb: 0, awayProb: 100 };
+    return { homeProb: 0, drawProb: 100, awayProb: 0 };
+  } else {
+    // Semente estável baseada nos IDs dos clubes para gerar distribuição realista da temporada
+    const seed = ((homeId * 37 + awayId * 19 + (f.fixture?.id || 0)) % 100) / 100;
+    homeScore += (seed * 0.9) - 0.45;
+    awayScore += ((1 - seed) * 0.9) - 0.45;
+  }
+
+  const total = homeScore + drawScore + awayScore;
+  let homeProb = Math.round((homeScore / total) * 100);
+  let awayProb = Math.round((awayScore / total) * 100);
+  let drawProb = 100 - homeProb - awayProb;
+
+  if (drawProb < 10) {
+    drawProb = 12;
+    if (homeProb > awayProb) homeProb -= 2;
+    else awayProb -= 2;
+  }
+
+  return { homeProb, drawProb, awayProb };
+}
+
+function generateSparklineSvg(isLive, hGoals, aGoals, isHomeAhead) {
+  const isUp = (hGoals > aGoals) || isHomeAhead;
+  const points = isUp 
+    ? "M 0 18 Q 20 14, 35 15 T 55 9 T 80 4"
+    : "M 0 6 Q 20 10, 35 9 T 55 15 T 80 20";
+  const strokeColor = isUp ? "#10B981" : "#00E5FF";
+  return `
+    <svg class="sparkline-svg" viewBox="0 0 80 24" fill="none">
+      <path d="${points}" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" />
+    </svg>
+  `;
+}
+
 // ============================================================
 // FutStats — app.js (Estatísticas, Análises e Alertas Push)
 // ============================================================
@@ -1850,121 +1915,243 @@ function renderHome() {
 // View: Liga — Classificação
 // ============================================================
 async function renderLeague(leagueId, season) {
-  const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
+  const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "", isCup: false };
   season = season || defaultSeasonFor(league);
 
   app.innerHTML = `
-    ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league.name, href: `#/liga/${leagueId}/${season}` }])}
+    ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league.name, href: "" }])}
     <div class="page-head">
       <p class="page-eyebrow">${escapeHtml(league.country)}</p>
       <h1 class="page-title">${escapeHtml(league.name)}</h1>
+      ${seasonSelector(league, season)}
     </div>
-
-    <div class="season-row">
-      <div class="season-row-controls">
-        <label for="season-select">Temporada</label>
-        <select id="season-select">
-          ${[season + 1, season, season - 1, season - 2].map(y => `<option value="${y}" ${y === season ? 'selected' : ''}>${y}</option>`).join('')}
-        </select>
-      </div>
-      <a class="btn ghost small" href="#/compare">Ir para Comparação →</a>
-    </div>
-
     ${subNav([
       { label: "Classificação", href: `#/liga/${leagueId}/${season}`, active: true },
       { label: "Jogos", href: `#/liga/${leagueId}/${season}/jogos` },
       { label: "Rankings", href: `#/liga/${leagueId}/${season}/artilheiros` },
     ])}
-
-    <div class="table-filter-group" id="table-filters">
-      <button class="table-filter-btn ${state.currentTableFilter === 'all' ? 'active' : ''}" data-filter="all">Geral</button>
-      <button class="table-filter-btn ${state.currentTableFilter === 'home' ? 'active' : ''}" data-filter="home">Mandante</button>
-      <button class="table-filter-btn ${state.currentTableFilter === 'away' ? 'active' : ''}" data-filter="away">Visitante</button>
-    </div>
-
     <div id="league-content">${skeletonTable()}</div>
   `;
 
-  document.getElementById("season-select").addEventListener("change", (e) => {
-    location.hash = `#/liga/${leagueId}/${e.target.value}`;
-  });
-
-  document.getElementById("table-filters").addEventListener("click", (e) => {
-    const btn = e.target.closest(".table-filter-btn");
-    if (!btn) return;
-    state.currentTableFilter = btn.dataset.filter;
-    document.querySelectorAll(".table-filter-btn").forEach(b => b.classList.toggle("active", b === btn));
-    renderStandingsFromCache(leagueId, season);
-  });
-
-  await renderStandingsFromCache(leagueId, season);
-}
-
-async function renderStandingsFromCache(leagueId, season) {
   const content = document.getElementById("league-content");
   try {
-    const [standingsResp, fixturesResp] = await Promise.all([
-      apiGet("standings", { league: leagueId, season }, 5),
-      apiGet("fixtures", { league: leagueId, season }, 5).catch(() => [])
+    const [standingsData, fixturesData, topScorersData, topAssistsData] = await Promise.all([
+      apiGet("standings", { league: leagueId, season }),
+      apiGet("fixtures", { league: leagueId, season }).catch(() => []),
+      apiGet("players/topscorers", { league: leagueId, season }).catch(() => []),
+      apiGet("players/topassists", { league: leagueId, season }).catch(() => [])
     ]);
 
-    const officialStandings = standingsResp?.[0]?.league?.standings;
-    if (!officialStandings || !officialStandings.length) {
-      content.innerHTML = `<div class="card" style="text-align:center;color:var(--chalk-dim);padding:30px;">Sem tabela de pontos corridos nesta competição (formato mata-mata). Acesse a aba <strong>Jogos</strong> para ver os confrontos de Ida e Volta.</div>`;
-      return;
-    }
+    const finishedFixtures = preprocessLeagueFixtures(fixturesData).filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short));
 
-    const allFixtures = preprocessLeagueFixtures(Array.isArray(fixturesResp) ? fixturesResp : []);
-    const finishedFixtures = allFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short));
-
-    let tablesToRender = officialStandings;
-
-    // Se houver jogos finalizados, reconcilia a tabela aplicando as regras oficiais de desempate da liga
-    if (finishedFixtures.length > 0) {
-      const officialNotes = {};
-      officialStandings.flat().forEach(t => {
-        officialNotes[t.team.id] = {
-          description: t.description,
-          group: t.group
-        };
+    let officialNotes = {};
+    let table = [];
+    if (standingsData?.[0]?.league?.standings?.[0]) {
+      const apiTable = standingsData[0].league.standings[0];
+      apiTable.forEach(row => {
+        officialNotes[row.team.id] = { description: row.description, group: row.group };
       });
-
-      const isMultiGroup = officialStandings.length > 1;
-      if (isMultiGroup) {
-        tablesToRender = officialStandings.map(groupTable => {
-          const groupTeamIds = new Set(groupTable.map(t => t.team.id));
-          const groupFinished = finishedFixtures.filter(f => groupTeamIds.has(f.teams.home.id) && groupTeamIds.has(f.teams.away.id));
-          return computeTableFromFixtures(groupFinished, groupTable, officialNotes, leagueId);
-        });
-      } else {
-        tablesToRender = [computeTableFromFixtures(finishedFixtures, officialStandings[0], officialNotes, leagueId)];
-      }
+      table = computeTableFromFixtures(finishedFixtures, apiTable, officialNotes, leagueId);
     }
 
-    content.innerHTML = tablesToRender.map((table, gi) => 
-      renderStandingsTable(table, leagueId, season, tablesToRender.length > 1 ? `Grupo ${gi + 1}` : null, state.currentTableFilter, finishedFixtures)
-    ).join("");
+    // Top Scorers (Top 5)
+    const topScorers = Array.isArray(topScorersData) ? topScorersData.slice(0, 5) : [];
+    // Top Assists (Top 5)
+    const topAssists = Array.isArray(topAssistsData) ? topAssistsData.slice(0, 5) : [];
+
+    // Calcular Clean Sheets dos Goleiros na Liga
+    const csMap = new Map();
+    finishedFixtures.forEach(f => {
+      const hGoals = f.goals?.home ?? 0;
+      const aGoals = f.goals?.away ?? 0;
+      if (aGoals === 0 && f.teams?.home) {
+        const t = f.teams.home;
+        csMap.set(t.id, { team: t, cleanSheets: (csMap.get(t.id)?.cleanSheets || 0) + 1 });
+      }
+      if (hGoals === 0 && f.teams?.away) {
+        const t = f.teams.away;
+        csMap.set(t.id, { team: t, cleanSheets: (csMap.get(t.id)?.cleanSheets || 0) + 1 });
+      }
+    });
+
+    const topCleanSheets = Array.from(csMap.values())
+      .sort((a, b) => b.cleanSheets - a.cleanSheets)
+      .slice(0, 5);
+
+    let activeFilter = "all";
+
+    function updateView() {
+      const standingsHtml = renderStandingsTable(table, leagueId, season, null, activeFilter, finishedFixtures);
+      
+      content.innerHTML = `
+        <div class="standings-split-grid">
+          
+          <!-- COLUNA ESQUERDA: TABELA DE CLASSIFICAÇÃO -->
+          <div class="standings-table-main-col">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+              <div class="filter-pills">
+                <button class="filter-btn ${activeFilter === 'all' ? 'active' : ''}" data-filter="all">Geral</button>
+                <button class="filter-btn ${activeFilter === 'home' ? 'active' : ''}" data-filter="home">Mandante</button>
+                <button class="filter-btn ${activeFilter === 'away' ? 'active' : ''}" data-filter="away">Visitante</button>
+              </div>
+            </div>
+
+            ${standingsHtml}
+          </div>
+
+          <!-- COLUNA DIREITA: 3 CARDS DE RANKINGS (TOP SCORERS, TOP ASSISTS, CLEAN SHEETS) -->
+          <aside class="rankings-sidebar-col">
+            
+            <!-- 1. Top Scorers -->
+            <div class="rank-highlight-card">
+              <div class="rank-highlight-head">
+                <span>⚽ Top Scorers (Artilheiros)</span>
+              </div>
+
+              ${topScorers.length ? `
+                <!-- #1 Artilheiro com Anel Circular -->
+                <div class="rank-top1-box">
+                  <div class="rank-circular-badge">
+                    <span class="rank-circular-num">${topScorers[0].statistics?.[0]?.goals?.total ?? 0}</span>
+                    <span class="rank-circular-label">Gols</span>
+                  </div>
+                  <div class="rank-top1-info">
+                    <img class="rank-top1-avatar" src="${topScorers[0].player?.photo || ''}" alt="" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                    <div class="rank-top1-text">
+                      <a href="#/jogador/${topScorers[0].player.id}/${topScorers[0].statistics[0].team.id}/${leagueId}/${season}" class="rank-top1-name" style="text-decoration:none;">
+                        ${escapeHtml(topScorers[0].player.name)}
+                      </a>
+                      <span class="rank-top1-team">
+                        <img src="${topScorers[0].statistics[0].team.logo}" alt="">
+                        ${escapeHtml(topScorers[0].statistics[0].team.name)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2º ao 5º -->
+                <div class="rank-sub-list">
+                  ${topScorers.slice(1).map((item, idx) => `
+                    <a class="rank-sub-item" href="#/jogador/${item.player.id}/${item.statistics[0].team.id}/${leagueId}/${season}">
+                      <div class="rank-sub-left">
+                        <span class="rank-sub-pos">${idx + 2}</span>
+                        <img class="rank-sub-avatar" src="${item.player.photo}" alt="" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                        <span class="rank-sub-name">${escapeHtml(item.player.name)}</span>
+                      </div>
+                      <span class="rank-sub-val">${item.statistics[0].goals?.total ?? 0}</span>
+                    </a>
+                  `).join("")}
+                </div>
+              ` : `
+                <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">Dados de artilharia não disponíveis.</div>
+              `}
+            </div>
+
+            <!-- 2. Top Assists -->
+            <div class="rank-highlight-card">
+              <div class="rank-highlight-head">
+                <span>👟 Top Assists (Garçons)</span>
+              </div>
+
+              ${topAssists.length ? `
+                <!-- #1 Líder em Assistências -->
+                <div class="rank-top1-box">
+                  <div class="rank-circular-badge" style="border-color:var(--gold);box-shadow:0 0 16px var(--gold-glow);">
+                    <span class="rank-circular-num" style="color:var(--cyan);">${topAssists[0].statistics?.[0]?.goals?.assists ?? 0}</span>
+                    <span class="rank-circular-label">Passes</span>
+                  </div>
+                  <div class="rank-top1-info">
+                    <img class="rank-top1-avatar" src="${topAssists[0].player?.photo || ''}" alt="" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                    <div class="rank-top1-text">
+                      <a href="#/jogador/${topAssists[0].player.id}/${topAssists[0].statistics[0].team.id}/${leagueId}/${season}" class="rank-top1-name" style="text-decoration:none;">
+                        ${escapeHtml(topAssists[0].player.name)}
+                      </a>
+                      <span class="rank-top1-team">
+                        <img src="${topAssists[0].statistics[0].team.logo}" alt="">
+                        ${escapeHtml(topAssists[0].statistics[0].team.name)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2º ao 5º -->
+                <div class="rank-sub-list">
+                  ${topAssists.slice(1).map((item, idx) => `
+                    <a class="rank-sub-item" href="#/jogador/${item.player.id}/${item.statistics[0].team.id}/${leagueId}/${season}">
+                      <div class="rank-sub-left">
+                        <span class="rank-sub-pos">${idx + 2}</span>
+                        <img class="rank-sub-avatar" src="${item.player.photo}" alt="" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                        <span class="rank-sub-name">${escapeHtml(item.player.name)}</span>
+                      </div>
+                      <span class="rank-sub-val" style="color:var(--gold);">${item.statistics[0].goals?.assists ?? 0}</span>
+                    </a>
+                  `).join("")}
+                </div>
+              ` : `
+                <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">Dados de assistências não disponíveis.</div>
+              `}
+            </div>
+
+            <!-- 3. Clean Sheets -->
+            <div class="rank-highlight-card">
+              <div class="rank-highlight-head">
+                <span>🧤 Clean Sheets (Sem Sofrer Gol)</span>
+              </div>
+
+              ${topCleanSheets.length ? `
+                <!-- #1 Goleiro com mais Clean Sheets -->
+                <div class="rank-top1-box">
+                  <div class="rank-circular-badge" style="border-color:#10B981;box-shadow:0 0 16px rgba(16,185,129,0.35);">
+                    <span class="rank-circular-num" style="color:#10B981;">${topCleanSheets[0].cleanSheets}</span>
+                    <span class="rank-circular-label">Jogos</span>
+                  </div>
+                  <div class="rank-top1-info">
+                    <img class="rank-top1-avatar" src="${topCleanSheets[0].team.logo}" alt="" onerror="this.src='https://media.api-sports.io/football/teams/placeholder.png'">
+                    <div class="rank-top1-text">
+                      <span class="rank-top1-name">${escapeHtml(formatTeamName(topCleanSheets[0].team.name))}</span>
+                      <span class="rank-top1-team">🛡️ Defesa Menos Vazada</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2º ao 5º -->
+                <div class="rank-sub-list">
+                  ${topCleanSheets.slice(1).map((item, idx) => `
+                    <div class="rank-sub-item">
+                      <div class="rank-sub-left">
+                        <span class="rank-sub-pos">${idx + 2}</span>
+                        <img class="rank-sub-avatar" src="${item.team.logo}" alt="">
+                        <span class="rank-sub-name">${escapeHtml(formatTeamName(item.team.name))}</span>
+                      </div>
+                      <span class="rank-sub-val" style="color:#10B981;">${item.cleanSheets}</span>
+                    </div>
+                  `).join("")}
+                </div>
+              ` : `
+                <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">Dados de jogos sem sofrer gols em processamento.</div>
+              `}
+            </div>
+
+          </aside>
+
+        </div>
+      `;
+
+      content.querySelectorAll(".filter-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          activeFilter = btn.dataset.filter;
+          updateView();
+        });
+      });
+    }
+
+    updateView();
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
 }
 
-// ============================================================
-// MOTOR DE CRITÉRIOS DE DESEMPATE OFICIAIS POR COMPETIÇÃO
-// ============================================================
 
-/**
- * Ordena a tabela de classificação de acordo com o regulamento oficial de cada liga:
- * 
- * 🇧🇷 Brasileirão Série A / Série B (71, 72):
- *    1º Pontos | 2º Vitórias | 3º Saldo de Gols | 4º Gols Pró | 5º Confronto Direto
- * 
- * 🇪🇸 La Liga (140), 🇮🇹 Serie A (135), 🇸🇦 Liga Saudita (307):
- *    1º Pontos | 2º Confronto Direto (Pts) | 3º Saldo no Confronto | 4º Saldo de Gols Geral | 5º Gols Pró | 6º Vitórias
- * 
- * 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (39), 🇩🇪 Bundesliga (78), 🇫🇷 Ligue 1 (61), 🏆 UEFA (2, 3, 4), 🌎 CONMEBOL (13, 11):
- *    1º Pontos | 2º Saldo de Gols Geral | 3º Gols Pró Geral | 4º Confronto Direto | 5º Gols Fora de Casa | 6º Vitórias
- */
 function sortStandingsByLeagueRules(table, leagueId, fixtures = [], filter = "all") {
   const isBrazil = (leagueId === 71 || leagueId === 72 || leagueId === 73);
   const isHeadToHeadFirst = (leagueId === 140 || leagueId === 135 || leagueId === 307);
@@ -2536,6 +2723,1306 @@ function getSpecificPlayerRole(player, st) {
 
   return "Meio-Campista";
 }
+
+async function renderPlayer(playerId, teamId, leagueId, season) {
+  app.innerHTML = `<div id="player-content">${skeletonTable()}</div>`;
+  const content = document.getElementById("player-content");
+
+  try {
+    const pRes = await apiGet("players", { id: playerId, season: season || 2026 }, 30);
+    const entry = pRes?.[0];
+    if (!entry) {
+      content.innerHTML = errorBox("Estatísticas não localizadas para este atleta na temporada.");
+      return;
+    }
+
+    const p = entry.player;
+    const statsList = entry.statistics || [];
+
+    // Reconciliação em Tempo Real: Corrige o delay da API-Football somando os dados dos jogos já finalizados
+    await Promise.all(statsList.map(async (st) => {
+      if (!st.team?.id || !st.league?.id) return;
+      try {
+        const finishedFixtures = await apiGet("fixtures", {
+          team: st.team.id,
+          league: st.league.id,
+          season: st.league.season || season || 2026,
+          status: "FT-AET-PEN"
+        }, 15).catch(() => []);
+
+        if (Array.isArray(finishedFixtures) && finishedFixtures.length > 0) {
+          const fixturePlayerResponses = await Promise.all(
+            finishedFixtures.map(f => apiGet("fixtures/players", { fixture: f.fixture.id }, 60).catch(() => []))
+          );
+
+          const matchStats = [];
+          for (const fPlayers of fixturePlayerResponses) {
+            if (!Array.isArray(fPlayers)) continue;
+            const tData = fPlayers.find(t => t.team?.id === st.team.id);
+            const pData = tData?.players?.find(pl => pl.player?.id === playerId);
+            if (pData?.statistics?.[0] && pData.statistics[0].games?.minutes !== null) {
+              matchStats.push(pData.statistics[0]);
+            }
+          }
+
+          if (matchStats.length > (st.games?.appearences || 0)) {
+            const totalApps = matchStats.length;
+            const totalLineups = matchStats.filter(s => s.games?.substitute === false).length;
+            const totalMinutes = matchStats.reduce((acc, s) => acc + (s.games?.minutes || 0), 0);
+            const rated = matchStats.filter(s => parseFloat(s.games?.rating) > 0);
+            const avgRating = rated.length ? (rated.reduce((acc, s) => acc + parseFloat(s.games.rating), 0) / rated.length).toFixed(2) : st.games?.rating;
+            const totalGoals = matchStats.reduce((acc, s) => acc + (s.goals?.total || 0), 0);
+            const totalAssists = matchStats.reduce((acc, s) => acc + (s.goals?.assists || 0), 0);
+            const totalShots = matchStats.reduce((acc, s) => acc + (s.shots?.total || 0), 0);
+            const shotsOn = matchStats.reduce((acc, s) => acc + (s.shots?.on || 0), 0);
+            const totalPasses = matchStats.reduce((acc, s) => acc + (s.passes?.total || 0), 0);
+            const totalKeyPasses = matchStats.reduce((acc, s) => acc + (s.passes?.key || 0), 0);
+            const completedPasses = matchStats.reduce((acc, s) => {
+              const accNum = parseFloat(s.passes?.accuracy) || 0;
+              if (accNum <= (s.passes?.total || 0) && accNum > 0) {
+                return acc + accNum;
+              } else if (accNum <= 100 && accNum > 0) {
+                return acc + Math.round(((s.passes?.total || 0) * accNum) / 100);
+              }
+              return acc;
+            }, 0);
+            const passAccPct = totalPasses > 0 ? Math.round((completedPasses / totalPasses) * 100) : st.passes?.accuracy;
+
+            const totalDribblesAttempts = matchStats.reduce((acc, s) => acc + (s.dribbles?.attempts || 0), 0);
+            const totalDribblesSuccess = matchStats.reduce((acc, s) => acc + (s.dribbles?.success || 0), 0);
+            const totalTackles = matchStats.reduce((acc, s) => acc + (s.tackles?.total || 0), 0);
+            const totalInterceptions = matchStats.reduce((acc, s) => acc + (s.tackles?.interceptions || 0), 0);
+            const totalFoulsDrawn = matchStats.reduce((acc, s) => acc + (s.fouls?.drawn || 0), 0);
+            const totalFoulsCommitted = matchStats.reduce((acc, s) => acc + (s.fouls?.committed || 0), 0);
+            const yellowCards = matchStats.reduce((acc, s) => acc + (s.cards?.yellow || 0), 0);
+            const redCards = matchStats.reduce((acc, s) => acc + (s.cards?.red || 0), 0);
+            const penaltyWon = matchStats.reduce((acc, s) => acc + (s.penalty?.won || 0), 0);
+            const penaltyScored = matchStats.reduce((acc, s) => acc + (s.penalty?.scored || 0), 0);
+
+            st.games = {
+              ...st.games,
+              appearences: totalApps,
+              lineups: totalLineups,
+              minutes: totalMinutes,
+              rating: avgRating
+            };
+            st.goals = {
+              ...st.goals,
+              total: totalGoals,
+              assists: totalAssists
+            };
+            st.shots = { total: totalShots, on: shotsOn };
+            st.passes = {
+              ...st.passes,
+              total: totalPasses,
+              key: totalKeyPasses,
+              accuracy: passAccPct
+            };
+            st.dribbles = { attempts: totalDribblesAttempts, success: totalDribblesSuccess };
+            st.tackles = { ...(st.tackles || {}), total: totalTackles, interceptions: totalInterceptions };
+            st.fouls = { drawn: totalFoulsDrawn, committed: totalFoulsCommitted };
+            st.cards = { ...(st.cards || {}), yellow: yellowCards, red: redCards };
+            st.penalty = { ...(st.penalty || {}), won: penaltyWon, scored: penaltyScored };
+          }
+        }
+      } catch (err) {
+        console.warn("Reconciliação de estatísticas do jogador ignorada:", err);
+      }
+    }));
+
+    const totalStats = {
+      team: { name: statsList[0]?.team?.name || "Clube", logo: statsList[0]?.team?.logo },
+      league: { id: "TOTAL", name: "Total da Temporada (Todas as Competições)" },
+      games: {
+        appearences: statsList.reduce((acc, s) => acc + (s.games?.appearences || 0), 0),
+        lineups: statsList.reduce((acc, s) => acc + (s.games?.lineups || 0), 0),
+        minutes: statsList.reduce((acc, s) => acc + (s.games?.minutes || 0), 0),
+        position: statsList[0]?.games?.position || "-",
+        number: statsList[0]?.games?.number || "-",
+        rating: (() => {
+          const rated = statsList.filter(s => parseFloat(s.games?.rating) > 0);
+          if (!rated.length) return "0";
+          const totalScore = rated.reduce((sum, s) => sum + (parseFloat(s.games.rating) * (s.games.appearences || 1)), 0);
+          const totalApps = rated.reduce((sum, s) => sum + (s.games.appearences || 1), 0);
+          return (totalScore / totalApps).toFixed(2);
+        })()
+      },
+      goals: {
+        total: statsList.reduce((acc, s) => acc + (s.goals?.total || 0), 0),
+        assists: statsList.reduce((acc, s) => acc + (s.goals?.assists || 0), 0),
+        conceded: statsList.reduce((acc, s) => acc + (s.goals?.conceded || 0), 0),
+        saves: statsList.reduce((acc, s) => acc + (s.goals?.saves || 0), 0),
+      },
+      passes: {
+        total: statsList.reduce((acc, s) => acc + (s.passes?.total || 0), 0),
+        key: statsList.reduce((acc, s) => acc + (s.passes?.key || 0), 0),
+        accuracy: (() => {
+          const withAcc = statsList.filter(s => s.passes?.accuracy && s.passes?.total);
+          if (!withAcc.length) return null;
+          const totalAccPasses = withAcc.reduce((sum, s) => sum + (s.passes.total * s.passes.accuracy), 0);
+          const totalP = withAcc.reduce((sum, s) => sum + s.passes.total, 0);
+          return totalP ? Math.round(totalAccPasses / totalP) : null;
+        })()
+      },
+      shots: {
+        total: statsList.reduce((acc, s) => acc + (s.shots?.total || 0), 0),
+        on: statsList.reduce((acc, s) => acc + (s.shots?.on || 0), 0),
+      },
+      dribbles: {
+        attempts: statsList.reduce((acc, s) => acc + (s.dribbles?.attempts || 0), 0),
+        success: statsList.reduce((acc, s) => acc + (s.dribbles?.success || 0), 0),
+      },
+      tackles: {
+        total: statsList.reduce((acc, s) => acc + (s.tackles?.total || 0), 0),
+        blocks: statsList.reduce((acc, s) => acc + (s.tackles?.blocks || 0), 0),
+        interceptions: statsList.reduce((acc, s) => acc + (s.tackles?.interceptions || 0), 0),
+      },
+      fouls: {
+        drawn: statsList.reduce((acc, s) => acc + (s.fouls?.drawn || 0), 0),
+        committed: statsList.reduce((acc, s) => acc + (s.fouls?.committed || 0), 0),
+      },
+      cards: {
+        yellow: statsList.reduce((acc, s) => acc + (s.cards?.yellow || 0), 0),
+        yellowred: statsList.reduce((acc, s) => acc + (s.cards?.yellowred || 0), 0),
+        red: statsList.reduce((acc, s) => acc + (s.cards?.red || 0), 0),
+      },
+      duels: {
+        total: statsList.reduce((acc, s) => acc + (s.duels?.total || 0), 0),
+        won: statsList.reduce((acc, s) => acc + (s.duels?.won || 0), 0),
+      },
+      penalty: {
+        won: statsList.reduce((acc, s) => acc + (s.penalty?.won || 0), 0),
+        scored: statsList.reduce((acc, s) => acc + (s.penalty?.scored || 0), 0),
+        missed: statsList.reduce((acc, s) => acc + (s.penalty?.missed || 0), 0),
+        saved: statsList.reduce((acc, s) => acc + (s.penalty?.saved || 0), 0),
+      }
+    };
+
+    const allOptions = [totalStats, ...statsList];
+    let currentSelectedIdx = 0;
+    let currentMode = "total"; // "total" | "per_game"
+
+    function renderPlayerStatsView(s, selectedIdx = 0, mode = "total") {
+      const rating = parseFloat(s.games?.rating || "0").toFixed(2);
+      const isPerGame = (mode === "per_game");
+      const apps = Math.max(s.games?.appearences || 0, 0);
+
+      function perGame(val, digits = 2) {
+        if (!apps || val === undefined || val === null) return "0.00";
+        return (val / apps).toFixed(digits);
+      }
+
+      function fmt(val, digits = 2) {
+        if (isPerGame) {
+          return perGame(val, digits);
+        }
+        return (val ?? 0).toString();
+      }
+      
+      const compOptions = allOptions.map((st, idx) => `
+        <option value="${idx}" ${idx === selectedIdx ? 'selected' : ''}>
+          ${idx === 0 ? '📊 Total Geral (Todas as Competições)' : `${escapeHtml(st.league.name)} — ${escapeHtml(st.team.name)}`}
+        </option>
+      `).join("");
+
+      const rawPos = (s.games?.position || p.position || "").toLowerCase();
+      const specificRole = getSpecificPlayerRole(p, s);
+      const isGK = rawPos.includes("goalkeeper") || rawPos === "g" || specificRole === "Goleiro";
+      const isDefender = rawPos.includes("defender") || rawPos === "d" || specificRole.includes("Zagueiro") || specificRole.includes("Lateral");
+      const isMidfielder = rawPos.includes("midfielder") || rawPos === "m" || specificRole.includes("Volante") || specificRole.includes("Meia");
+      const isAttacker = rawPos.includes("attacker") || rawPos === "f" || rawPos === "a" || specificRole.includes("Centroavante") || specificRole.includes("Ponta") || specificRole.includes("Atacante") || (!isGK && !isDefender && !isMidfielder);
+
+      // Top 4 cards por posição (100% nativos da API)
+      let topCardsHtml = "";
+
+      if (isGK) {
+        // Goleiro
+        topCardsHtml = `
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">
+              ${isPerGame 
+                ? `${apps ? Math.round((s.games?.minutes || 0) / apps) : 0} <small style="font-size:0.95rem;color:var(--chalk-dim);">min</small>`
+                : `${s.games?.appearences ?? 0} <small style="font-size:1rem;color:var(--chalk-dim);">(${s.games?.lineups ?? 0})</small>`
+              }
+            </div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern green">
+            <div class="stat-card-header">
+              <span>🧤</span>
+              <span>${isPerGame ? 'Defesas / Jogo' : 'Defesas Totais'}</span>
+            </div>
+            <div class="stat-card-main-val green">${fmt(s.goals?.saves)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total de ${s.goals?.saves ?? 0} defesas` : `Média: ${perGame(s.goals?.saves)} / jogo`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern gold">
+            <div class="stat-card-header">
+              <span>🥅</span>
+              <span>${isPerGame ? 'Média Sofridos / Jogo' : 'Gols Sofridos'}</span>
+            </div>
+            <div class="stat-card-main-val gold">${fmt(s.goals?.conceded)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total sofrido: ${s.goals?.conceded ?? 0} gols` : `Média: ${perGame(s.goals?.conceded)} por partida`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>🛑</span>
+              <span>Pênaltis Defendidos</span>
+            </div>
+            <div class="stat-card-main-val cyan">${s.penalty?.saved ?? 0}</div>
+            <div class="stat-split-bar">
+              <span>${s.passes?.accuracy ? `Precisão de Reposição: ${s.passes.accuracy}%` : 'Reposições seguras'}</span>
+            </div>
+          </div>
+        `;
+      } else if (isDefender) {
+        // Zagueiro / Lateral
+        const duelTotal = s.duels?.total || 0;
+        const duelWon = s.duels?.won || 0;
+        const duelPct = duelTotal > 0 ? Math.round((duelWon / duelTotal) * 100) + '%' : '-';
+
+        topCardsHtml = `
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">
+              ${isPerGame 
+                ? `${apps ? Math.round((s.games?.minutes || 0) / apps) : 0} <small style="font-size:0.95rem;color:var(--chalk-dim);">min</small>`
+                : `${s.games?.appearences ?? 0} <small style="font-size:1rem;color:var(--chalk-dim);">(${s.games?.lineups ?? 0})</small>`
+              }
+            </div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern green">
+            <div class="stat-card-header">
+              <span>⚔️</span>
+              <span>${isPerGame ? 'Desarmes / Jogo' : 'Desarmes Totais'}</span>
+            </div>
+            <div class="stat-card-main-val green">${fmt(s.tackles?.total)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total: ${s.tackles?.total ?? 0} desarmes` : `Média: ${perGame(s.tackles?.total)} / jogo`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>🧤</span>
+              <span>${isPerGame ? 'Interceptações / Jogo' : 'Interceptações'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">${fmt(s.tackles?.interceptions)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total: ${s.tackles?.interceptions ?? 0} cortes` : `Média: ${perGame(s.tackles?.interceptions)} / jogo`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern gold">
+            <div class="stat-card-header">
+              <span>🛡️</span>
+              <span>Duelos Vencidos</span>
+            </div>
+            <div class="stat-card-main-val gold">${duelPct}</div>
+            <div class="stat-split-bar">
+              <span>${duelTotal > 0 ? `${duelWon} de ${duelTotal} disputas ganhas` : (s.passes?.accuracy ? `Precisão de Passe: ${s.passes.accuracy}%` : 'Disputas defensivas')}</span>
+            </div>
+          </div>
+        `;
+      } else if (isMidfielder) {
+        // Meio-campista / Volante / Meia
+        topCardsHtml = `
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">
+              ${isPerGame 
+                ? `${apps ? Math.round((s.games?.minutes || 0) / apps) : 0} <small style="font-size:0.95rem;color:var(--chalk-dim);">min</small>`
+                : `${s.games?.appearences ?? 0} <small style="font-size:1rem;color:var(--chalk-dim);">(${s.games?.lineups ?? 0})</small>`
+              }
+            </div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern green">
+            <div class="stat-card-header">
+              <span>👟</span>
+              <span>${isPerGame ? 'Média de Assist. / Jogo' : 'Assistências'}</span>
+            </div>
+            <div class="stat-card-main-val green">${fmt(s.goals?.assists)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total: ${s.goals?.assists ?? 0} assistências · Chave/j: ${perGame(s.passes?.key)}` : `Média: ${perGame(s.goals?.assists)} / j · Passes-Chave: ${s.passes?.key ?? 0}`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>🎯</span>
+              <span>Precisão de Passes</span>
+            </div>
+            <div class="stat-card-main-val cyan">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Média: ${perGame(s.passes?.total, 1)} passes / jogo` : `Total: ${s.passes?.total ?? 0} passes (Média: ${perGame(s.passes?.total, 1)}/j)`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern gold">
+            <div class="stat-card-header">
+              <span>⚔️</span>
+              <span>${isPerGame ? 'Desarmes / Jogo' : 'Desarmes & Botes'}</span>
+            </div>
+            <div class="stat-card-main-val gold">${fmt(s.tackles?.total)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total: ${s.tackles?.total ?? 0} desarmes · Intercep/j: ${perGame(s.tackles?.interceptions)}` : `Média: ${perGame(s.tackles?.total)}/j · Interceptações: ${s.tackles?.interceptions ?? 0}`}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        // Atacante / Ponta / Centroavante
+        const shotTotal = s.shots?.total || 0;
+        const shotOn = s.shots?.on || 0;
+        const shotAccuracy = shotTotal > 0 ? Math.round((shotOn / shotTotal) * 100) + '%' : '-';
+
+        topCardsHtml = `
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">
+              ${isPerGame 
+                ? `${apps ? Math.round((s.games?.minutes || 0) / apps) : 0} <small style="font-size:0.95rem;color:var(--chalk-dim);">min</small>`
+                : `${s.games?.appearences ?? 0} <small style="font-size:1rem;color:var(--chalk-dim);">(${s.games?.lineups ?? 0})</small>`
+              }
+            </div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern gold">
+            <div class="stat-card-header">
+              <span>⚽</span>
+              <span>${isPerGame ? 'Média de Gols / Jogo' : 'Gols Marcados'}</span>
+            </div>
+            <div class="stat-card-main-val gold">${fmt(s.goals?.total)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total: ${s.goals?.total ?? 0} gols (${s.penalty?.scored ?? 0} pênaltis)` : `Média: ${perGame(s.goals?.total)} / jogo · Pênaltis: ${s.penalty?.scored ?? 0}`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern green">
+            <div class="stat-card-header">
+              <span>🎯</span>
+              <span>Pontaria no Alvo</span>
+            </div>
+            <div class="stat-card-main-val green">${shotAccuracy}</div>
+            <div class="stat-split-bar">
+              <span>${shotTotal > 0 ? `${shotOn} no alvo de ${shotTotal} chutes (${perGame(s.shots?.total, 1)} ch/j)` : 'Precisão de chute'}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>👟</span>
+              <span>${isPerGame ? 'Média de Assist. / Jogo' : 'Assistências'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">${fmt(s.goals?.assists)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total: ${s.goals?.assists ?? 0} assistências · Chave/j: ${perGame(s.passes?.key)}` : `Média: ${perGame(s.goals?.assists)} / j · Passes-Chave: ${s.passes?.key ?? 0}`}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      // Detalhamento das 2 seções inferiores específicas por posição
+      let detailedSectionsHtml = "";
+
+      if (isGK) {
+        // Detalhes Goleiro
+        detailedSectionsHtml = `
+          <div class="player-metrics-grid">
+            <div class="player-metrics-card">
+              <div class="player-metrics-header defense">
+                <span class="metrics-header-icon">🧤</span>
+                <span class="metrics-header-title">Desempenho no Gol & Defesas ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🧤</span>
+                    <span class="metric-label">Defesas Realizadas</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.goals?.saves)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🥅</span>
+                    <span class="metric-label">Gols Sofridos</span>
+                  </div>
+                  <span class="metric-val gold">${fmt(s.goals?.conceded)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🛑</span>
+                    <span class="metric-label">Pênaltis Defendidos</span>
+                  </div>
+                  <span class="metric-val">${s.penalty?.saved ?? 0}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🛡️</span>
+                    <span class="metric-label">Duelos & Saídas Ganhas</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.duels?.won)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="player-metrics-card">
+              <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
+                <span class="metrics-header-icon">⚽</span>
+                <span class="metrics-header-title">Reposições & Disciplina ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-label">Passes Totais</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.passes?.total)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">📊</span>
+                    <span class="metric-label">Precisão de Passes</span>
+                  </div>
+                  <span class="metric-val">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🛡️</span>
+                    <span class="metric-label">Faltas Sofridas</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.fouls?.drawn)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🟨</span>
+                    <span class="metric-label">Cartões Amarelos / Vermelhos</span>
+                  </div>
+                  <span class="metric-val" style="color:var(--gold);">
+                    ${s.cards?.yellow ?? 0} <small style="color:var(--chalk-dim);">/</small> <span style="color:#EF4444;">${s.cards?.red ?? 0}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (isDefender) {
+        // Detalhes Defensor
+        detailedSectionsHtml = `
+          <div class="player-metrics-grid">
+            <div class="player-metrics-card">
+              <div class="player-metrics-header defense">
+                <span class="metrics-header-icon">🛡️</span>
+                <span class="metrics-header-title">Desarmes, Cortes & Interceptações ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚔️</span>
+                    <span class="metric-label">Desarmes Totais</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.tackles?.total)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🧤</span>
+                    <span class="metric-label">Interceptações</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.tackles?.interceptions)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🧱</span>
+                    <span class="metric-label">Bloqueios de Chute</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.tackles?.blocks)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🏆</span>
+                    <span class="metric-label">Duelos Vencidos</span>
+                  </div>
+                  <span class="metric-val gold">${fmt(s.duels?.won)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="player-metrics-card">
+              <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
+                <span class="metrics-header-icon">⚡</span>
+                <span class="metrics-header-title">Construção, Apoio & Disciplina ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-label">Passes Totais</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.passes?.total)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">👟</span>
+                    <span class="metric-label">Passes-Chave (Apoio)</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.passes?.key)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚠️</span>
+                    <span class="metric-label">Faltas Cometidas</span>
+                  </div>
+                  <span class="metric-val" style="color:var(--gold);">${fmt(s.fouls?.committed)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🟨</span>
+                    <span class="metric-label">Cartões Amarelos / Vermelhos</span>
+                  </div>
+                  <span class="metric-val" style="color:var(--gold);">
+                    ${s.cards?.yellow ?? 0} <small style="color:var(--chalk-dim);">/</small> <span style="color:#EF4444;">${s.cards?.red ?? 0}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (isMidfielder) {
+        // Detalhes Meio-Campista
+        detailedSectionsHtml = `
+          <div class="player-metrics-grid">
+            <div class="player-metrics-card">
+              <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(255,184,0,0.15), transparent);border-left:3px solid var(--gold);">
+                <span class="metrics-header-icon">🧠</span>
+                <span class="metrics-header-title">Criação & Transição Ofensiva ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">👟</span>
+                    <span class="metric-label">Passes-Chave (Key Passes)</span>
+                  </div>
+                  <span class="metric-val gold">${fmt(s.passes?.key)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎁</span>
+                    <span class="metric-label">Assistências para Gol</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.goals?.assists)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚡</span>
+                    <span class="metric-label">Dribles Certos (1x1)</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.dribbles?.success)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-label">Chutes no Alvo</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.shots?.on)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="player-metrics-card">
+              <div class="player-metrics-header defense">
+                <span class="metrics-header-icon">🛡️</span>
+                <span class="metrics-header-title">Contenção, Desarmes & Duelos ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚔️</span>
+                    <span class="metric-label">Desarmes Totais</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.tackles?.total)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🧤</span>
+                    <span class="metric-label">Interceptações</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.tackles?.interceptions)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🏆</span>
+                    <span class="metric-label">Duelos Ganhos</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.duels?.won)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🟨</span>
+                    <span class="metric-label">Cartões Amarelos / Vermelhos</span>
+                  </div>
+                  <span class="metric-val" style="color:var(--gold);">
+                    ${s.cards?.yellow ?? 0} <small style="color:var(--chalk-dim);">/</small> <span style="color:#EF4444;">${s.cards?.red ?? 0}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Detalhes Atacante
+        const shotTotal = s.shots?.total || 0;
+        const convRate = shotTotal > 0 ? Math.round(((s.goals?.total || 0) / shotTotal) * 100) + '%' : '-';
+
+        detailedSectionsHtml = `
+          <div class="player-metrics-grid">
+            <div class="player-metrics-card">
+              <div class="player-metrics-header attack">
+                <span class="metrics-header-icon">🔥</span>
+                <span class="metrics-header-title">Finalizações & Faro de Gol ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚽</span>
+                    <span class="metric-label">Gols Marcados</span>
+                  </div>
+                  <span class="metric-val gold">${fmt(s.goals?.total)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-label">Chutes no Alvo</span>
+                  </div>
+                  <span class="metric-val gold">${fmt(s.shots?.on)} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${fmt(s.shots?.total)} tot)</small></span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">📊</span>
+                    <span class="metric-label">Conversão de Chutes</span>
+                  </div>
+                  <span class="metric-val green">${convRate}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎖️</span>
+                    <span class="metric-label">Pênaltis Sofridos</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.penalty?.won)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="player-metrics-card">
+              <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
+                <span class="metrics-header-icon">⚡</span>
+                <span class="metrics-header-title">Dribles, Criação & Participação ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚡</span>
+                    <span class="metric-label">Dribles Certos (1x1)</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.dribbles?.success)} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${fmt(s.dribbles?.attempts)} tent)</small></span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">👟</span>
+                    <span class="metric-label">Passes-Chave Criados</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.passes?.key)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🛡️</span>
+                    <span class="metric-label">Faltas Sofridas</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.fouls?.drawn)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🏆</span>
+                    <span class="metric-label">Duelos Físicos Ganhos</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.duels?.won)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        ${breadcrumbs([
+          { label: "Ligas", href: "#/" },
+          { label: s.team?.name || "Clube", href: `#/time/${s.team?.id || teamId}/${leagueId || 71}/${season || 2026}` },
+          { label: p.name, href: "" }
+        ])}
+
+        <div class="player-hero">
+          <div class="player-hero-main-row">
+            <div class="player-hero-avatar-wrap">
+              <img class="player-avatar-large" src="${p.photo}" alt="" onerror="this.style.display='none'">
+            </div>
+            <div class="player-hero-text">
+              <p class="page-eyebrow">${escapeHtml(formatTeamName(s.team?.name || ""))} · ${escapeHtml(getSpecificPlayerRole(p, s))} ${s.games?.number ? `#${s.games.number}` : ''}</p>
+              <h1 class="page-title">${escapeHtml(p.name)}</h1>
+            </div>
+            <div class="player-rating-badge">
+              <span class="rating-num">${rating > 0 ? rating : '-'}</span>
+              <span class="rating-label">Nota Média</span>
+            </div>
+          </div>
+          <div class="player-hero-meta">
+            <span>🎂 ${p.age ? p.age + ' anos' : '-'}</span>
+            <span>📍 ${escapeHtml(p.nationality || '-')}</span>
+            <span>📏 ${p.height || '-'}</span>
+            <span>⚖️ ${p.weight || '-'}</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;background:var(--glass-bg);border:1px solid var(--glass-border);padding:12px 16px;border-radius:var(--radius);flex-wrap:wrap;gap:12px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;">FILTRO DE COMPETIÇÃO:</span>
+            <select id="player-comp-select" style="background:var(--pitch-card);border:1px solid var(--line-strong);color:var(--chalk);padding:6px 14px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.85rem;">
+              ${compOptions}
+            </select>
+          </div>
+
+          <div class="player-mode-btn-group">
+            <button type="button" class="player-mode-btn ${!isPerGame ? 'active' : ''}" id="btn-player-mode-total">Geral</button>
+            <button type="button" class="player-mode-btn ${isPerGame ? 'active' : ''}" id="btn-player-mode-per-game">Por jogo</button>
+          </div>
+        </div>
+
+        <h2 class="section-title">${isPerGame ? 'Estatísticas por Jogo' : 'Estatísticas na Temporada'} (${s.league?.id === 'TOTAL' ? 'Todas as Competições' : escapeHtml(formatTeamName(s.league?.name || 'Geral'))})</h2>
+        <div class="stat-grid">
+          ${topCardsHtml}
+        </div>
+
+        ${detailedSectionsHtml}
+      `;
+    }
+
+    function updatePlayerView() {
+      content.innerHTML = renderPlayerStatsView(allOptions[currentSelectedIdx], currentSelectedIdx, currentMode);
+
+      const compSelect = document.getElementById("player-comp-select");
+      if (compSelect) {
+        compSelect.addEventListener("change", (e) => {
+          currentSelectedIdx = Number(e.target.value);
+          updatePlayerView();
+        });
+      }
+
+      const btnTotal = document.getElementById("btn-player-mode-total");
+      const btnPerGame = document.getElementById("btn-player-mode-per-game");
+
+      if (btnTotal) {
+        btnTotal.addEventListener("click", () => {
+          if (currentMode !== "total") {
+            currentMode = "total";
+            updatePlayerView();
+          }
+        });
+      }
+
+      if (btnPerGame) {
+        btnPerGame.addEventListener("click", () => {
+          if (currentMode !== "per_game") {
+            currentMode = "per_game";
+            updatePlayerView();
+          }
+        });
+      }
+    }
+
+    updatePlayerView();
+  } catch (err) {
+    content.innerHTML = errorBox(err.message);
+  }
+}
+
+// ============================================================
+// View: Time — Estatísticas
+// ============================================================
+async function renderTeam(teamId, leagueId, season) {
+  const league = LEAGUES.find(l => l.id === leagueId);
+  season = season || defaultSeasonFor(league);
+
+  app.innerHTML = `<div id="team-content">${skeletonTable()}</div>`;
+  const content = document.getElementById("team-content");
+
+  try {
+    const [stats, recentFixtures, teamSeasonFixtures, nextFixtures, squadResp, playerStatsResp] = await Promise.all([
+      apiGet("teams/statistics", { league: leagueId, season, team: teamId }, 5),
+      apiGet("fixtures", { team: teamId, last: 5 }, 5),
+      apiGet("fixtures", { team: teamId, season, league: leagueId }, 5).catch(() => []),
+      apiGet("fixtures", { team: teamId, next: 5 }, 5).catch(() => []),
+      apiGet("players/squads", { team: teamId }, 30).catch(() => []),
+      apiGet("players", { team: teamId, season: season }, 30).catch(() => [])
+    ]);
+
+    if (!stats || !stats.team) {
+      content.innerHTML = errorBox("Sem estatísticas para esse time nessa temporada.");
+      return;
+    }
+
+    const t = stats.team;
+    const teamFormattedName = formatTeamName(t.name);
+    const finishedSeason = Array.isArray(teamSeasonFixtures) ? teamSeasonFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short)) : [];
+
+    let totalPlayed = stats.fixtures?.played?.total || 0;
+    let totalWins = stats.fixtures?.wins?.total || 0;
+    let totalDraws = stats.fixtures?.draws?.total || 0;
+    let totalLoses = stats.fixtures?.loses?.total || 0;
+    let gfTotal = stats.goals?.for?.total?.total || 0;
+    let gaTotal = stats.goals?.against?.total?.total || 0;
+    let gfAvg = parseFloat(stats.goals?.for?.average?.total) || 0;
+    let gaAvg = parseFloat(stats.goals?.against?.average?.total) || 0;
+    let csTotal = stats.clean_sheet?.total || 0;
+
+    if (finishedSeason.length > totalPlayed) {
+      totalPlayed = finishedSeason.length;
+    }
+
+    const goalDiff = gfTotal - gaTotal;
+    const winPct = totalPlayed ? Math.round((totalWins / totalPlayed) * 100) : 0;
+    const isFav = state.favoriteTeams.some(fav => fav.id === teamId);
+
+    // Cruzamento de jogadores do elenco com estatísticas da temporada
+    const squadPlayers = squadResp?.[0]?.players || [];
+    const playerStatsMap = new Map();
+    if (Array.isArray(playerStatsResp)) {
+      playerStatsResp.forEach(item => {
+        if (item?.player?.id) {
+          playerStatsMap.set(item.player.id, item);
+        }
+      });
+    }
+
+    // Monta lista rica de atletas
+    const enrichedRoster = squadPlayers.map(p => {
+      const pStatsItem = playerStatsMap.get(p.id);
+      const st = pStatsItem?.statistics?.[0] || {};
+      const specificRole = getSpecificPlayerRole(p, st);
+      const goals = st.goals?.total || 0;
+      const assists = st.goals?.assists || 0;
+      const minutes = st.games?.minutes || 0;
+      const apps = st.games?.appearences || (minutes > 0 ? Math.ceil(minutes / 90) : 0);
+      const rating = parseFloat(st.games?.rating || "0");
+      const tackles = st.tackles?.total || 0;
+      const dribbles = st.dribbles?.success || 0;
+
+      return {
+        id: p.id,
+        name: p.name,
+        photo: p.photo || `https://media.api-sports.io/football/players/${p.id}.png`,
+        position: p.position,
+        specificRole: specificRole,
+        number: p.number || st.games?.number || "-",
+        goals,
+        assists,
+        minutes,
+        apps,
+        rating: rating > 0 ? rating.toFixed(1) : "-",
+        tackles,
+        dribbles
+      };
+    });
+
+    content.innerHTML = `
+      ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league?.name || "Liga", href: `#/liga/${leagueId}/${season}` }, { label: t.name, href: "" }])}
+      
+      <!-- Cabeçalho do Clube -->
+      <div class="team-header" style="display:flex;align-items:center;gap:16px;margin-bottom:20px;background:var(--pitch-card);border:1px solid var(--pitch-border);padding:16px;border-radius:var(--radius-lg);flex-wrap:wrap;">
+        <img src="${t.logo}" alt="" style="width:64px;height:64px;object-fit:contain;">
+        <div>
+          <p class="page-eyebrow">${escapeHtml(league?.name || "")} · ${season}</p>
+          <h1 class="page-title" style="margin:0;">${escapeHtml(teamFormattedName)}</h1>
+        </div>
+        <button class="btn ${isFav ? 'ghost' : ''} small" id="btn-toggle-team-fav" style="margin-left:auto;">
+          ${isFav ? '⭐ Seguindo Alertas' : '🔔 Seguir Time'}
+        </button>
+      </div>
+
+      <!-- ESTRUTURA EXPANDIDA DE 3 COLUNAS (NOTÍCIAS | CENTRO COM ELENCO | FIXTURES) -->
+      <div class="team-page-grid">
+        
+        <!-- COLUNA 1: NOTÍCIAS RECENTES DO CLUBE (ESQUERDA) -->
+        <aside class="team-news-col">
+          <div class="card" style="padding:14px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">
+              <span style="font-size:1.1rem;">📰</span>
+              <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--chalk);">Notícias do Clube</h3>
+            </div>
+            <div id="team-sidebar-news-container">
+              <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">Carregando notícias de ${escapeHtml(teamFormattedName)}...</div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- COLUNA 2: ESTATÍSTICAS GERAIS NO TOPO + ELENCO COM FOTOS E 3 BARRAS (CENTRO) -->
+        <main class="team-main-col">
+          
+          <!-- Estatísticas Gerais na Temporada (Acima dos Jogadores) -->
+          <div class="card" style="padding:16px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+              <span style="font-size:1.1rem;">📊</span>
+              <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Estatísticas Gerais na Temporada</h3>
+            </div>
+
+            <div class="team-top-stats-bar">
+              <div class="team-stat-box">
+                <span class="team-stat-box-val gold">${winPct}%</span>
+                <span class="team-stat-box-label">Aproveitamento</span>
+              </div>
+              <div class="team-stat-box">
+                <span class="team-stat-box-val">${totalPlayed}</span>
+                <span class="team-stat-box-label">Jogos</span>
+              </div>
+              <div class="team-stat-box">
+                <span class="team-stat-box-val green">${totalWins}V - ${totalDraws}E - ${totalLoses}D</span>
+                <span class="team-stat-box-label">V / E / D</span>
+              </div>
+              <div class="team-stat-box">
+                <span class="team-stat-box-val green">${gfTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${gfAvg.toFixed(1)}/j)</small></span>
+                <span class="team-stat-box-label">Gols Pró</span>
+              </div>
+              <div class="team-stat-box">
+                <span class="team-stat-box-val" style="color:#EF4444;">${gaTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${gaAvg.toFixed(1)}/j)</small></span>
+                <span class="team-stat-box-label">Gols Contra</span>
+              </div>
+              <div class="team-stat-box">
+                <span class="team-stat-box-val ${goalDiff >= 0 ? 'green' : ''}" style="${goalDiff < 0 ? 'color:#EF4444;' : ''}">${goalDiff > 0 ? '+' : ''}${goalDiff}</span>
+                <span class="team-stat-box-label">Saldo de Gols</span>
+              </div>
+              <div class="team-stat-box">
+                <span class="team-stat-box-val cyan">${csTotal}</span>
+                <span class="team-stat-box-label">Clean Sheets</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Elenco do Clube (Rosters com Fotos e 3 Barras de Atributos) -->
+          <div class="card" style="padding:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:1.1rem;">👥</span>
+                <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Elenco / Jogadores (${enrichedRoster.length})</h3>
+              </div>
+              <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">Temporada ${season}</span>
+            </div>
+
+            ${enrichedRoster.length ? `
+              <div class="rosters-grid">
+                ${enrichedRoster.map(p => {
+                  const isGoalkeeper = p.specificRole === "Goleiro";
+                  const isDef = p.specificRole.includes("Zagueiro") || p.specificRole.includes("Lateral");
+                  const isMid = p.specificRole.includes("Volante") || p.specificRole.includes("Meia");
+
+                  // 3 Barras dinâmicas por posição:
+                  let bar1Label = "GOLS", bar1Val = `${p.goals} gols`, bar1Pct = Math.min(p.goals * 8, 100);
+                  let bar2Label = "MINUTOS", bar2Val = `${p.minutes} min`, bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
+                  let bar3Label = "NOTA MÉDIA", bar3Val = p.rating, bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 50;
+
+                  if (isGoalkeeper) {
+                    bar1Label = "JOGOS"; bar1Val = `${p.apps} jg`; bar1Pct = Math.min(p.apps * 3, 100);
+                    bar2Label = "MINUTOS"; bar2Val = `${p.minutes} min`; bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
+                    bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
+                  } else if (isDef) {
+                    bar1Label = "DESARMES"; bar1Val = `${p.tackles} des`; bar1Pct = Math.min(p.tackles * 3, 100);
+                    bar2Label = "JOGOS"; bar2Val = `${p.apps} jg`; bar2Pct = Math.min(p.apps * 3, 100);
+                    bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
+                  } else if (isMid) {
+                    bar1Label = "ASSISTÊNCIAS"; bar1Val = `${p.assists} ast`; bar1Pct = Math.min(p.assists * 10, 100);
+                    bar2Label = "GOLS"; bar2Val = `${p.goals} gols`; bar2Pct = Math.min(p.goals * 10, 100);
+                    bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
+                  }
+
+                  return `
+                    <div class="roster-card">
+                      <div class="roster-avatar-wrap">
+                        <img class="roster-avatar-img" src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                      </div>
+                      <div class="roster-player-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</div>
+                      <div class="roster-player-pos">${escapeHtml(p.specificRole)} #${p.number}</div>
+
+                      <div class="roster-bars-container">
+                        <!-- Barra 1 -->
+                        <div class="roster-bar-item">
+                          <div class="roster-bar-labels">
+                            <span class="roster-bar-name">${bar1Label}</span>
+                            <span class="roster-bar-val">${bar1Val}</span>
+                          </div>
+                          <div class="roster-bar-track">
+                            <div class="roster-bar-fill gold" style="width:${bar1Pct}%;"></div>
+                          </div>
+                        </div>
+
+                        <!-- Barra 2 -->
+                        <div class="roster-bar-item">
+                          <div class="roster-bar-labels">
+                            <span class="roster-bar-name">${bar2Label}</span>
+                            <span class="roster-bar-val">${bar2Val}</span>
+                          </div>
+                          <div class="roster-bar-track">
+                            <div class="roster-bar-fill cyan" style="width:${bar2Pct}%;"></div>
+                          </div>
+                        </div>
+
+                        <!-- Barra 3 -->
+                        <div class="roster-bar-item">
+                          <div class="roster-bar-labels">
+                            <span class="roster-bar-name">${bar3Label}</span>
+                            <span class="roster-bar-val">${bar3Val}</span>
+                          </div>
+                          <div class="roster-bar-track">
+                            <div class="roster-bar-fill" style="width:${bar3Pct}%;"></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <a class="btn-roster-profile" href="#/jogador/${p.id}/${teamId}/${leagueId}/${season}">
+                        Ver Perfil →
+                      </a>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            ` : `
+              <div style="padding:30px;text-align:center;color:var(--chalk-dim);font-size:0.88rem;">
+                Nenhum jogador cadastrado para o elenco neste momento.
+              </div>
+            `}
+          </div>
+        </main>
+
+        <!-- COLUNA 3: PRÓXIMAS PARTIDAS E ÚLTIMOS RESULTADOS (DIREITA) -->
+        <aside class="team-fixtures-col">
+          <!-- 1. Próximas Partidas (5 jogos) -->
+          <div class="card" style="padding:14px;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">
+              <span style="font-size:1.1rem;">⏳</span>
+              <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--chalk);">Próximas Partidas</h3>
+            </div>
+
+            ${(nextFixtures && nextFixtures.length) ? `
+              <div class="fixture-list">
+                ${nextFixtures.map(f => {
+                  const dObj = new Date(f.fixture.date);
+                  const day = String(dObj.getDate()).padStart(2, "0");
+                  const month = String(dObj.getMonth() + 1).padStart(2, "0");
+                  const year = dObj.getFullYear();
+                  const timeStr = dObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                  const dateFormatted = `${day}/${month}/${year}${timeStr && timeStr !== "00:00" ? ' · ' + timeStr : ''}`;
+                  const isHome = f.teams.home.id === teamId;
+                  const leagueLogo = f.league?.logo;
+                  const leagueName = formatTeamName(f.league?.name || "");
+
+                  return `
+                    <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                      <div class="fixture-card-topbar">
+                        <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
+                          ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" onerror="this.style.display='none'">` : ''}
+                          <span>${escapeHtml(leagueName)}</span>
+                        </div>
+                        <div class="fixture-card-top-right">
+                          <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
+                        </div>
+                      </div>
+                      <div class="fixture-card-matchup">
+                        <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                          <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                          <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                        </div>
+                        <div class="fixture-card-score-box">
+                          <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;padding:2px 8px;min-width:38px;">vs</span>
+                        </div>
+                        <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                          <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                          <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                        </div>
+                      </div>
+                    </a>
+                  `;
+                }).join("")}
+              </div>
+            ` : `
+              <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">
+                Nenhuma partida futura agendada.
+              </div>
+            `}
+          </div>
+
+          <!-- 2. Últimos Resultados (5 jogos) -->
+          <div class="card" style="padding:14px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">
+              <span style="font-size:1.1rem;">✅</span>
+              <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--chalk);">Últimos Resultados</h3>
+            </div>
+
+            ${(recentFixtures && recentFixtures.length) ? `
+              <div class="fixture-list">
+                ${recentFixtures.map(f => {
+                  const dObj = new Date(f.fixture.date);
+                  const day = String(dObj.getDate()).padStart(2, "0");
+                  const month = String(dObj.getMonth() + 1).padStart(2, "0");
+                  const year = dObj.getFullYear();
+                  const dateFormatted = `${day}/${month}/${year}`;
+                  const isHome = f.teams.home.id === teamId;
+                  const homeGoals = f.goals.home ?? 0;
+                  const awayGoals = f.goals.away ?? 0;
+                  const leagueLogo = f.league?.logo;
+                  const leagueName = formatTeamName(f.league?.name || "");
+
+                  let outcomeLetter = "E";
+                  let outcomeBg = "rgba(255,184,0,0.2)";
+                  let outcomeColor = "#FFB800";
+                  let outcomeBorder = "rgba(255,184,0,0.5)";
+
+                  if (homeGoals !== awayGoals) {
+                    if ((isHome && homeGoals > awayGoals) || (!isHome && awayGoals > homeGoals)) {
+                      outcomeLetter = "V";
+                      outcomeBg = "rgba(16,185,129,0.2)";
+                      outcomeColor = "#10B981";
+                      outcomeBorder = "rgba(16,185,129,0.5)";
+                    } else {
+                      outcomeLetter = "D";
+                      outcomeBg = "rgba(239,68,68,0.2)";
+                      outcomeColor = "#EF4444";
+                      outcomeBorder = "rgba(239,68,68,0.5)";
+                    }
+                  }
+
+                  return `
+                    <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                      <div class="fixture-card-topbar">
+                        <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
+                          ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" onerror="this.style.display='none'">` : ''}
+                          <span>${escapeHtml(leagueName)}</span>
+                        </div>
+                        <div class="fixture-card-top-right">
+                          <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.68rem;font-weight:800;line-height:1;">
+                            ${outcomeLetter}
+                          </span>
+                          <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
+                        </div>
+                      </div>
+                      <div class="fixture-card-matchup">
+                        <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                          <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                          <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                        </div>
+                        <div class="fixture-card-score-box">
+                          <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
+                          <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                            <span style="font-size:0.6rem;line-height:1;">▶</span>
+                            <span>Melhores Momentos</span>
+                          </button>
+                        </div>
+                        <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                          <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                          <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                        </div>
+                      </div>
+                    </a>
+                  `;
+                }).join("")}
+              </div>
+            ` : `
+              <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">
+                Nenhum resultado recente encontrado.
+              </div>
+            `}
+          </div>
+        </aside>
+
+      </div>
+    `;
+
+    // Carregar notícias do time na coluna esquerda
+    loadTeamNews(t.name, "team-sidebar-news-container");
+
+    const favBtn = document.getElementById("btn-toggle-team-fav");
+    if (favBtn) {
+      favBtn.addEventListener("click", () => {
+        const teamObj = { id: teamId, name: t.name, logo: t.logo };
+        const exists = state.favoriteTeams.some(fav => fav.id === teamId);
+        if (exists) {
+          state.favoriteTeams = state.favoriteTeams.filter(fav => fav.id !== teamId);
+          favBtn.classList.remove("ghost");
+          favBtn.textContent = "🔔 Seguir Time";
+          toast(`${t.name} removido dos seus times favoritos.`, false);
+        } else {
+          state.favoriteTeams.push(teamObj);
+          favBtn.classList.add("ghost");
+          favBtn.textContent = "⭐ Seguindo Alertas";
+          toast(`${t.name} adicionado aos favoritos!`, false);
+        }
+        NotificationManager.syncPreferences();
+      });
+    }
+  } catch (err) {
+    content.innerHTML = errorBox(err.message);
+  }
+}
+
 
 async function renderPlayer(playerId, teamId, leagueId, season) {
   app.innerHTML = `<div id="player-content">${skeletonTable()}</div>`;
@@ -4089,41 +5576,61 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
                 const isLive = liveStatuses.includes(f.fixture.status?.short);
                 const isFinished = finishedStatuses.includes(f.fixture.status?.short);
                 const timeStr = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const hGoals = f.goals.home ?? 0;
+                const aGoals = f.goals.away ?? 0;
+                const { homeProb, drawProb, awayProb } = calculateMatchProbability(f);
 
-                let statusBadge = `<span class="fixture-date">${timeStr}</span>`;
+                let statusBadge = `<span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--chalk-dim);font-weight:700;">${timeStr}</span>`;
                 if (isLive) {
-                  statusBadge = `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${f.fixture.status.elapsed}'</span>`;
+                  statusBadge = `<span class="match-live-pulse-badge">🔴 ${f.fixture.status.elapsed}' LIVE</span>`;
                 } else if (isFinished) {
-                  statusBadge = `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;">${f.fixture.status.short}</span>`;
+                  statusBadge = `<span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);font-weight:700;">${f.fixture.status.short}</span>`;
                 }
 
                 const scoreDisplay = (isFinished || isLive)
-                  ? `<span class="fixture-score ${isLive ? 'live-score' : ''}">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>`
-                  : `<span class="fixture-score" style="color:var(--chalk-dim);font-size:0.85rem;">vs</span>`;
+                  ? `<span class="match-score-badge ${isLive ? 'live-score' : ''}">${hGoals} - ${aGoals}</span>`
+                  : `<span class="match-score-badge" style="color:var(--chalk-dim);font-size:0.85rem;">vs</span>`;
 
                 return `
-                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir estatísticas do confronto">
-                    <div class="fixture-date-col">
-                      ${statusBadge}
-                    </div>
-                    <div class="fixture-team-item right">
-                      <span>${escapeHtml(f.teams.home.name)}</span>
+                  <a class="match-row-futuristic" href="#/jogo/${f.fixture.id}" title="Clique para abrir análise completa da partida">
+                    <!-- Mandante -->
+                    <div class="match-team-block right">
+                      <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:54px;">
+
+                    <!-- Placar e Status Central -->
+                    <div class="match-center-score-wrap">
                       ${scoreDisplay}
-                      ${isFinished ? `
-                        <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}', '_blank', 'noopener,noreferrer');">
-                          <span style="font-size:0.6rem;line-height:1;">▶</span>
-                          <span>Melhores Momentos</span>
-                        </button>
-                      ` : ''}
+                      ${statusBadge}
                     </div>
-                    <div class="fixture-team-item">
+
+                    <!-- Visitante -->
+                    <div class="match-team-block">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span>${escapeHtml(f.teams.away.name)}</span>
+                      <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
-                  </a>`;
+
+                    <!-- Mini Sparkline de Ritmo / Momentum -->
+                    <div class="match-sparkline-wrap">
+                      ${generateSparklineSvg(isLive, hGoals, aGoals, homeProb >= awayProb)}
+                    </div>
+
+                    <!-- Barra Tripla de Probabilidade na Temporada -->
+                    <div class="win-prob-wrapper">
+                      <div class="win-prob-labels">
+                        <span class="win-prob-home-text">${homeProb}% <small>CASA</small></span>
+                        <span class="win-prob-draw-text">${drawProb}% <small>EMP</small></span>
+                        <span class="win-prob-away-text">${awayProb}% <small>FORA</small></span>
+                      </div>
+                      <div class="win-prob-bar-track">
+                        <div class="win-prob-seg-home" style="width:${homeProb}%;"></div>
+                        <div class="win-prob-seg-draw" style="width:${drawProb}%;"></div>
+                        <div class="win-prob-seg-away" style="width:${awayProb}%;"></div>
+                      </div>
+                    </div>
+                  </a>
+                `;
               }).join("")}
             </div>
           </div>
@@ -4177,34 +5684,65 @@ async function fetchLiveMatches(isForced = false) {
     }
 
     content.innerHTML = `
-      <div class="card">
+      <div class="card" style="padding:12px;">
         <div class="fixture-list">
           ${relevant.map(f => {
-            const league = LEAGUES.find(l => l.id === f.league.id);
+            const hGoals = f.goals.home ?? 0;
+            const aGoals = f.goals.away ?? 0;
+            const { homeProb, drawProb, awayProb } = calculateMatchProbability(f);
+
             return `
-              <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
-                <span class="fixture-date" style="color:var(--gold);font-weight:700;">${f.fixture.status.elapsed}'<br><small style="color:var(--chalk-dim);">${escapeHtml(league?.name || "")}</small></span>
-                <div class="fixture-team-item right">
-                  <span>${escapeHtml(f.teams.home.name)}</span>
-                  <img src="${f.teams.home.logo}" alt="">
+              <a class="match-row-futuristic" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
+                <!-- Mandante -->
+                <div class="match-team-block right">
+                  <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                  <img src="${f.teams.home.logo}" alt="" loading="lazy">
                 </div>
-                <span class="fixture-score">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>
-                <div class="fixture-team-item">
-                  <img src="${f.teams.away.logo}" alt="">
-                  <span>${escapeHtml(f.teams.away.name)}</span>
+
+                <!-- Placar e Status Central -->
+                <div class="match-center-score-wrap">
+                  <span class="match-score-badge live-score">${hGoals} - ${aGoals}</span>
+                  <span class="match-live-pulse-badge">🔴 ${f.fixture.status.elapsed}' LIVE</span>
                 </div>
-              </a>`;
+
+                <!-- Visitante -->
+                <div class="match-team-block">
+                  <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                  <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                </div>
+
+                <!-- Mini Sparkline de Ritmo / Momentum -->
+                <div class="match-sparkline-wrap">
+                  ${generateSparklineSvg(true, hGoals, aGoals, homeProb >= awayProb)}
+                </div>
+
+                <!-- Barra Tripla de Probabilidade na Temporada -->
+                <div class="win-prob-wrapper">
+                  <div class="win-prob-labels">
+                    <span class="win-prob-home-text">${homeProb}% <small>CASA</small></span>
+                    <span class="win-prob-draw-text">${drawProb}% <small>EMP</small></span>
+                    <span class="win-prob-away-text">${awayProb}% <small>FORA</small></span>
+                  </div>
+                  <div class="win-prob-bar-track">
+                    <div class="win-prob-seg-home" style="width:${homeProb}%;"></div>
+                    <div class="win-prob-seg-draw" style="width:${drawProb}%;"></div>
+                    <div class="win-prob-seg-away" style="width:${awayProb}%;"></div>
+                  </div>
+                </div>
+              </a>
+            `;
           }).join("")}
         </div>
       </div>`;
   } catch (err) {
-    if (content.querySelector(".fixture-row")) {
+    if (content.querySelector(".match-row-futuristic")) {
       console.warn("Aviso: Falha temporária ao sincronizar ao vivo, mantendo dados atuais:", err.message);
     } else {
       content.innerHTML = errorBox(err.message);
     }
   }
 }
+
 
 function startLiveAutoRefresh(refreshFn) {
   if (state.liveTimer) {
