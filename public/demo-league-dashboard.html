@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FutStats — Demonstração Dashboard de Liga (Glass & Futuristic Layout)</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #07111E;
+      --bg-pitch: #0D263B;
+      --card-bg: rgba(13, 38, 59, 0.72);
+      --card-border: rgba(0, 229, 255, 0.22);
+      --card-border-glow: rgba(0, 229, 255, 0.45);
+      --chalk: #F0F4F8;
+      --chalk-dim: #94A3B8;
+      --cyan: #00E5FF;
+      --cyan-glow: rgba(0, 229, 255, 0.35);
+      --gold: #FFB800;
+      --gold-glow: rgba(255, 184, 0, 0.35);
+      --emerald: #10B981;
+      --red: #EF4444;
+      --font-body: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #0F2E4A 0%, var(--bg-dark) 70%, #040910 100%);
+      color: var(--chalk);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Futuristic Grid Background */
+    .bg-grid-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        linear-gradient(to right, rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Top Navigation Header */
+    header.demo-header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 28px;
+      background: rgba(7, 17, 30, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px var(--cyan-glow);
+    }
+
+    .brand-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--chalk);
+      letter-spacing: -0.5px;
+    }
+
+    .brand-tagline {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--cyan);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .league-selector-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      padding: 6px 14px;
+      border-radius: 20px;
+      color: var(--chalk);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .league-selector-pill:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan-glow);
+      background: rgba(0, 229, 255, 0.1);
+    }
+
+    /* Main Futuristic Dashboard Container */
+    main.dashboard-container {
+      position: relative;
+      z-index: 5;
+      flex: 1;
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 24px;
+      max-width: 1720px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1200px) {
+      main.dashboard-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Futuristic Glass Card */
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px) saturate(190%);
+      -webkit-backdrop-filter: blur(20px) saturate(190%);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .glass-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0.7;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--chalk);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: var(--cyan);
+      border-radius: 2px;
+      box-shadow: 0 0 10px var(--cyan);
+    }
+
+    /* Filter Pills */
+    .filter-pills {
+      display: flex;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 3px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      gap: 2px;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--chalk-dim);
+      padding: 5px 12px;
+      border-radius: 16px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-btn.active {
+      background: var(--cyan);
+      color: #040910;
+      font-weight: 800;
+      box-shadow: 0 0 12px var(--cyan-glow);
+    }
+
+    /* Standings Table */
+    .standings-table-wrapper {
+      overflow-x: auto;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+
+    .standings-table-wrapper::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .standings-table-wrapper::-webkit-scrollbar-thumb {
+      background: rgba(0, 229, 255, 0.3);
+      border-radius: 4px;
+    }
+
+    table.futuristic-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+
+    table.futuristic-table thead th {
+      position: sticky;
+      top: 0;
+      background: rgba(7, 17, 30, 0.95);
+      backdrop-filter: blur(12px);
+      padding: 10px 8px;
+      color: var(--chalk-dim);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+      z-index: 2;
+    }
+
+    table.futuristic-table tbody tr {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    table.futuristic-table tbody tr:hover {
+      background: rgba(0, 229, 255, 0.08);
+      border-color: rgba(0, 229, 255, 0.3);
+    }
+
+    table.futuristic-table tbody tr.active-row {
+      background: linear-gradient(90deg, rgba(0, 229, 255, 0.18), rgba(0, 229, 255, 0.04));
+      border: 1px solid var(--cyan);
+      box-shadow: inset 0 0 14px rgba(0, 229, 255, 0.2), 0 0 15px rgba(0, 229, 255, 0.25);
+    }
+
+    table.futuristic-table td {
+      padding: 10px 8px;
+      vertical-align: middle;
+    }
+
+    .rank-num {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 0.85rem;
+      width: 28px;
+      text-align: center;
+      display: inline-block;
+    }
+    .rank-1 { color: var(--gold); text-shadow: 0 0 8px var(--gold-glow); }
+    .rank-g4 { color: var(--cyan); }
+    .rank-z4 { color: var(--red); }
+
+    .team-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: var(--chalk);
+    }
+
+    .team-cell img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    }
+
+    .pts-val {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: var(--gold);
+      font-size: 0.95rem;
+      text-shadow: 0 0 6px rgba(255, 184, 0, 0.3);
+    }
+
+    .mono-cell {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--chalk-dim);
+    }
+
+    /* Trend Chart Section at Bottom Left */
+    .trend-section {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .trend-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .trend-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .chart-container {
+      height: 140px;
+      width: 100%;
+      position: relative;
+    }
+
+    /* RIGHT COLUMN: Holographic Spotlight & Rankings */
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Holographic Spotlight Section */
+    .spotlight-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .hologram-card {
+      background: linear-gradient(180deg, rgba(13, 38, 59, 0.85) 0%, rgba(7, 17, 30, 0.95) 100%);
+      border: 1px solid rgba(0, 229, 255, 0.35);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 229, 255, 0.08);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .hologram-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--cyan);
+      box-shadow: 0 14px 40px rgba(0, 229, 255, 0.25);
+    }
+
+    .hologram-badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .badge-mvp { background: rgba(255, 184, 0, 0.15); color: var(--gold); border: 1px solid rgba(255, 184, 0, 0.4); }
+    .badge-artilheiro { background: rgba(0, 229, 255, 0.15); color: var(--cyan); border: 1px solid rgba(0, 229, 255, 0.4); }
+
+    .hologram-avatar-wrap {
+      position: relative;
+      width: 105px;
+      height: 105px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Pedestal Holográfico Neon */
+    .hologram-pedestal {
+      position: absolute;
+      bottom: -6px;
+      width: 90px;
+      height: 24px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse at center, rgba(0, 229, 255, 0.6) 0%, rgba(0, 229, 255, 0) 70%);
+      border: 1px solid rgba(0, 229, 255, 0.8);
+      box-shadow: 0 0 20px var(--cyan-glow), inset 0 0 10px var(--cyan);
+      transform: rotateX(60deg);
+      animation: pulsePedestal 3s infinite alternate;
+    }
+
+    @keyframes pulsePedestal {
+      0% { opacity: 0.6; box-shadow: 0 0 10px var(--cyan-glow); }
+      100% { opacity: 1; box-shadow: 0 0 25px var(--cyan); }
+    }
+
+    .hologram-avatar-img {
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      object-fit: cover;
+      position: relative;
+      z-index: 2;
+      border: 2px solid var(--cyan);
+      box-shadow: 0 0 16px var(--cyan-glow);
+    }
+
+    .player-name {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--chalk);
+      margin-bottom: 2px;
+    }
+
+    .player-club-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--chalk-dim);
+      margin-bottom: 10px;
+    }
+    .player-club-row img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+    }
+
+    .player-metric-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 6px 14px;
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--chalk-dim);
+      font-weight: 600;
+    }
+
+    .metric-value {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: var(--gold);
+    }
+
+    /* Bottom Split Rankings (Top Scorers & Top Assists) */
+    .rankings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .ranking-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .ranking-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-sm);
+      transition: all 0.2s;
+    }
+
+    .ranking-row:hover {
+      background: rgba(0, 229, 255, 0.06);
+      border-color: rgba(0, 229, 255, 0.25);
+      transform: translateX(3px);
+    }
+
+    .ranking-player-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .ranking-photo {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      flex-shrink: 0;
+    }
+
+    .ranking-player-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .ranking-player-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--chalk);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ranking-player-sub {
+      font-size: 0.7rem;
+      color: var(--chalk-dim);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .ranking-score-badge {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: var(--cyan);
+      background: rgba(0, 229, 255, 0.12);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      padding: 3px 8px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid-overlay"></div>
+
+  <!-- Header -->
+  <header class="demo-header">
+    <div class="brand-section">
+      <img class="brand-logo" src="/icon-192.png" alt="FutStats" onerror="this.src='/badge-96.png'">
+      <div>
+        <div class="brand-title">FutStats Analytics</div>
+        <div class="brand-tagline">Glass & Futuristic League Dashboard</div>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div class="league-selector-pill" id="btn-league-select">
+        <img src="https://media.api-sports.io/football/leagues/71.png" alt="" style="width:20px;height:20px;object-fit:contain;">
+        <span>Brasileirão Série A 2026</span>
+        <span style="font-size:0.7rem;color:var(--cyan);">▼</span>
+      </div>
+      <div class="league-selector-pill" style="border-color:var(--gold);color:var(--gold);">
+        <span>⚡ Temporada 2026</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Grid -->
+  <main class="dashboard-container">
+    
+    <!-- LEFT PANEL: Tabela de Classificação + Gráfico de Evolução -->
+    <section class="glass-card">
+      <div class="card-head">
+        <div class="card-title">Classificação da Liga</div>
+        <div class="filter-pills">
+          <button class="filter-btn active" onclick="setFilter(this, 'all')">Geral</button>
+          <button class="filter-btn" onclick="setFilter(this, 'home')">Mandante</button>
+          <button class="filter-btn" onclick="setFilter(this, 'away')">Visitante</button>
+        </div>
+      </div>
+
+      <!-- Tabela com Scroll Suave e Highlight -->
+      <div class="standings-table-wrapper">
+        <table class="futuristic-table">
+          <thead>
+            <tr>
+              <th style="width:36px;">#</th>
+              <th>Clube</th>
+              <th style="text-align:center;">J</th>
+              <th style="text-align:center;">V</th>
+              <th style="text-align:center;">E</th>
+              <th style="text-align:center;">D</th>
+              <th style="text-align:center;">SG</th>
+              <th style="text-align:center;">PTS</th>
+            </tr>
+          </thead>
+          <tbody id="standings-tbody">
+            <!-- Linha 1 -->
+            <tr class="active-row" onclick="selectTeam(this, 'Palmeiras')">
+              <td><span class="rank-num rank-1">1</span></td>
+              <td>
+                <div class="team-cell">
+                  <img src="https://media.api-sports.io/football/teams/121.png" alt="">
+                  <span>Palmeiras</span>
+                </div>
+              </td>
+              <td class="mono-cell" style="text-align:center;">25</td>
+              <td class="mono-cell" style="text-align:center;">15</td>
+              <td class="mono-cell" style="text-align:center;">7</td>
+              <td class="mono-cell" style="text-align:center;">3</td>
+              <td class="mono-cell" style="text-align:center;color:var(--emerald);">+24</td>
+              <td style="text-align:center;"><span class="pts-val">52</span></td>
+            </tr>
+
+            <!-- Linha 2 -->
+            <tr onclick="selectTeam(this, 'Flamengo')">
+              <td><span class="rank-num rank-g4">2</span></td>
+              <td>
+                <div class="team-cell">
+                  <img src="https://media.api-sports.io/football/teams/127.png" alt="">
+                  <span>Flamengo</span>
+                </div>
+              </td>
+              <td class="mono-cell" style="text-align:center;">24</td>
+              <td class="mono-cell" style="text-align:center;">14</td>
+              <td class="mono-cell" style="text-align:center;">6</td>
+              <td class="mono-cell" style="text-align:center;">4</td>
+              <td class="mono-cell" style="text-align:center;color:var(--emerald);">+27</td>
+              <td style="text-align:center;"><span class="pts-val">48</span></td>
+            </tr>
+
+            <!-- Linha 3 -->
+            <tr onclick="selectTeam(this, 'Athletico-PR')">
+              <td><span class="rank-num rank-g4">3</span></td>
+              <td>
+                <div class="team-cell">
+                  <img src="https://media.api-sports.io/football/teams/134.png" alt="">
+                  <span>Athletico-PR</span>
+                </div>
+              </td>
+              <td class="mono-cell" style="text-align:center;">25</td>
+              <td class="mono-cell" style="text-align:center;">13</td>
+              <td class="mono-cell" style="text-align:center;">6</td>
+              <td class="mono-cell" style="text-align:center;">6</td>
+              <td class="mono-cell" style="text-align:center;color:var(--emerald);">+12</td>
+              <td style="text-align:center;"><span class="pts-val">45</span></td>
+            </tr>
+
+            <!-- Linha 4 -->
+            <tr onclick="selectTeam(this, 'Fluminense')">
+              <td><span class="rank-num rank-g4">4</span></td>
+              <td>
+                <div class="team-cell">
+                  <img src="https://media.api-sports.io/football/teams/124.png" alt="">
+                  <span>Fluminense</span>
+                </div>
+              </td>
+              <td class="mono-cell" style="text-align:center;">25</td>
+              <td class="mono-cell" style="text-align:center;">11</td>
+              <td class="mono-cell" style="text-align:center;">9</td>
+              <td class="mono-cell" style="text-align:center;">5</td>
+              <td class="mono-cell" style="text-align:center;color:var(--emerald);">+7</td>
+              <td style="text-align:center;"><span class="pts-val">42</span></td>
+            </tr>
+
+            <!-- Linha 5 -->
+            <tr onclick="selectTeam(this, 'Bahia')">
+              <td><span class="rank-num">5</span></td>
+              <td>
+                <div class="team-cell">
+                  <img src="https://media.api-sports.io/football/teams/118.png" alt="">
+                  <span>Bahia</span>
+                </div>
+              </td>
+              <td class="mono-cell" style="text-align:center;">25</td>
+              <td class="mono-cell" style="text-align:center;">10</td>
+              <td class="mono-cell" style="text-align:center;">10</td>
+              <td class="mono-cell" style="text-align:center;">5</td>
+              <td class="mono-cell" style="text-align:center;color:var(--emerald);">+7</td>
+              <td style="text-align:center;"><span class="pts-val">40</span></td>
+            </tr>
+
+            <!-- Linha 6 -->
+            <tr onclick="selectTeam(this, 'Cruzeiro')">
+              <td><span class="rank-num">6</span></td>
+              <td>
+                <div class="team-cell">
+                  <img src="https://media.api-sports.io/football/teams/135.png" alt="">
+                  <span>Cruzeiro</span>
+                </div>
+              </td>
+              <td class="mono-cell" style="text-align:center;">25</td>
+              <td class="mono-cell" style="text-align:center;">11</td>
+              <td class="mono-cell" style="text-align:center;">6</td>
+              <td class="mono-cell" style="text-align:center;">8</td>
+              <td class="mono-cell" style="text-align:center;color:var(--chalk-dim);">-1</td>
+              <td style="text-align:center;"><span class="pts-val">39</span></td>
+            </tr>
+
+            <!-- Linha 7 -->
+            <tr onclick="selectTeam(this, 'Atlético-MG')">
+              <td><span class="rank-num">7</span></td>
+              <td>
+                <div class="team-cell">
+                  <img src="https://media.api-sports.io/football/teams/1062.png" alt="">
+                  <span>Atlético-MG</span>
+                </div>
+              </td>
+              <td class="mono-cell" style="text-align:center;">24</td>
+              <td class="mono-cell" style="text-align:center;">10</td>
+              <td class="mono-cell" style="text-align:center;">6</td>
+              <td class="mono-cell" style="text-align:center;">8</td>
+              <td class="mono-cell" style="text-align:center;color:var(--emerald);">+4</td>
+              <td style="text-align:center;"><span class="pts-val">36</span></td>
+            </tr>
+
+            <!-- Linha 8 -->
+            <tr onclick="selectTeam(this, 'Botafogo')">
+              <td><span class="rank-num">8</span></td>
+              <td>
+                <div class="team-cell">
+                  <img src="https://media.api-sports.io/football/teams/120.png" alt="">
+                  <span>Botafogo</span>
+                </div>
+              </td>
+              <td class="mono-cell" style="text-align:center;">24</td>
+              <td class="mono-cell" style="text-align:center;">10</td>
+              <td class="mono-cell" style="text-align:center;">5</td>
+              <td class="mono-cell" style="text-align:center;">9</td>
+              <td class="mono-cell" style="text-align:center;color:var(--emerald);">+4</td>
+              <td style="text-align:center;"><span class="pts-val">35</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Trend / Momentum Sparkline Chart -->
+      <div class="trend-section">
+        <div class="trend-head">
+          <span class="trend-title">📈 Tendência de Pontos & Momento das Últimas 6 Rodadas</span>
+          <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">G-4 em Destaque</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Destaques Holográficos + Top Scorers & Top Assists -->
+    <section class="right-column">
+      
+      <!-- Top Holographic Spotlight Cards -->
+      <div class="spotlight-grid">
+        
+        <!-- Spotlight 1: Artilheiro -->
+        <div class="hologram-card">
+          <div class="hologram-badge badge-artilheiro">⚽ Artilheiro da Liga</div>
+          
+          <div class="hologram-avatar-wrap">
+            <div class="hologram-pedestal"></div>
+            <img class="hologram-avatar-img" src="https://media.api-sports.io/football/players/10328.png" alt="Pedro" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+          </div>
+
+          <div class="player-name">Pedro</div>
+          <div class="player-club-row">
+            <img src="https://media.api-sports.io/football/teams/127.png" alt="">
+            <span>CR Flamengo</span>
+          </div>
+
+          <div class="player-metric-pill">
+            <span class="metric-label">Gols Marcados</span>
+            <span class="metric-value">16 <small style="font-size:0.7rem;color:var(--chalk-dim);">gols</small></span>
+          </div>
+        </div>
+
+        <!-- Spotlight 2: Líder em Assistências / MVP -->
+        <div class="hologram-card">
+          <div class="hologram-badge badge-mvp">⭐ Craque / Assistências</div>
+          
+          <div class="hologram-avatar-wrap">
+            <div class="hologram-pedestal"></div>
+            <img class="hologram-avatar-img" src="https://media.api-sports.io/football/players/10342.png" alt="Arrascaeta" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+          </div>
+
+          <div class="player-name">G. de Arrascaeta</div>
+          <div class="player-club-row">
+            <img src="https://media.api-sports.io/football/teams/127.png" alt="">
+            <span>CR Flamengo</span>
+          </div>
+
+          <div class="player-metric-pill">
+            <span class="metric-label">Assistências</span>
+            <span class="metric-value">11 <small style="font-size:0.7rem;color:var(--chalk-dim);">passes</small></span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Split: Top Scorers & Top Assists Ranking Lists -->
+      <div class="rankings-grid">
+        
+        <!-- Top Scorers Card -->
+        <div class="glass-card">
+          <div class="card-head" style="margin-bottom:8px;">
+            <div class="card-title" style="font-size:0.95rem;">Artilheiros</div>
+            <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--gold);">Top 5</span>
+          </div>
+
+          <div class="ranking-list">
+            <div class="ranking-row">
+              <div class="ranking-player-left">
+                <img class="ranking-photo" src="https://media.api-sports.io/football/players/10328.png" alt="">
+                <div class="ranking-player-info">
+                  <span class="ranking-player-name">Pedro</span>
+                  <span class="ranking-player-sub">Flamengo</span>
+                </div>
+              </div>
+              <span class="ranking-score-badge">16</span>
+            </div>
+
+            <div class="ranking-row">
+              <div class="ranking-player-left">
+                <img class="ranking-photo" src="https://media.api-sports.io/football/players/10298.png" alt="">
+                <div class="ranking-player-info">
+                  <span class="ranking-player-name">Flaco López</span>
+                  <span class="ranking-player-sub">Palmeiras</span>
+                </div>
+              </div>
+              <span class="ranking-score-badge">14</span>
+            </div>
+
+            <div class="ranking-row">
+              <div class="ranking-player-left">
+                <img class="ranking-photo" src="https://media.api-sports.io/football/players/10300.png" alt="">
+                <div class="ranking-player-info">
+                  <span class="ranking-player-name">Estêvão</span>
+                  <span class="ranking-player-sub">Palmeiras</span>
+                </div>
+              </div>
+              <span class="ranking-score-badge">12</span>
+            </div>
+
+            <div class="ranking-row">
+              <div class="ranking-player-left">
+                <img class="ranking-photo" src="https://media.api-sports.io/football/players/10310.png" alt="">
+                <div class="ranking-player-info">
+                  <span class="ranking-player-name">Luiz Henrique</span>
+                  <span class="ranking-player-sub">Botafogo</span>
+                </div>
+              </div>
+              <span class="ranking-score-badge">11</span>
+            </div>
+
+            <div class="ranking-row">
+              <div class="ranking-player-left">
+                <img class="ranking-photo" src="https://media.api-sports.io/football/players/10315.png" alt="">
+                <div class="ranking-player-info">
+                  <span class="ranking-player-name">Hulk</span>
+                  <span class="ranking-player-sub">Atlético-MG</span>
+                </div>
+              </div>
+              <span class="ranking-score-badge">10</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Assists Card -->
+        <div class="glass-card">
+          <div class="card-head" style="margin-bottom:8px;">
+            <div class="card-title" style="font-size:0.95rem;">Assistências</div>
+            <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--cyan);">Top 5</span>
+          </div>
+
+          <div class="ranking-list">
+            <div class="ranking-row">
+              <div class="ranking-player-left">
+                <img class="ranking-photo" src="https://media.api-sports.io/football/players/10342.png" alt="">
+                <div class="ranking-player-info">
+                  <span class="ranking-player-name">Arrascaeta</span>
+                  <span class="ranking-player-sub">Flamengo</span>
+                </div>
+              </div>
+              <span class="ranking-score-badge" style="color:var(--gold);background:rgba(255,184,0,0.12);border-color:rgba(255,184,0,0.3);">11</span>
+            </div>
+
+            <div class="ranking-row">
+              <div class="ranking-player-left">
+                <img class="ranking-photo" src="https://media.api-sports.io/football/players/10300.png" alt="">
+                <div class="ranking-player-info">
+                  <span class="ranking-player-name">Estêvão</span>
+                  <span class="ranking-player-sub">Palmeiras</span>
+                </div>
+              </div>
+              <span class="ranking-score-badge" style="color:var(--gold);background:rgba(255,184,0,0.12);border-color:rgba(255,184,0,0.3);">9</span>
+            </div>
+
+            <div class="ranking-row">
+              <div class="ranking-player-left">
+                <img class="ranking-photo" src="https://media.api-sports.io/football/players/10322.png" alt="">
+                <div class="ranking-player-info">
+                  <span class="ranking-player-name">Ganso</span>
+                  <span class="ranking-player-sub">Fluminense</span>
+                </div>
+              </div>
+              <span class="ranking-score-badge" style="color:var(--gold);background:rgba(255,184,0,0.12);border-color:rgba(255,184,0,0.3);">8</span>
+            </div>
+
+            <div class="ranking-row">
+              <div class="ranking-player-left">
+                <img class="ranking-photo" src="https://media.api-sports.io/football/players/10333.png" alt="">
+                <div class="ranking-player-info">
+                  <span class="ranking-player-name">Raphael Veiga</span>
+                  <span class="ranking-player-sub">Palmeiras</span>
+                </div>
+              </div>
+              <span class="ranking-score-badge" style="color:var(--gold);background:rgba(255,184,0,0.12);border-color:rgba(255,184,0,0.3);">7</span>
+            </div>
+
+            <div class="ranking-row">
+              <div class="ranking-player-left">
+                <img class="ranking-photo" src="https://media.api-sports.io/football/players/10344.png" alt="">
+                <div class="ranking-player-info">
+                  <span class="ranking-player-name">Garro</span>
+                  <span class="ranking-player-sub">Corinthians</span>
+                </div>
+              </div>
+              <span class="ranking-score-badge" style="color:var(--gold);background:rgba(255,184,0,0.12);border-color:rgba(255,184,0,0.3);">7</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    // Inicialização do Gráfico de Linhas Neon Futurista (Chart.js)
+    document.addEventListener("DOMContentLoaded", () => {
+      const ctx = document.getElementById("trendChart").getContext("2d");
+      
+      const gradientPalmeiras = ctx.createLinearGradient(0, 0, 0, 140);
+      gradientPalmeiras.addColorStop(0, "rgba(0, 229, 255, 0.4)");
+      gradientPalmeiras.addColorStop(1, "rgba(0, 229, 255, 0.0)");
+
+      const gradientFlamengo = ctx.createLinearGradient(0, 0, 0, 140);
+      gradientFlamengo.addColorStop(0, "rgba(255, 184, 0, 0.35)");
+      gradientFlamengo.addColorStop(1, "rgba(255, 184, 0, 0.0)");
+
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: ["R20", "R21", "R22", "R23", "R24", "R25"],
+          datasets: [
+            {
+              label: "Palmeiras",
+              data: [41, 44, 45, 48, 49, 52],
+              borderColor: "#00E5FF",
+              backgroundColor: gradientPalmeiras,
+              borderWidth: 2.5,
+              tension: 0.4,
+              fill: true,
+              pointBackgroundColor: "#00E5FF",
+              pointBorderColor: "#FFFFFF",
+              pointBorderWidth: 1.5,
+              pointRadius: 4,
+              pointHoverRadius: 6
+            },
+            {
+              label: "Flamengo",
+              data: [38, 41, 42, 45, 48, 48],
+              borderColor: "#FFB800",
+              backgroundColor: gradientFlamengo,
+              borderWidth: 2.5,
+              tension: 0.4,
+              fill: true,
+              pointBackgroundColor: "#FFB800",
+              pointBorderColor: "#FFFFFF",
+              pointBorderWidth: 1.5,
+              pointRadius: 4,
+              pointHoverRadius: 6
+            },
+            {
+              label: "Athletico-PR",
+              data: [36, 37, 39, 42, 42, 45],
+              borderColor: "#10B981",
+              borderWidth: 1.8,
+              borderDash: [4, 4],
+              tension: 0.4,
+              fill: false,
+              pointRadius: 3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: "top",
+              labels: {
+                color: "#94A3B8",
+                boxWidth: 10,
+                font: { family: "'JetBrains Mono', monospace", size: 11 }
+              }
+            },
+            tooltip: {
+              backgroundColor: "rgba(7, 17, 30, 0.9)",
+              borderColor: "rgba(0, 229, 255, 0.4)",
+              borderWidth: 1,
+              titleFont: { family: "'Outfit', sans-serif", weight: "bold" },
+              bodyFont: { family: "'JetBrains Mono', monospace" },
+              padding: 10
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: "rgba(255, 255, 255, 0.04)" },
+              ticks: { color: "#94A3B8", font: { family: "'JetBrains Mono', monospace", size: 10 } }
+            },
+            y: {
+              grid: { color: "rgba(255, 255, 255, 0.04)" },
+              ticks: { color: "#94A3B8", font: { family: "'JetBrains Mono', monospace", size: 10 } }
+            }
+          }
+        }
+      });
+    });
+
+    function setFilter(btn, type) {
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    }
+
+    function selectTeam(row, teamName) {
+      document.querySelectorAll("#standings-tbody tr").forEach(r => r.classList.remove("active-row"));
+      row.classList.add("active-row");
+    }
+  </script>
+</body>
+</html>
