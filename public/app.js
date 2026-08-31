@@ -1649,7 +1649,6 @@ async function renderLeague(leagueId, season) {
     <div class="page-head">
       <p class="page-eyebrow">${escapeHtml(league.country)}</p>
       <h1 class="page-title">${escapeHtml(league.name)}</h1>
-      
     </div>
     ${subNav([
       { label: "Classificação", href: `#/liga/${leagueId}/${season}`, active: true },
@@ -1679,7 +1678,6 @@ async function renderLeague(leagueId, season) {
       });
       table = computeTableFromFixtures(finishedFixtures, apiTable, officialNotes, leagueId);
     } else {
-      // Se a competição não tiver tabela de classificação de pontos corridos (ex: Copa), mostra mensagem e atalhos
       content.innerHTML = `
         <div class="card" style="text-align:center;padding:40px 20px;color:var(--chalk-dim);">
           <span style="font-size:2.5rem;display:block;margin-bottom:10px;">🏆</span>
@@ -1713,9 +1711,28 @@ async function renderLeague(leagueId, season) {
       }
     });
 
-    const topCleanSheets = Array.from(csMap.values())
+    const topTeams = Array.from(csMap.values())
       .sort((a, b) => b.cleanSheets - a.cleanSheets)
       .slice(0, 5);
+
+    // Buscar goleiros titulares dos 5 times líderes de clean sheet
+    const squadResults = await Promise.allSettled(
+      topTeams.map(item => apiGet("players/squads", { team: item.team.id }, 60))
+    );
+
+    const topCleanSheets = topTeams.map((item, idx) => {
+      const squad = squadResults[idx]?.status === "fulfilled" && squadResults[idx].value?.[0]?.players;
+      const gk = (squad || []).find(p => p.position === "Goalkeeper") || {
+        id: 0,
+        name: "Goleiro Titular",
+        photo: "https://media.api-sports.io/football/players/placeholder.png"
+      };
+      return {
+        goalkeeper: gk,
+        team: item.team,
+        cleanSheets: item.cleanSheets
+      };
+    });
 
     let activeFilter = "all";
 
@@ -1831,10 +1848,10 @@ async function renderLeague(leagueId, season) {
               `}
             </div>
 
-            <!-- 3. Clean Sheets -->
+            <!-- 3. Clean Sheets (COM GOLEIRO) -->
             <div class="rank-highlight-card">
               <div class="rank-highlight-head">
-                <span>🧤 Clean Sheets (Sem Sofrer Gol)</span>
+                <span>🧤 Clean Sheets (Goleiros Menos Vazados)</span>
               </div>
 
               ${topCleanSheets.length ? `
@@ -1845,10 +1862,15 @@ async function renderLeague(leagueId, season) {
                     <span class="rank-circular-label">Jogos</span>
                   </div>
                   <div class="rank-top1-info">
-                    <img class="rank-top1-avatar" src="${topCleanSheets[0].team.logo}" alt="" onerror="this.src='https://media.api-sports.io/football/teams/placeholder.png'">
+                    <img class="rank-top1-avatar" src="${topCleanSheets[0].goalkeeper.photo}" alt="" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
                     <div class="rank-top1-text">
-                      <span class="rank-top1-name">${escapeHtml(formatTeamName(topCleanSheets[0].team.name))}</span>
-                      <span class="rank-top1-team">🛡️ Defesa Menos Vazada</span>
+                      <a href="#/jogador/${topCleanSheets[0].goalkeeper.id}/${topCleanSheets[0].team.id}/${leagueId}/${season}" class="rank-top1-name" style="text-decoration:none;">
+                        ${escapeHtml(topCleanSheets[0].goalkeeper.name)}
+                      </a>
+                      <span class="rank-top1-team">
+                        <img src="${topCleanSheets[0].team.logo}" alt="">
+                        ${escapeHtml(formatTeamName(topCleanSheets[0].team.name))}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1856,18 +1878,24 @@ async function renderLeague(leagueId, season) {
                 <!-- 2º ao 5º -->
                 <div class="rank-sub-list">
                   ${topCleanSheets.slice(1).map((item, idx) => `
-                    <div class="rank-sub-item">
+                    <a class="rank-sub-item" href="#/jogador/${item.goalkeeper.id}/${item.team.id}/${leagueId}/${season}">
                       <div class="rank-sub-left">
                         <span class="rank-sub-pos">${idx + 2}</span>
-                        <img class="rank-sub-avatar" src="${item.team.logo}" alt="">
-                        <span class="rank-sub-name">${escapeHtml(formatTeamName(item.team.name))}</span>
+                        <img class="rank-sub-avatar" src="${item.goalkeeper.photo}" alt="" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                        <div>
+                          <div class="rank-sub-name">${escapeHtml(item.goalkeeper.name)}</div>
+                          <div style="font-size:0.68rem;color:var(--chalk-dim);display:flex;align-items:center;gap:4px;">
+                            <img src="${item.team.logo}" alt="" style="width:12px;height:12px;object-fit:contain;">
+                            ${escapeHtml(formatTeamName(item.team.name))}
+                          </div>
+                        </div>
                       </div>
                       <span class="rank-sub-val" style="color:#10B981;">${item.cleanSheets}</span>
-                    </div>
+                    </a>
                   `).join("")}
                 </div>
               ` : `
-                <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">Dados de jogos sem sofrer gols em processamento.</div>
+                <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">Dados de goleiros sem sofrer gols em processamento.</div>
               `}
             </div>
 
@@ -3348,13 +3376,14 @@ async function renderTeam(teamId, leagueId, season) {
   const content = document.getElementById("team-content");
 
   try {
-    const [stats, recentFixtures, teamSeasonFixtures, nextFixtures, squadResp, playerStatsResp] = await Promise.all([
+    const [stats, recentFixtures, teamSeasonFixtures, nextFixtures, squadResp, pPage1, pPage2] = await Promise.all([
       apiGet("teams/statistics", { league: leagueId, season, team: teamId }, 5),
       apiGet("fixtures", { team: teamId, last: 5 }, 5),
       apiGet("fixtures", { team: teamId, season, league: leagueId }, 5).catch(() => []),
       apiGet("fixtures", { team: teamId, next: 5 }, 5).catch(() => []),
       apiGet("players/squads", { team: teamId }, 30).catch(() => []),
-      apiGet("players", { team: teamId, season: season }, 30).catch(() => [])
+      apiGet("players", { team: teamId, season: season, page: 1 }, 30).catch(() => []),
+      apiGet("players", { team: teamId, season: season, page: 2 }, 30).catch(() => [])
     ]);
 
     if (!stats || !stats.team) {
@@ -3376,37 +3405,55 @@ async function renderTeam(teamId, leagueId, season) {
     let gaAvg = parseFloat(stats.goals?.against?.average?.total) || 0;
     let csTotal = stats.clean_sheet?.total || 0;
 
+    let winsHome = stats.fixtures?.wins?.home || 0;
+    let playedHome = stats.fixtures?.played?.home || 0;
+    let winsAway = stats.fixtures?.wins?.away || 0;
+    let playedAway = stats.fixtures?.played?.away || 0;
+
     if (finishedSeason.length > totalPlayed) {
       totalPlayed = finishedSeason.length;
     }
 
     const goalDiff = gfTotal - gaTotal;
     const winPct = totalPlayed ? Math.round((totalWins / totalPlayed) * 100) : 0;
+    const homeWinPct = playedHome ? Math.round((winsHome / playedHome) * 100) : 0;
+    const awayWinPct = playedAway ? Math.round((winsAway / playedAway) * 100) : 0;
     const isFav = state.favoriteTeams.some(fav => fav.id === teamId);
 
-    // Cruzamento de jogadores do elenco com estatísticas da temporada
-    const squadPlayers = squadResp?.[0]?.players || [];
-    const playerStatsMap = new Map();
-    if (Array.isArray(playerStatsResp)) {
-      playerStatsResp.forEach(item => {
-        if (item?.player?.id) {
-          playerStatsMap.set(item.player.id, item);
-        }
-      });
-    }
+    // Mapear todas as estatísticas dos jogadores da temporada (todas as competições agregadas)
+    const allPlayerItems = [
+      ...(Array.isArray(pPage1) ? pPage1 : []),
+      ...(Array.isArray(pPage2) ? pPage2 : [])
+    ];
 
-    // Monta lista rica de atletas
+    const playerStatsMap = new Map();
+    allPlayerItems.forEach(item => {
+      if (item?.player?.id) {
+        playerStatsMap.set(item.player.id, item);
+      }
+    });
+
+    const squadPlayers = squadResp?.[0]?.players || [];
+
+    // Cruzamento rico com agregação de todas as competições da temporada
     const enrichedRoster = squadPlayers.map(p => {
       const pStatsItem = playerStatsMap.get(p.id);
-      const st = pStatsItem?.statistics?.[0] || {};
-      const specificRole = getSpecificPlayerRole(p, st);
-      const goals = st.goals?.total || 0;
-      const assists = st.goals?.assists || 0;
-      const minutes = st.games?.minutes || 0;
-      const apps = st.games?.appearences || (minutes > 0 ? Math.ceil(minutes / 90) : 0);
-      const rating = parseFloat(st.games?.rating || "0");
-      const tackles = st.tackles?.total || 0;
-      const dribbles = st.dribbles?.success || 0;
+      const stList = pStatsItem?.statistics || [];
+
+      // Agrega scouts de TODAS as competições disputadas pelo atleta na temporada
+      const totalGoals = stList.reduce((acc, s) => acc + (s.goals?.total || 0), 0);
+      const totalAssists = stList.reduce((acc, s) => acc + (s.goals?.assists || 0), 0);
+      const totalMinutes = stList.reduce((acc, s) => acc + (s.games?.minutes || 0), 0);
+      const totalApps = stList.reduce((acc, s) => acc + (s.games?.appearences || 0), 0);
+      const totalTackles = stList.reduce((acc, s) => acc + (s.tackles?.total || 0), 0);
+      const totalInterceptions = stList.reduce((acc, s) => acc + (s.tackles?.interceptions || 0), 0);
+      const totalSaves = stList.reduce((acc, s) => acc + (s.goals?.saves || 0), 0);
+
+      const validRatings = stList.map(s => parseFloat(s.games?.rating)).filter(r => !isNaN(r) && r > 0);
+      const avgRating = validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(1) : "-";
+
+      const primarySt = stList[0] || {};
+      const specificRole = getSpecificPlayerRole(p, primarySt);
 
       return {
         id: p.id,
@@ -3414,14 +3461,15 @@ async function renderTeam(teamId, leagueId, season) {
         photo: p.photo || `https://media.api-sports.io/football/players/${p.id}.png`,
         position: p.position,
         specificRole: specificRole,
-        number: p.number || st.games?.number || "-",
-        goals,
-        assists,
-        minutes,
-        apps,
-        rating: rating > 0 ? rating.toFixed(1) : "-",
-        tackles,
-        dribbles
+        number: p.number || primarySt.games?.number || "-",
+        goals: totalGoals,
+        assists: totalAssists,
+        minutes: totalMinutes,
+        apps: totalApps,
+        rating: avgRating,
+        tackles: totalTackles,
+        interceptions: totalInterceptions,
+        saves: totalSaves
       };
     });
 
@@ -3440,7 +3488,7 @@ async function renderTeam(teamId, leagueId, season) {
         </button>
       </div>
 
-      <!-- ESTRUTURA EXPANDIDA DE 3 COLUNAS (NOTÍCIAS | CENTRO COM ELENCO | FIXTURES) -->
+      <!-- ESTRUTURA EXPANDIDA DE 3 COLUNAS -->
       <div class="team-page-grid">
         
         <!-- COLUNA 1: NOTÍCIAS RECENTES DO CLUBE (ESQUERDA) -->
@@ -3456,10 +3504,10 @@ async function renderTeam(teamId, leagueId, season) {
           </div>
         </aside>
 
-        <!-- COLUNA 2: ESTATÍSTICAS GERAIS NO TOPO + ELENCO COM FOTOS E 3 BARRAS (CENTRO) -->
+        <!-- COLUNA 2: ESTATÍSTICAS GERAIS SIMÉTRICAS (4x2) + ELENCO (CENTRO) -->
         <main class="team-main-col">
           
-          <!-- Estatísticas Gerais na Temporada (Acima dos Jogadores) -->
+          <!-- Estatísticas Gerais na Temporada (8 Cards em Grade Simétrica 4x2) -->
           <div class="card" style="padding:16px;margin-bottom:20px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
               <span style="font-size:1.1rem;">📊</span>
@@ -3467,13 +3515,14 @@ async function renderTeam(teamId, leagueId, season) {
             </div>
 
             <div class="team-top-stats-bar">
+              <!-- Linha 1 -->
               <div class="team-stat-box">
                 <span class="team-stat-box-val gold">${winPct}%</span>
                 <span class="team-stat-box-label">Aproveitamento</span>
               </div>
               <div class="team-stat-box">
                 <span class="team-stat-box-val">${totalPlayed}</span>
-                <span class="team-stat-box-label">Jogos</span>
+                <span class="team-stat-box-label">Total de Jogos</span>
               </div>
               <div class="team-stat-box">
                 <span class="team-stat-box-val green">${totalWins}V - ${totalDraws}E - ${totalLoses}D</span>
@@ -3483,6 +3532,8 @@ async function renderTeam(teamId, leagueId, season) {
                 <span class="team-stat-box-val green">${gfTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${gfAvg.toFixed(1)}/j)</small></span>
                 <span class="team-stat-box-label">Gols Pró</span>
               </div>
+
+              <!-- Linha 2 -->
               <div class="team-stat-box">
                 <span class="team-stat-box-val" style="color:#EF4444;">${gaTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${gaAvg.toFixed(1)}/j)</small></span>
                 <span class="team-stat-box-label">Gols Contra</span>
@@ -3495,17 +3546,21 @@ async function renderTeam(teamId, leagueId, season) {
                 <span class="team-stat-box-val cyan">${csTotal}</span>
                 <span class="team-stat-box-label">Clean Sheets</span>
               </div>
+              <div class="team-stat-box">
+                <span class="team-stat-box-val gold" style="font-size:0.95rem;">${homeWinPct}% <small style="color:var(--chalk-dim);font-size:0.7rem;">CASA</small> · ${awayWinPct}% <small style="color:var(--chalk-dim);font-size:0.7rem;">FORA</small></span>
+                <span class="team-stat-box-label">Mando de Campo</span>
+              </div>
             </div>
           </div>
 
-          <!-- Elenco do Clube (Rosters com Fotos e 3 Barras de Atributos) -->
+          <!-- Elenco do Clube (Rosters com Estatísticas Gerais da Temporada) -->
           <div class="card" style="padding:16px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
               <div style="display:flex;align-items:center;gap:8px;">
                 <span style="font-size:1.1rem;">👥</span>
                 <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Elenco / Jogadores (${enrichedRoster.length})</h3>
               </div>
-              <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">Temporada ${season}</span>
+              <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">Estatísticas Gerais da Temporada</span>
             </div>
 
             ${enrichedRoster.length ? `
@@ -3515,18 +3570,18 @@ async function renderTeam(teamId, leagueId, season) {
                   const isDef = p.specificRole.includes("Zagueiro") || p.specificRole.includes("Lateral");
                   const isMid = p.specificRole.includes("Volante") || p.specificRole.includes("Meia");
 
-                  // 3 Barras dinâmicas por posição:
+                  // 3 Barras dinâmicas por posição com dados reais da temporada:
                   let bar1Label = "GOLS", bar1Val = `${p.goals} gols`, bar1Pct = Math.min(p.goals * 8, 100);
                   let bar2Label = "MINUTOS", bar2Val = `${p.minutes} min`, bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
                   let bar3Label = "NOTA MÉDIA", bar3Val = p.rating, bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 50;
 
                   if (isGoalkeeper) {
-                    bar1Label = "JOGOS"; bar1Val = `${p.apps} jg`; bar1Pct = Math.min(p.apps * 3, 100);
+                    bar1Label = "DEFESAS"; bar1Val = `${p.saves} def`; bar1Pct = Math.min(p.saves * 3, 100);
                     bar2Label = "MINUTOS"; bar2Val = `${p.minutes} min`; bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
                     bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
                   } else if (isDef) {
                     bar1Label = "DESARMES"; bar1Val = `${p.tackles} des`; bar1Pct = Math.min(p.tackles * 3, 100);
-                    bar2Label = "JOGOS"; bar2Val = `${p.apps} jg`; bar2Pct = Math.min(p.apps * 3, 100);
+                    bar2Label = "MINUTOS"; bar2Val = `${p.minutes} min`; bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
                     bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
                   } else if (isMid) {
                     bar1Label = "ASSISTÊNCIAS"; bar1Val = `${p.assists} ast`; bar1Pct = Math.min(p.assists * 10, 100);
@@ -3550,7 +3605,7 @@ async function renderTeam(teamId, leagueId, season) {
                             <span class="roster-bar-val">${bar1Val}</span>
                           </div>
                           <div class="roster-bar-track">
-                            <div class="roster-bar-fill gold" style="width:${bar1Pct}%;"></div>
+                            <div class="roster-bar-fill gold" style="width:${Math.max(bar1Pct, 6)}%;"></div>
                           </div>
                         </div>
 
@@ -3561,7 +3616,7 @@ async function renderTeam(teamId, leagueId, season) {
                             <span class="roster-bar-val">${bar2Val}</span>
                           </div>
                           <div class="roster-bar-track">
-                            <div class="roster-bar-fill cyan" style="width:${bar2Pct}%;"></div>
+                            <div class="roster-bar-fill cyan" style="width:${Math.max(bar2Pct, 6)}%;"></div>
                           </div>
                         </div>
 
@@ -3572,7 +3627,7 @@ async function renderTeam(teamId, leagueId, season) {
                             <span class="roster-bar-val">${bar3Val}</span>
                           </div>
                           <div class="roster-bar-track">
-                            <div class="roster-bar-fill" style="width:${bar3Pct}%;"></div>
+                            <div class="roster-bar-fill" style="width:${Math.max(bar3Pct, 6)}%;"></div>
                           </div>
                         </div>
                       </div>
@@ -3761,8 +3816,6 @@ async function renderTeam(teamId, leagueId, season) {
     content.innerHTML = errorBox(err.message);
   }
 }
-
-
 
 
 async function renderSquad(teamId, leagueId, season) {
@@ -4144,14 +4197,8 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
                       <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
 
-                    <!-- Gráficos e Probabilidades (SOMENTE EM PARTIDAS A REALIZAR OU AO VIVO) -->
+                    <!-- Probabilidades (SEM SPARKLINE) -->
                     ${!isFinished ? `
-                      <!-- Mini Sparkline de Ritmo / Momentum -->
-                      <div class="match-sparkline-wrap">
-                        ${generateSparklineSvg(isLive, hGoals, aGoals, homeProb >= awayProb)}
-                      </div>
-
-                      <!-- Barra Tripla de Probabilidade na Temporada -->
                       <div class="win-prob-wrapper">
                         <div class="win-prob-labels">
                           <span class="win-prob-home-text">${homeProb}% <small>CASA</small></span>
@@ -4165,8 +4212,8 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
                         </div>
                       </div>
                     ` : `
-                      <!-- Partida Finalizada: Acesso aos Melhores Momentos -->
-                      <div style="grid-column: 4 / -1; display:flex; justify-content:flex-end;">
+                      <!-- Partida Finalizada -->
+                      <div style="display:flex; justify-content:flex-end;">
                         <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}', '_blank', 'noopener,noreferrer');">
                           <span style="font-size:0.65rem;line-height:1;">▶</span>
                           <span>Melhores Momentos</span>
@@ -5875,8 +5922,8 @@ async function renderMyLineups() {
       <p class="page-sub">Monte a escalação ideal do seu time, escolha o esquema tático e compare seu palpite com a escalação oficial do treinador!</p>
     </div>
 
-    <!-- Barra de Busca de Clubes (Sem equipes sugeridas na tela) -->
-    <div class="card" style="margin-bottom:24px;">
+    <!-- Barra de Busca de Clubes -->
+    <div class="card" style="margin-bottom:24px;padding:20px;">
       <h2 class="section-title" style="margin-top:0;">Buscar Clube para Escalar</h2>
       <div style="position:relative;margin-top:12px;">
         <div style="display:flex;align-items:center;background:rgba(255,255,255,0.04);border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:0 14px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);">
@@ -5889,7 +5936,7 @@ async function renderMyLineups() {
 
     <!-- Escalações Salvas -->
     <div>
-      <h2 class="section-title">Minhas Escalações (${savedList.length})</h2>
+      <h2 class="section-title" style="margin-bottom:16px;">Minhas Escalações (${savedList.length})</h2>
       ${savedList.length === 0 ? `
         <div class="card" style="text-align:center;padding:36px 20px;color:var(--chalk-dim);">
           <span style="font-size:2.5rem;display:block;margin-bottom:12px;">📋</span>
@@ -5897,33 +5944,35 @@ async function renderMyLineups() {
           <span style="font-size:0.85rem;color:var(--chalk-dim);margin-top:6px;display:block;">Busque qualquer clube na barra de pesquisa acima ou acesse a página de qualquer jogo para escalar seus 11 titulares!</span>
         </div>
       ` : `
-        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:16px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));gap:20px;">
           ${savedList.map(l => {
             const updatedDate = new Date(l.updatedAt || Date.now()).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
             const totalPlayers = (l.startingXI || []).filter(p => !!p?.player).length;
 
             return `
-              <div class="user-lineup-card">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-                  <div style="display:flex;align-items:center;gap:10px;">
-                    <img src="${l.teamLogo}" alt="" style="width:36px;height:36px;object-fit:contain;">
-                    <div>
-                      <div style="font-weight:700;font-size:1rem;color:var(--chalk);">${escapeHtml(l.teamName)}</div>
-                      <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">${escapeHtml(l.formation)} · ${totalPlayers}/11 titulares</div>
+              <div class="card" style="padding:20px;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(180deg, rgba(13,38,59,0.85) 0%, rgba(7,17,30,0.95) 100%);border:1px solid rgba(0,229,255,0.22);border-radius:var(--radius-md);box-shadow:0 6px 20px rgba(0,0,0,0.35);">
+                <div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <img src="${l.teamLogo}" alt="" style="width:40px;height:40px;object-fit:contain;">
+                      <div>
+                        <div style="font-weight:800;font-size:1.05rem;color:var(--chalk);">${escapeHtml(l.teamName)}</div>
+                        <div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--gold);margin-top:2px;">${escapeHtml(l.formation)} · ${totalPlayers}/11 titulares</div>
+                      </div>
                     </div>
+                    <button class="btn-delete-lineup" data-id="${escapeHtml(l.id)}" title="Excluir escalação" style="background:none;border:none;color:var(--chalk-dim);cursor:pointer;font-size:1.2rem;padding:4px;transition:color 0.2s;">🗑️</button>
                   </div>
-                  <button class="btn-delete-lineup" data-id="${escapeHtml(l.id)}" title="Excluir escalação" style="background:none;border:none;color:var(--chalk-dim);cursor:pointer;font-size:1.1rem;padding:4px;">🗑️</button>
+
+                  ${l.fixtureInfo ? `
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:0.82rem;display:flex;align-items:center;justify-content:space-between;">
+                      <span>⚽ ${escapeHtml(l.fixtureInfo.home?.name)} vs ${escapeHtml(l.fixtureInfo.away?.name)}</span>
+                      <span style="font-family:var(--font-mono);color:var(--cyan);font-size:0.75rem;">${escapeHtml(l.fixtureInfo.leagueName || '')}</span>
+                    </div>
+                  ` : ''}
                 </div>
 
-                ${l.fixtureInfo ? `
-                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:0.8rem;display:flex;align-items:center;justify-content:space-between;">
-                    <span>⚽ ${escapeHtml(l.fixtureInfo.home?.name)} vs ${escapeHtml(l.fixtureInfo.away?.name)}</span>
-                    <span style="font-family:var(--font-mono);color:var(--cyan);font-size:0.75rem;">${escapeHtml(l.fixtureInfo.leagueName || '')}</span>
-                  </div>
-                ` : ''}
-
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);">
-                  <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--chalk-dim);">Salvo em ${updatedDate}</span>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);flex-wrap:wrap;gap:10px;">
+                  <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">Salvo em ${updatedDate}</span>
                   <div style="display:flex;gap:8px;">
                     <a class="btn small ghost" href="#/minha-escalacao/montar/${l.teamId}${l.fixtureId ? `/${l.fixtureId}` : ''}">Editar</a>
                     <a class="btn small primary" href="#/minha-escalacao/comparar/${l.id}">Comparar →</a>
@@ -5953,52 +6002,57 @@ async function renderMyLineups() {
       }
 
       resultsContainer.style.display = "block";
-      resultsContainer.innerHTML = `<div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">🔍 Buscando clubes...</div>`;
+      resultsContainer.innerHTML = `<div style="padding:14px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">🔍 Buscando clubes...</div>`;
 
       debounceTimer = setTimeout(async () => {
         try {
           const resp = await apiGet("teams", { search: q }, 60);
           if (!resp || !resp.length) {
-            resultsContainer.innerHTML = `<div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Nenhum clube encontrado com "${escapeHtml(q)}".</div>`;
+            resultsContainer.innerHTML = `<div style="padding:14px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Nenhum clube encontrado com o nome "${escapeHtml(q)}".</div>`;
             return;
           }
 
           resultsContainer.innerHTML = `
-            <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px;">
-              ${resp.map(item => {
+            <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:10px;">
+              ${resp.slice(0, 8).map(item => {
                 const t = item.team;
                 return `
-                  <a class="player-card" href="#/minha-escalacao/montar/${t.id}" style="padding:12px;display:flex;align-items:center;flex-direction:row;gap:12px;text-align:left;text-decoration:none;">
-                    <img src="${t.logo}" alt="" style="width:36px;height:36px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">
-                    <div style="min-width:0;flex:1;">
-                      <div style="font-weight:700;font-size:0.88rem;color:var(--chalk);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.name)}</div>
-                      <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--gold);">${escapeHtml(t.country || "")}</div>
+                  <a href="#/minha-escalacao/montar/${t.id}" class="team-search-card" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;text-decoration:none;color:inherit;transition:all 0.15s ease;">
+                    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                      <img src="${t.logo}" alt="" style="width:32px;height:32px;object-fit:contain;" onerror="this.style.display='none'">
+                      <div>
+                        <div style="font-weight:700;font-size:0.9rem;color:var(--chalk);">${escapeHtml(t.name)}</div>
+                        <div style="font-size:0.72rem;color:var(--gold);">${escapeHtml(t.country || "")}</div>
+                      </div>
                     </div>
-                    <span style="font-size:0.75rem;color:var(--cyan);font-weight:700;flex-shrink:0;">Escalar →</span>
+                    <span style="font-size:0.8rem;color:var(--cyan);font-weight:700;">Escalar →</span>
                   </a>
                 `;
               }).join("")}
             </div>
           `;
         } catch (err) {
-          resultsContainer.innerHTML = `<div style="padding:16px;text-align:center;color:#EF4444;font-size:0.85rem;">Erro ao buscar clubes: ${escapeHtml(err.message)}</div>`;
+          resultsContainer.innerHTML = `<div style="padding:14px;text-align:center;color:#EF4444;font-size:0.85rem;">Erro ao buscar clubes.</div>`;
         }
-      }, 350);
+      }, 300);
     });
   }
 
+  // Listener de Exclusão de Escalação
   document.querySelectorAll(".btn-delete-lineup").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
       const id = btn.dataset.id;
-      if (confirm("Deseja realmente excluir esta escalação?")) {
+      if (confirm("Tem certeza que deseja excluir esta escalação salva?")) {
         UserLineupStore.delete(id);
+        toast("Escalação excluída com sucesso.", false);
         renderMyLineups();
       }
     });
   });
 }
 
-// 2. Montador Interativo de Escalação
+
 async function renderLineupBuilder(teamId, fixtureId) {
   app.innerHTML = `<div class="card skeleton"><div class="skeleton-shimmer" style="height:400px;"></div></div>`;
 

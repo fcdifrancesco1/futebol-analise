@@ -4065,3 +4065,42 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
     margin-top: 6px;
   }
 }
+
+
+/* Grade Simétrica 4x2 de Estatísticas Gerais na Temporada */
+.team-top-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 12px !important;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1000px) {
+  .team-top-stats-bar {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Linha de Partida Sem Sparkline */
+.match-row-futuristic {
+  display: grid;
+  grid-template-columns: 1fr 140px 1fr 220px !important;
+  align-items: center;
+  gap: 16px;
+}
+
+.match-row-futuristic.is-finished-row {
+  grid-template-columns: 1fr 140px 1fr 160px !important;
+}
+
+@media (max-width: 900px) {
+  .match-row-futuristic,
+  .match-row-futuristic.is-finished-row {
+    grid-template-columns: 1fr auto 1fr !important;
+  }
+  .win-prob-wrapper,
+  .match-row-futuristic.is-finished-row > div:last-child {
+    grid-column: 1 / -1 !important;
+    margin-top: 8px;
+  }
+}
