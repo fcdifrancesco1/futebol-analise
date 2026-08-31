@@ -4104,3 +4104,126 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
     margin-top: 8px;
   }
 }
+
+
+/* ============================================================
+   BLINDAGEM RESPONSIVA MOBILE (ANTI-OVERFLOW HORIZONTAL)
+   ============================================================ */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+  width: 100% !important;
+}
+
+#app, main, .main-content {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 860px) {
+  .main-content {
+    padding: 14px 10px !important;
+    width: 100% !important;
+  }
+
+  /* Grid do Time vira coluna única no mobile */
+  .team-page-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 16px !important;
+  }
+
+  .team-news-col, .team-main-col, .team-fixtures-col {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Estatísticas 2 por linha no mobile */
+  .team-top-stats-bar {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .team-stat-box {
+    padding: 10px 6px !important;
+  }
+
+  .team-stat-box-val {
+    font-size: 1.05rem !important;
+  }
+
+  /* Rosters com 2 cards por linha no mobile */
+  .rosters-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .roster-card {
+    padding: 12px 8px !important;
+  }
+
+  .roster-avatar-wrap {
+    width: 54px !important;
+    height: 54px !important;
+  }
+
+  .roster-player-name {
+    font-size: 0.85rem !important;
+  }
+
+  /* Classificação vira coluna única no mobile */
+  .standings-split-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 16px !important;
+  }
+
+  .standings-table-main-col, .rankings-sidebar-col {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .table-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Jogos do dia em formato vertical compacto no mobile */
+  .match-row-futuristic {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 12px 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .match-team-block {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+
+  .match-team-block.right {
+    justify-content: flex-start !important;
+    text-align: left !important;
+    flex-direction: row-reverse !important;
+  }
+
+  .match-center-score-wrap {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    padding: 4px 0 !important;
+    border-top: 1px solid rgba(255,255,255,0.06) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  }
+
+  .win-prob-wrapper {
+    width: 100% !important;
+    margin-top: 4px !important;
+  }
+}

@@ -1715,35 +1715,67 @@ async function renderLeague(leagueId, season) {
       .sort((a, b) => b.cleanSheets - a.cleanSheets)
       .slice(0, 5);
 
-    // Buscar goleiros reais com maior minutagem/titularidade nos 5 clubes líderes de clean sheet
-    const gkTeamResponses = await Promise.allSettled(
-      topTeams.map(item => apiGet("players", { team: item.team.id, season: season }, 60))
+    // Buscar os goleiros titulares reais dos 5 clubes líderes de clean sheet
+    const gkResults = await Promise.allSettled(
+      topTeams.map(async (item) => {
+        const teamId = item.team.id;
+        
+        // 1. Tentar pegar o goleiro titular da última partida do time
+        const teamFinished = finishedFixtures
+          .filter(f => f.teams?.home?.id === teamId || f.teams?.away?.id === teamId)
+          .sort((a, b) => new Date(b.fixture.date) - new Date(a.fixture.date));
+
+        if (teamFinished.length > 0) {
+          try {
+            const recentFxId = teamFinished[0].fixture.id;
+            const lineupsResp = await apiGet("fixtures/lineups", { fixture: recentFxId }, 60).catch(() => []);
+            if (Array.isArray(lineupsResp) && lineupsResp.length > 0) {
+              const teamLineup = lineupsResp.find(l => l.team?.id === teamId);
+              if (teamLineup?.startXI?.length) {
+                const starterGK = teamLineup.startXI.find(p => p.player?.pos === "G") || teamLineup.startXI[0];
+                if (starterGK?.player?.name) {
+                  return {
+                    id: starterGK.player.id,
+                    name: starterGK.player.name,
+                    photo: starterGK.player.photo || `https://media.api-sports.io/football/players/${starterGK.player.id}.png`
+                  };
+                }
+              }
+            }
+          } catch (e) {
+            console.warn("Lineup fetch fallback:", e);
+          }
+        }
+
+        // 2. Fallback: buscar lista do elenco e selecionar o goleiro principal (camisa 1 ou maior minutagem)
+        try {
+          const squadResp = await apiGet("players/squads", { team: teamId }, 60).catch(() => []);
+          const players = squadResp?.[0]?.players || [];
+          const gks = players.filter(p => p.position === "Goalkeeper");
+          if (gks.length > 0) {
+            const starterGk = gks.find(g => g.number === 1) || gks.sort((a, b) => (b.age || 0) - (a.age || 0))[0] || gks[0];
+            return {
+              id: starterGk.id,
+              name: starterGk.name,
+              photo: starterGk.photo || `https://media.api-sports.io/football/players/${starterGk.id}.png`
+            };
+          }
+        } catch (e) {
+          console.warn("Squad fetch fallback:", e);
+        }
+
+        return {
+          id: 0,
+          name: "Goleiro Titular",
+          photo: "https://media.api-sports.io/football/players/placeholder.png"
+        };
+      })
     );
 
     const topCleanSheets = topTeams.map((item, idx) => {
-      const pList = (gkTeamResponses[idx]?.status === "fulfilled" && Array.isArray(gkTeamResponses[idx].value))
-        ? gkTeamResponses[idx].value
-        : [];
-
-      // Filtra os goleiros e ordena pelo número real de minutos jogados no campeonato
-      const goalkeepers = pList
-        .filter(itemObj => itemObj.statistics?.some(s => s.games?.position === "Goalkeeper"))
-        .map(itemObj => {
-          const totalMinutes = (itemObj.statistics || []).reduce((acc, s) => acc + (s.games?.minutes || 0), 0);
-          const totalApps = (itemObj.statistics || []).reduce((acc, s) => acc + (s.games?.appearences || 0), 0);
-          return {
-            player: itemObj.player,
-            minutes: totalMinutes,
-            apps: totalApps
-          };
-        })
-        .sort((a, b) => b.minutes - a.minutes);
-
-      const gk = goalkeepers[0]?.player || {
-        id: 0,
-        name: "Goleiro Titular",
-        photo: "https://media.api-sports.io/football/players/placeholder.png"
-      };
+      const gk = (gkResults[idx]?.status === "fulfilled" && gkResults[idx].value)
+        ? gkResults[idx].value
+        : { id: 0, name: "Goleiro Titular", photo: "https://media.api-sports.io/football/players/placeholder.png" };
 
       return {
         goalkeeper: gk,
