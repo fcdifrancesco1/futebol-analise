@@ -1715,18 +1715,36 @@ async function renderLeague(leagueId, season) {
       .sort((a, b) => b.cleanSheets - a.cleanSheets)
       .slice(0, 5);
 
-    // Buscar goleiros titulares dos 5 times líderes de clean sheet
-    const squadResults = await Promise.allSettled(
-      topTeams.map(item => apiGet("players/squads", { team: item.team.id }, 60))
+    // Buscar goleiros reais com maior minutagem/titularidade nos 5 clubes líderes de clean sheet
+    const gkTeamResponses = await Promise.allSettled(
+      topTeams.map(item => apiGet("players", { team: item.team.id, season: season }, 60))
     );
 
     const topCleanSheets = topTeams.map((item, idx) => {
-      const squad = squadResults[idx]?.status === "fulfilled" && squadResults[idx].value?.[0]?.players;
-      const gk = (squad || []).find(p => p.position === "Goalkeeper") || {
+      const pList = (gkTeamResponses[idx]?.status === "fulfilled" && Array.isArray(gkTeamResponses[idx].value))
+        ? gkTeamResponses[idx].value
+        : [];
+
+      // Filtra os goleiros e ordena pelo número real de minutos jogados no campeonato
+      const goalkeepers = pList
+        .filter(itemObj => itemObj.statistics?.some(s => s.games?.position === "Goalkeeper"))
+        .map(itemObj => {
+          const totalMinutes = (itemObj.statistics || []).reduce((acc, s) => acc + (s.games?.minutes || 0), 0);
+          const totalApps = (itemObj.statistics || []).reduce((acc, s) => acc + (s.games?.appearences || 0), 0);
+          return {
+            player: itemObj.player,
+            minutes: totalMinutes,
+            apps: totalApps
+          };
+        })
+        .sort((a, b) => b.minutes - a.minutes);
+
+      const gk = goalkeepers[0]?.player || {
         id: 0,
         name: "Goleiro Titular",
         photo: "https://media.api-sports.io/football/players/placeholder.png"
       };
+
       return {
         goalkeeper: gk,
         team: item.team,
