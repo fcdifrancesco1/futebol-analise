@@ -2465,6 +2465,78 @@ function renderTopList(list, metricFn, leagueId, season) {
 // ============================================================
 // View: Perfil do Jogador
 // ============================================================
+
+// ============================================================
+// CLASSIFICAÇÃO INTELIGENTE DE FUNÇÃO / POSIÇÃO ESPECÍFICA DO JOGADOR
+// ============================================================
+function getSpecificPlayerRole(player, st) {
+  const rawPos = String(st?.games?.position || player?.position || "").trim();
+  const dribblesAttempts = st?.dribbles?.attempts || 0;
+  const dribblesSuccess = st?.dribbles?.success || 0;
+  const tackles = st?.tackles?.total || 0;
+  const keyPasses = st?.passes?.key || 0;
+  const goals = st?.goals?.total || 0;
+  const shots = st?.shots?.total || 0;
+  const apps = Math.max(st?.games?.appearences || 1, 1);
+  const number = Number(st?.games?.number || player?.number || 0);
+
+  // 1. Goleiro
+  if (/goalkeeper|goleiro|^G$/i.test(rawPos)) {
+    return "Goleiro";
+  }
+
+  // 2. Defensor (Zagueiro, Lateral-Direito, Lateral-Esquerdo)
+  if (/defender|defensor|^D$/i.test(rawPos)) {
+    if (number === 2 || number === 13 || (dribblesAttempts / apps > 0.8 && keyPasses / apps > 0.4)) {
+      return "Lateral-Direito";
+    }
+    if (number === 6 || number === 16 || number === 33) {
+      return "Lateral-Esquerdo";
+    }
+    if (dribblesAttempts / apps > 0.6) {
+      return "Lateral";
+    }
+    return "Zagueiro";
+  }
+
+  // 3. Meio-Campo (Volante, Meia-Armador, Meia-Atacante, Ponta/Meia de Lado)
+  if (/midfielder|meio|^M$/i.test(rawPos)) {
+    // Jogador de lado de campo / Driblador (ex: Andrés Gómez, Savinho, Estêvão quando listado no meio)
+    if ((dribblesAttempts / apps >= 1.3) || (dribblesSuccess / apps >= 0.9)) {
+      if (number === 11 || number === 7 || number === 9 || number === 17) {
+        return "Meia-Esquerda / Ponta";
+      }
+      return "Meia-Atacante / Ponta";
+    }
+
+    // Primeiro/Segundo Volante (Muitos desarmes e poucas finalizações)
+    if ((tackles / apps >= 1.4) && (shots / apps < 1.0)) {
+      return (tackles / apps >= 2.2) ? "Primeiro Volante" : "Volante";
+    }
+
+    // Meia-Armador / Camisa 10
+    if ((keyPasses / apps >= 1.1) || number === 10 || number === 8 || number === 14) {
+      return "Meia-Armador / Meia Ofensivo";
+    }
+
+    return "Meia-Atacante";
+  }
+
+  // 4. Atacante (Centroavante, Ponta-Esquerda, Ponta-Direita, Segundo Atacante)
+  if (/attacker|atacante|^F$|^A$/i.test(rawPos) || !rawPos) {
+    if (dribblesAttempts / apps >= 1.3) {
+      if (number === 11 || number === 7) return "Ponta-Esquerda / Ponta-Direita";
+      return "Ponta / Atacante de Lado";
+    }
+    if ((goals / apps >= 0.35) || (shots / apps >= 1.8) || number === 9) {
+      return "Centroavante";
+    }
+    return "Atacante";
+  }
+
+  return "Meio-Campista";
+}
+
 async function renderPlayer(playerId, teamId, leagueId, season) {
   app.innerHTML = `<div id="player-content">${skeletonTable()}</div>`;
   const content = document.getElementById("player-content");
@@ -2668,7 +2740,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
               <img class="player-avatar-large" src="${p.photo}" alt="" onerror="this.style.display='none'">
             </div>
             <div class="player-hero-text">
-              <p class="page-eyebrow">${escapeHtml(formatTeamName(s.team?.name || ""))} · ${escapeHtml(s.games?.position || "")} ${s.games?.number ? `#${s.games.number}` : ''}</p>
+              <p class="page-eyebrow">${escapeHtml(formatTeamName(s.team?.name || ""))} · ${escapeHtml(getSpecificPlayerRole(p, s))} ${s.games?.number ? `#${s.games.number}` : ''}</p>
               <h1 class="page-title">${escapeHtml(p.name)}</h1>
             </div>
             <div class="player-rating-badge">
