@@ -2718,12 +2718,18 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
     function renderPlayerStatsView(s, selectedIdx = 0, mode = "total") {
       const rating = parseFloat(s.games?.rating || "0").toFixed(2);
       const isPerGame = (mode === "per_game");
-      const apps = s.games?.appearences || 0;
+      const apps = Math.max(s.games?.appearences || 0, 0);
 
-      function fmt(val, digits = 2) {
-        if (!isPerGame) return (val ?? 0).toString();
+      function perGame(val, digits = 2) {
         if (!apps || val === undefined || val === null) return "0.00";
         return (val / apps).toFixed(digits);
+      }
+
+      function fmt(val, digits = 2) {
+        if (isPerGame) {
+          return perGame(val, digits);
+        }
+        return (val ?? 0).toString();
       }
       
       const compOptions = allOptions.map((st, idx) => `
@@ -2768,7 +2774,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             </div>
             <div class="stat-card-main-val green">${fmt(s.goals?.saves)}</div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Total de ${s.goals?.saves ?? 0} defesas` : `Média: ${fmt(s.goals?.saves)} / jogo`}</span>
+              <span>${isPerGame ? `Total de ${s.goals?.saves ?? 0} defesas` : `Média: ${perGame(s.goals?.saves)} / jogo`}</span>
             </div>
           </div>
 
@@ -2779,7 +2785,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             </div>
             <div class="stat-card-main-val gold">${fmt(s.goals?.conceded)}</div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Total sofrido: ${s.goals?.conceded ?? 0} gols` : `Média: ${fmt(s.goals?.conceded)} por partida`}</span>
+              <span>${isPerGame ? `Total sofrido: ${s.goals?.conceded ?? 0} gols` : `Média: ${perGame(s.goals?.conceded)} por partida`}</span>
             </div>
           </div>
 
@@ -2824,7 +2830,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             </div>
             <div class="stat-card-main-val green">${fmt(s.tackles?.total)}</div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Total: ${s.tackles?.total ?? 0} desarmes` : `Média: ${fmt(s.tackles?.total)} / jogo`}</span>
+              <span>${isPerGame ? `Total: ${s.tackles?.total ?? 0} desarmes` : `Média: ${perGame(s.tackles?.total)} / jogo`}</span>
             </div>
           </div>
 
@@ -2835,7 +2841,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             </div>
             <div class="stat-card-main-val cyan">${fmt(s.tackles?.interceptions)}</div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Total: ${s.tackles?.interceptions ?? 0} cortes` : `Bloqueios de Chute: ${s.tackles?.blocks ?? 0}`}</span>
+              <span>${isPerGame ? `Total: ${s.tackles?.interceptions ?? 0} cortes` : `Média: ${perGame(s.tackles?.interceptions)} / jogo`}</span>
             </div>
           </div>
 
@@ -2876,7 +2882,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             </div>
             <div class="stat-card-main-val green">${fmt(s.goals?.assists)}</div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Passes-Chave / Jogo: ${fmt(s.passes?.key)}` : `Passes-Chave: ${s.passes?.key ?? 0}`}</span>
+              <span>${isPerGame ? `Total: ${s.goals?.assists ?? 0} assistências · Chave/j: ${perGame(s.passes?.key)}` : `Média: ${perGame(s.goals?.assists)} / j · Passes-Chave: ${s.passes?.key ?? 0}`}</span>
             </div>
           </div>
 
@@ -2887,7 +2893,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             </div>
             <div class="stat-card-main-val cyan">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Média: ${fmt(s.passes?.total, 1)} passes / jogo` : `Total: ${s.passes?.total ?? 0} passes`}</span>
+              <span>${isPerGame ? `Média: ${perGame(s.passes?.total, 1)} passes / jogo` : `Total: ${s.passes?.total ?? 0} passes (Média: ${perGame(s.passes?.total, 1)}/j)`}</span>
             </div>
           </div>
 
@@ -2898,7 +2904,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             </div>
             <div class="stat-card-main-val gold">${fmt(s.tackles?.total)}</div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Interceptações / Jogo: ${fmt(s.tackles?.interceptions)}` : `Interceptações: ${s.tackles?.interceptions ?? 0}`}</span>
+              <span>${isPerGame ? `Total: ${s.tackles?.total ?? 0} desarmes · Intercep/j: ${perGame(s.tackles?.interceptions)}` : `Média: ${perGame(s.tackles?.total)}/j · Interceptações: ${s.tackles?.interceptions ?? 0}`}</span>
             </div>
           </div>
         `;
@@ -2932,7 +2938,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             </div>
             <div class="stat-card-main-val gold">${fmt(s.goals?.total)}</div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Total: ${s.goals?.total ?? 0} gols (${s.penalty?.scored ?? 0} pênaltis)` : `Pênaltis: ${s.penalty?.scored ?? 0}`}</span>
+              <span>${isPerGame ? `Total: ${s.goals?.total ?? 0} gols (${s.penalty?.scored ?? 0} pênaltis)` : `Média: ${perGame(s.goals?.total)} / jogo · Pênaltis: ${s.penalty?.scored ?? 0}`}</span>
             </div>
           </div>
 
@@ -2943,7 +2949,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             </div>
             <div class="stat-card-main-val green">${shotAccuracy}</div>
             <div class="stat-split-bar">
-              <span>${shotTotal > 0 ? `${shotOn} no alvo de ${shotTotal} chutes` : 'Precisão de chute'}</span>
+              <span>${shotTotal > 0 ? `${shotOn} no alvo de ${shotTotal} chutes (${perGame(s.shots?.total, 1)} ch/j)` : 'Precisão de chute'}</span>
             </div>
           </div>
 
@@ -2954,7 +2960,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
             </div>
             <div class="stat-card-main-val cyan">${fmt(s.goals?.assists)}</div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Passes-Chave / Jogo: ${fmt(s.passes?.key)}` : `Passes-Chave: ${s.passes?.key ?? 0}`}</span>
+              <span>${isPerGame ? `Total: ${s.goals?.assists ?? 0} assistências · Chave/j: ${perGame(s.passes?.key)}` : `Média: ${perGame(s.goals?.assists)} / j · Passes-Chave: ${s.passes?.key ?? 0}`}</span>
             </div>
           </div>
         `;
