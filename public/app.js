@@ -2699,10 +2699,15 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
         yellowred: statsList.reduce((acc, s) => acc + (s.cards?.yellowred || 0), 0),
         red: statsList.reduce((acc, s) => acc + (s.cards?.red || 0), 0),
       },
+      duels: {
+        total: statsList.reduce((acc, s) => acc + (s.duels?.total || 0), 0),
+        won: statsList.reduce((acc, s) => acc + (s.duels?.won || 0), 0),
+      },
       penalty: {
         won: statsList.reduce((acc, s) => acc + (s.penalty?.won || 0), 0),
         scored: statsList.reduce((acc, s) => acc + (s.penalty?.scored || 0), 0),
         missed: statsList.reduce((acc, s) => acc + (s.penalty?.missed || 0), 0),
+        saved: statsList.reduce((acc, s) => acc + (s.penalty?.saved || 0), 0),
       }
     };
 
@@ -2726,6 +2731,588 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           ${idx === 0 ? '📊 Total Geral (Todas as Competições)' : `${escapeHtml(st.league.name)} — ${escapeHtml(st.team.name)}`}
         </option>
       `).join("");
+
+      const rawPos = (s.games?.position || p.position || "").toLowerCase();
+      const specificRole = getSpecificPlayerRole(p, s);
+      const isGK = rawPos.includes("goalkeeper") || rawPos === "g" || specificRole === "Goleiro";
+      const isDefender = rawPos.includes("defender") || rawPos === "d" || specificRole.includes("Zagueiro") || specificRole.includes("Lateral");
+      const isMidfielder = rawPos.includes("midfielder") || rawPos === "m" || specificRole.includes("Volante") || specificRole.includes("Meia");
+      const isAttacker = rawPos.includes("attacker") || rawPos === "f" || rawPos === "a" || specificRole.includes("Centroavante") || specificRole.includes("Ponta") || specificRole.includes("Atacante") || (!isGK && !isDefender && !isMidfielder);
+
+      // Top 4 cards por posição (100% nativos da API)
+      let topCardsHtml = "";
+
+      if (isGK) {
+        // Goleiro
+        topCardsHtml = `
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">
+              ${isPerGame 
+                ? `${apps ? Math.round((s.games?.minutes || 0) / apps) : 0} <small style="font-size:0.95rem;color:var(--chalk-dim);">min</small>`
+                : `${s.games?.appearences ?? 0} <small style="font-size:1rem;color:var(--chalk-dim);">(${s.games?.lineups ?? 0})</small>`
+              }
+            </div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern green">
+            <div class="stat-card-header">
+              <span>🧤</span>
+              <span>${isPerGame ? 'Defesas / Jogo' : 'Defesas Totais'}</span>
+            </div>
+            <div class="stat-card-main-val green">${fmt(s.goals?.saves)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total de ${s.goals?.saves ?? 0} defesas` : `Média: ${fmt(s.goals?.saves)} / jogo`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern gold">
+            <div class="stat-card-header">
+              <span>🥅</span>
+              <span>${isPerGame ? 'Média Sofridos / Jogo' : 'Gols Sofridos'}</span>
+            </div>
+            <div class="stat-card-main-val gold">${fmt(s.goals?.conceded)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total sofrido: ${s.goals?.conceded ?? 0} gols` : `Média: ${fmt(s.goals?.conceded)} por partida`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>🛑</span>
+              <span>Pênaltis Defendidos</span>
+            </div>
+            <div class="stat-card-main-val cyan">${s.penalty?.saved ?? 0}</div>
+            <div class="stat-split-bar">
+              <span>${s.passes?.accuracy ? `Precisão de Reposição: ${s.passes.accuracy}%` : 'Reposições seguras'}</span>
+            </div>
+          </div>
+        `;
+      } else if (isDefender) {
+        // Zagueiro / Lateral
+        const duelTotal = s.duels?.total || 0;
+        const duelWon = s.duels?.won || 0;
+        const duelPct = duelTotal > 0 ? Math.round((duelWon / duelTotal) * 100) + '%' : '-';
+
+        topCardsHtml = `
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">
+              ${isPerGame 
+                ? `${apps ? Math.round((s.games?.minutes || 0) / apps) : 0} <small style="font-size:0.95rem;color:var(--chalk-dim);">min</small>`
+                : `${s.games?.appearences ?? 0} <small style="font-size:1rem;color:var(--chalk-dim);">(${s.games?.lineups ?? 0})</small>`
+              }
+            </div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern green">
+            <div class="stat-card-header">
+              <span>⚔️</span>
+              <span>${isPerGame ? 'Desarmes / Jogo' : 'Desarmes Totais'}</span>
+            </div>
+            <div class="stat-card-main-val green">${fmt(s.tackles?.total)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total: ${s.tackles?.total ?? 0} desarmes` : `Média: ${fmt(s.tackles?.total)} / jogo`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>🧤</span>
+              <span>${isPerGame ? 'Interceptações / Jogo' : 'Interceptações'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">${fmt(s.tackles?.interceptions)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total: ${s.tackles?.interceptions ?? 0} cortes` : `Bloqueios de Chute: ${s.tackles?.blocks ?? 0}`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern gold">
+            <div class="stat-card-header">
+              <span>🛡️</span>
+              <span>Duelos Vencidos</span>
+            </div>
+            <div class="stat-card-main-val gold">${duelPct}</div>
+            <div class="stat-split-bar">
+              <span>${duelTotal > 0 ? `${duelWon} de ${duelTotal} disputas ganhas` : (s.passes?.accuracy ? `Precisão de Passe: ${s.passes.accuracy}%` : 'Disputas defensivas')}</span>
+            </div>
+          </div>
+        `;
+      } else if (isMidfielder) {
+        // Meio-campista / Volante / Meia
+        topCardsHtml = `
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">
+              ${isPerGame 
+                ? `${apps ? Math.round((s.games?.minutes || 0) / apps) : 0} <small style="font-size:0.95rem;color:var(--chalk-dim);">min</small>`
+                : `${s.games?.appearences ?? 0} <small style="font-size:1rem;color:var(--chalk-dim);">(${s.games?.lineups ?? 0})</small>`
+              }
+            </div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern green">
+            <div class="stat-card-header">
+              <span>👟</span>
+              <span>${isPerGame ? 'Média de Assist. / Jogo' : 'Assistências'}</span>
+            </div>
+            <div class="stat-card-main-val green">${fmt(s.goals?.assists)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Passes-Chave / Jogo: ${fmt(s.passes?.key)}` : `Passes-Chave: ${s.passes?.key ?? 0}`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>🎯</span>
+              <span>Precisão de Passes</span>
+            </div>
+            <div class="stat-card-main-val cyan">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Média: ${fmt(s.passes?.total, 1)} passes / jogo` : `Total: ${s.passes?.total ?? 0} passes`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern gold">
+            <div class="stat-card-header">
+              <span>⚔️</span>
+              <span>${isPerGame ? 'Desarmes / Jogo' : 'Desarmes & Botes'}</span>
+            </div>
+            <div class="stat-card-main-val gold">${fmt(s.tackles?.total)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Interceptações / Jogo: ${fmt(s.tackles?.interceptions)}` : `Interceptações: ${s.tackles?.interceptions ?? 0}`}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        // Atacante / Ponta / Centroavante
+        const shotTotal = s.shots?.total || 0;
+        const shotOn = s.shots?.on || 0;
+        const shotAccuracy = shotTotal > 0 ? Math.round((shotOn / shotTotal) * 100) + '%' : '-';
+
+        topCardsHtml = `
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">
+              ${isPerGame 
+                ? `${apps ? Math.round((s.games?.minutes || 0) / apps) : 0} <small style="font-size:0.95rem;color:var(--chalk-dim);">min</small>`
+                : `${s.games?.appearences ?? 0} <small style="font-size:1rem;color:var(--chalk-dim);">(${s.games?.lineups ?? 0})</small>`
+              }
+            </div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern gold">
+            <div class="stat-card-header">
+              <span>⚽</span>
+              <span>${isPerGame ? 'Média de Gols / Jogo' : 'Gols Marcados'}</span>
+            </div>
+            <div class="stat-card-main-val gold">${fmt(s.goals?.total)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Total: ${s.goals?.total ?? 0} gols (${s.penalty?.scored ?? 0} pênaltis)` : `Pênaltis: ${s.penalty?.scored ?? 0}`}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern green">
+            <div class="stat-card-header">
+              <span>🎯</span>
+              <span>Pontaria no Alvo</span>
+            </div>
+            <div class="stat-card-main-val green">${shotAccuracy}</div>
+            <div class="stat-split-bar">
+              <span>${shotTotal > 0 ? `${shotOn} no alvo de ${shotTotal} chutes` : 'Precisão de chute'}</span>
+            </div>
+          </div>
+
+          <div class="stat-card-modern cyan">
+            <div class="stat-card-header">
+              <span>👟</span>
+              <span>${isPerGame ? 'Média de Assist. / Jogo' : 'Assistências'}</span>
+            </div>
+            <div class="stat-card-main-val cyan">${fmt(s.goals?.assists)}</div>
+            <div class="stat-split-bar">
+              <span>${isPerGame ? `Passes-Chave / Jogo: ${fmt(s.passes?.key)}` : `Passes-Chave: ${s.passes?.key ?? 0}`}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      // Detalhamento das 2 seções inferiores específicas por posição
+      let detailedSectionsHtml = "";
+
+      if (isGK) {
+        // Detalhes Goleiro
+        detailedSectionsHtml = `
+          <div class="player-metrics-grid">
+            <div class="player-metrics-card">
+              <div class="player-metrics-header defense">
+                <span class="metrics-header-icon">🧤</span>
+                <span class="metrics-header-title">Desempenho no Gol & Defesas ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🧤</span>
+                    <span class="metric-label">Defesas Realizadas</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.goals?.saves)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🥅</span>
+                    <span class="metric-label">Gols Sofridos</span>
+                  </div>
+                  <span class="metric-val gold">${fmt(s.goals?.conceded)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🛑</span>
+                    <span class="metric-label">Pênaltis Defendidos</span>
+                  </div>
+                  <span class="metric-val">${s.penalty?.saved ?? 0}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🛡️</span>
+                    <span class="metric-label">Duelos & Saídas Ganhas</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.duels?.won)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="player-metrics-card">
+              <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
+                <span class="metrics-header-icon">⚽</span>
+                <span class="metrics-header-title">Reposições & Disciplina ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-label">Passes Totais</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.passes?.total)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">📊</span>
+                    <span class="metric-label">Precisão de Passes</span>
+                  </div>
+                  <span class="metric-val">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🛡️</span>
+                    <span class="metric-label">Faltas Sofridas</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.fouls?.drawn)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🟨</span>
+                    <span class="metric-label">Cartões Amarelos / Vermelhos</span>
+                  </div>
+                  <span class="metric-val" style="color:var(--gold);">
+                    ${s.cards?.yellow ?? 0} <small style="color:var(--chalk-dim);">/</small> <span style="color:#EF4444;">${s.cards?.red ?? 0}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (isDefender) {
+        // Detalhes Defensor
+        detailedSectionsHtml = `
+          <div class="player-metrics-grid">
+            <div class="player-metrics-card">
+              <div class="player-metrics-header defense">
+                <span class="metrics-header-icon">🛡️</span>
+                <span class="metrics-header-title">Desarmes, Cortes & Interceptações ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚔️</span>
+                    <span class="metric-label">Desarmes Totais</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.tackles?.total)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🧤</span>
+                    <span class="metric-label">Interceptações</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.tackles?.interceptions)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🧱</span>
+                    <span class="metric-label">Bloqueios de Chute</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.tackles?.blocks)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🏆</span>
+                    <span class="metric-label">Duelos Vencidos</span>
+                  </div>
+                  <span class="metric-val gold">${fmt(s.duels?.won)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="player-metrics-card">
+              <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
+                <span class="metrics-header-icon">⚡</span>
+                <span class="metrics-header-title">Construção, Apoio & Disciplina ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-label">Passes Totais</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.passes?.total)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">👟</span>
+                    <span class="metric-label">Passes-Chave (Apoio)</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.passes?.key)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚠️</span>
+                    <span class="metric-label">Faltas Cometidas</span>
+                  </div>
+                  <span class="metric-val" style="color:var(--gold);">${fmt(s.fouls?.committed)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🟨</span>
+                    <span class="metric-label">Cartões Amarelos / Vermelhos</span>
+                  </div>
+                  <span class="metric-val" style="color:var(--gold);">
+                    ${s.cards?.yellow ?? 0} <small style="color:var(--chalk-dim);">/</small> <span style="color:#EF4444;">${s.cards?.red ?? 0}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (isMidfielder) {
+        // Detalhes Meio-Campista
+        detailedSectionsHtml = `
+          <div class="player-metrics-grid">
+            <div class="player-metrics-card">
+              <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(255,184,0,0.15), transparent);border-left:3px solid var(--gold);">
+                <span class="metrics-header-icon">🧠</span>
+                <span class="metrics-header-title">Criação & Transição Ofensiva ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">👟</span>
+                    <span class="metric-label">Passes-Chave (Key Passes)</span>
+                  </div>
+                  <span class="metric-val gold">${fmt(s.passes?.key)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎁</span>
+                    <span class="metric-label">Assistências para Gol</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.goals?.assists)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚡</span>
+                    <span class="metric-label">Dribles Certos (1x1)</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.dribbles?.success)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-label">Chutes no Alvo</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.shots?.on)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="player-metrics-card">
+              <div class="player-metrics-header defense">
+                <span class="metrics-header-icon">🛡️</span>
+                <span class="metrics-header-title">Contenção, Desarmes & Duelos ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚔️</span>
+                    <span class="metric-label">Desarmes Totais</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.tackles?.total)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🧤</span>
+                    <span class="metric-label">Interceptações</span>
+                  </div>
+                  <span class="metric-val green">${fmt(s.tackles?.interceptions)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🏆</span>
+                    <span class="metric-label">Duelos Ganhos</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.duels?.won)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🟨</span>
+                    <span class="metric-label">Cartões Amarelos / Vermelhos</span>
+                  </div>
+                  <span class="metric-val" style="color:var(--gold);">
+                    ${s.cards?.yellow ?? 0} <small style="color:var(--chalk-dim);">/</small> <span style="color:#EF4444;">${s.cards?.red ?? 0}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Detalhes Atacante
+        const shotTotal = s.shots?.total || 0;
+        const convRate = shotTotal > 0 ? Math.round(((s.goals?.total || 0) / shotTotal) * 100) + '%' : '-';
+
+        detailedSectionsHtml = `
+          <div class="player-metrics-grid">
+            <div class="player-metrics-card">
+              <div class="player-metrics-header attack">
+                <span class="metrics-header-icon">🔥</span>
+                <span class="metrics-header-title">Finalizações & Faro de Gol ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚽</span>
+                    <span class="metric-label">Gols Marcados</span>
+                  </div>
+                  <span class="metric-val gold">${fmt(s.goals?.total)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-label">Chutes no Alvo</span>
+                  </div>
+                  <span class="metric-val gold">${fmt(s.shots?.on)} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${fmt(s.shots?.total)} tot)</small></span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">📊</span>
+                    <span class="metric-label">Conversão de Chutes</span>
+                  </div>
+                  <span class="metric-val green">${convRate}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🎖️</span>
+                    <span class="metric-label">Pênaltis Sofridos</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.penalty?.won)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="player-metrics-card">
+              <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
+                <span class="metrics-header-icon">⚡</span>
+                <span class="metrics-header-title">Dribles, Criação & Participação ${isPerGame ? '(Por Jogo)' : ''}</span>
+              </div>
+              <div class="player-metrics-list">
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">⚡</span>
+                    <span class="metric-label">Dribles Certos (1x1)</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.dribbles?.success)} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${fmt(s.dribbles?.attempts)} tent)</small></span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">👟</span>
+                    <span class="metric-label">Passes-Chave Criados</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.passes?.key)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🛡️</span>
+                    <span class="metric-label">Faltas Sofridas</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.fouls?.drawn)}</span>
+                </div>
+
+                <div class="player-metric-row">
+                  <div class="metric-info">
+                    <span class="metric-icon">🏆</span>
+                    <span class="metric-label">Duelos Físicos Ganhos</span>
+                  </div>
+                  <span class="metric-val">${fmt(s.duels?.won)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
 
       return `
         ${breadcrumbs([
@@ -2772,140 +3359,10 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
         <h2 class="section-title">${isPerGame ? 'Estatísticas por Jogo' : 'Estatísticas na Temporada'} (${s.league?.id === 'TOTAL' ? 'Todas as Competições' : escapeHtml(formatTeamName(s.league?.name || 'Geral'))})</h2>
         <div class="stat-grid">
-          <div class="stat-card-modern cyan">
-            <div class="stat-card-header">
-              <span>${isPerGame ? '⏱️' : '🏃'}</span>
-              <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
-            </div>
-            <div class="stat-card-main-val cyan">
-              ${isPerGame 
-                ? `${apps ? Math.round((s.games?.minutes || 0) / apps) : 0} <small style="font-size:0.95rem;color:var(--chalk-dim);">min</small>`
-                : `${s.games?.appearences ?? 0} <small style="font-size:1rem;color:var(--chalk-dim);">(${s.games?.lineups ?? 0})</small>`
-              }
-            </div>
-            <div class="stat-split-bar">
-              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
-            </div>
-          </div>
-
-          <div class="stat-card-modern gold">
-            <div class="stat-card-header">
-              <span>⚽</span>
-              <span>${isPerGame ? 'Média de Gols / Jogo' : 'Gols Marcados'}</span>
-            </div>
-            <div class="stat-card-main-val gold">${fmt(s.goals?.total)}</div>
-            <div class="stat-split-bar">
-              <span>${isPerGame ? `Total: ${s.goals?.total ?? 0} gols (${s.penalty?.scored ?? 0} pênaltis)` : `Pênaltis: ${s.penalty?.scored ?? 0}`}</span>
-            </div>
-          </div>
-
-          <div class="stat-card-modern green">
-            <div class="stat-card-header">
-              <span>👟</span>
-              <span>${isPerGame ? 'Média de Assist. / Jogo' : 'Assistências'}</span>
-            </div>
-            <div class="stat-card-main-val green">${fmt(s.goals?.assists)}</div>
-            <div class="stat-split-bar">
-              <span>${isPerGame ? `Passes Chave / Jogo: ${fmt(s.passes?.key)}` : `Passes Chave: ${s.passes?.key ?? 0}`}</span>
-            </div>
-          </div>
-
-          <div class="stat-card-modern cyan">
-            <div class="stat-card-header">
-              <span>🎯</span>
-              <span>Precisão de Passes</span>
-            </div>
-            <div class="stat-card-main-val cyan">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</div>
-            <div class="stat-split-bar">
-              <span>${isPerGame ? `Média: ${fmt(s.passes?.total, 1)} passes / jogo` : `Total: ${s.passes?.total ?? 0}`}</span>
-            </div>
-          </div>
+          ${topCardsHtml}
         </div>
 
-        <div class="player-metrics-grid">
-          <div class="player-metrics-card">
-            <div class="player-metrics-header attack">
-              <span class="metrics-header-icon">🔥</span>
-              <span class="metrics-header-title">Finalizações & Ataque ${isPerGame ? '(Por Jogo)' : ''}</span>
-            </div>
-            <div class="player-metrics-list">
-              <div class="player-metric-row">
-                <div class="metric-info">
-                  <span class="metric-icon">🎯</span>
-                  <span class="metric-label">Chutes Totais</span>
-                </div>
-                <span class="metric-val gold">${fmt(s.shots?.total)}</span>
-              </div>
-
-              <div class="player-metric-row">
-                <div class="metric-info">
-                  <span class="metric-icon">🥅</span>
-                  <span class="metric-label">Chutes no Alvo</span>
-                </div>
-                <span class="metric-val gold">${fmt(s.shots?.on)}</span>
-              </div>
-
-              <div class="player-metric-row">
-                <div class="metric-info">
-                  <span class="metric-icon">⚡</span>
-                  <span class="metric-label">Dribles Certos</span>
-                </div>
-                <span class="metric-val">${fmt(s.dribbles?.success)}</span>
-              </div>
-
-              <div class="player-metric-row">
-                <div class="metric-info">
-                  <span class="metric-icon">🎖️</span>
-                  <span class="metric-label">Pênaltis Sofridos</span>
-                </div>
-                <span class="metric-val">${fmt(s.penalty?.won)}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="player-metrics-card">
-            <div class="player-metrics-header defense">
-              <span class="metrics-header-icon">🛡️</span>
-              <span class="metrics-header-title">Defesa & Disciplina ${isPerGame ? '(Por Jogo)' : ''}</span>
-            </div>
-            <div class="player-metrics-list">
-              <div class="player-metric-row">
-                <div class="metric-info">
-                  <span class="metric-icon">⚔️</span>
-                  <span class="metric-label">Desarmes</span>
-                </div>
-                <span class="metric-val green">${fmt(s.tackles?.total)}</span>
-              </div>
-
-              <div class="player-metric-row">
-                <div class="metric-info">
-                  <span class="metric-icon">🧤</span>
-                  <span class="metric-label">Interceptações</span>
-                </div>
-                <span class="metric-val green">${fmt(s.tackles?.interceptions)}</span>
-              </div>
-
-              <div class="player-metric-row">
-                <div class="metric-info">
-                  <span class="metric-icon">⚠️</span>
-                  <span class="metric-label">Faltas Cometidas</span>
-                </div>
-                <span class="metric-val">${fmt(s.fouls?.committed)}</span>
-              </div>
-
-              <div class="player-metric-row">
-                <div class="metric-info">
-                  <span class="metric-icon">🎴</span>
-                  <span class="metric-label">Cartões Amarelos / Vermelhos</span>
-                </div>
-                <div class="metric-cards-badges">
-                  <span class="card-badge yellow">🟨 ${isPerGame ? fmt(s.cards?.yellow) + '/j' : (s.cards?.yellow ?? 0)}</span>
-                  <span class="card-badge red">🟥 ${isPerGame ? fmt(s.cards?.red) + '/j' : (s.cards?.red ?? 0)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        ${detailedSectionsHtml}
       `;
     }
 
