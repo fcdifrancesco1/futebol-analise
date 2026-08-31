@@ -78,7 +78,7 @@ body {
 }
 
 .topbar-inner {
-  max-width: 1200px;
+  max-width: 1760px;
   margin: 0 auto;
   height: 64px;
   display: flex;
@@ -502,7 +502,7 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
    ============================================================ */
 .main-content {
   flex: 1;
-  max-width: 1200px;
+  max-width: 1760px;
   width: 100%;
   margin: 0 auto;
   padding: 24px 20px;
@@ -3466,9 +3466,9 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 /* 1. PÁGINA DO CLUBE: 3 COLUNAS (NOTÍCIAS | CENTRO COM ELENCO | FIXTURES) */
 .team-page-grid {
   display: grid;
-  grid-template-columns: 290px 1fr 340px;
-  gap: 20px;
-  max-width: 1720px;
+  grid-template-columns: 320px 1fr 380px;
+  gap: 24px;
+  max-width: 100%;
   margin: 0 auto;
   align-items: start;
 }
@@ -3704,9 +3704,9 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 /* 2. CLASSIFICAÇÃO: TABELA + 3 CARDS DE RANKINGS COM #1 EM CÍRCULO */
 .standings-split-grid {
   display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 20px;
-  max-width: 1720px;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  max-width: 100%;
   margin: 0 auto;
   align-items: start;
 }
