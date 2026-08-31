@@ -5776,7 +5776,7 @@ async function renderLineupBuilder(teamId, fixtureId) {
 
       UserLineupStore.save(lineupObj);
       toast("Escalação salva com sucesso!", true);
-      location.hash = fixtureId ? `#/minha-escalacao/comparar/${lineupId}` : `#/minha-escalacao`;
+      location.hash = `#/minha-escalacao/comparar/${lineupId}`;
     }
 
     renderBuilderView();
@@ -5799,22 +5799,62 @@ async function renderLineupComparison(lineupId) {
 
   let officialLineup = null;
   let matchStatus = "NS";
+  let activeFixtureId = fixtureId;
+  let activeFixtureInfo = fixtureInfo;
 
-  if (fixtureId) {
-    try {
-      const lineupsResp = await apiGet("fixtures/lineups", { fixture: fixtureId }, 15).catch(() => []);
-      const matchResp = await apiGet("fixtures", { id: fixtureId }, 15).catch(() => []);
-      
+  try {
+    // Se não tiver fixtureId salvo, busca a próxima partida ou a última do time
+    if (!activeFixtureId) {
+      const nextList = await apiGet("fixtures", { team: teamId, next: 1 }, 15).catch(() => []);
+      if (nextList?.[0]) {
+        activeFixtureId = nextList[0].fixture.id;
+        activeFixtureInfo = {
+          id: nextList[0].fixture.id,
+          date: nextList[0].fixture.date,
+          home: nextList[0].teams.home,
+          away: nextList[0].teams.away,
+          leagueName: nextList[0].league.name
+        };
+      } else {
+        const lastList = await apiGet("fixtures", { team: teamId, last: 1 }, 15).catch(() => []);
+        if (lastList?.[0]) {
+          activeFixtureId = lastList[0].fixture.id;
+          activeFixtureInfo = {
+            id: lastList[0].fixture.id,
+            date: lastList[0].fixture.date,
+            home: lastList[0].teams.home,
+            away: lastList[0].teams.away,
+            leagueName: lastList[0].league.name
+          };
+        }
+      }
+    }
+
+    if (activeFixtureId) {
+      const [lineupsResp, matchResp] = await Promise.all([
+        apiGet("fixtures/lineups", { fixture: activeFixtureId }, 10).catch(() => []),
+        apiGet("fixtures", { id: activeFixtureId }, 10).catch(() => [])
+      ]);
+
       if (matchResp?.[0]) {
         matchStatus = matchResp[0].fixture.status.short;
+        if (!activeFixtureInfo) {
+          activeFixtureInfo = {
+            id: matchResp[0].fixture.id,
+            date: matchResp[0].fixture.date,
+            home: matchResp[0].teams.home,
+            away: matchResp[0].teams.away,
+            leagueName: matchResp[0].league.name
+          };
+        }
       }
 
       if (Array.isArray(lineupsResp) && lineupsResp.length > 0) {
         officialLineup = lineupsResp.find(l => l.team.id === teamId) || null;
       }
-    } catch (err) {
-      console.warn("Erro ao buscar escalação oficial:", err);
     }
+  } catch (err) {
+    console.warn("Erro ao sincronizar escalação oficial:", err);
   }
 
   // Se a escalação oficial saiu, fazemos o cruzamento detalhado
@@ -6056,13 +6096,17 @@ async function renderLineupComparison(lineupId) {
       </div>
     ` : `
       <!-- Status: Aguardando Escalação Oficial -->
-      <div class="card" style="text-align:center;padding:36px 20px;color:var(--chalk-dim);margin-bottom:24px;">
-        <span style="font-size:2.8rem;display:block;margin-bottom:12px;">⏳</span>
-        <h2 style="font-size:1.2rem;color:var(--chalk);margin:0 0 8px;">Aguardando Escalação Oficial</h2>
-        <p style="font-size:0.88rem;color:var(--chalk-dim);max-width:500px;margin:0 auto 18px;">
-          Os clubes costumam confirmar a escalação oficial cerca de <strong>45 a 60 minutos antes do início do jogo</strong>. Assim que for publicada, volte a esta tela para conferir seu índice de acertos e as diferenças táticas!
+      <div class="card" style="text-align:center;padding:36px 20px;color:var(--chalk-dim);margin-bottom:24px;background:linear-gradient(135deg, rgba(13,38,59,0.7), rgba(7,17,30,0.9));border:1px solid rgba(255,184,0,0.35);">
+        <span style="font-size:2.8rem;display:block;margin-bottom:10px;">⏳</span>
+        <h2 style="font-size:1.3rem;font-weight:800;color:var(--gold);margin:0 0 8px;">Escalação Salva! Aguardando Divulgação Oficial</h2>
+        <p style="font-size:0.92rem;color:var(--chalk);max-width:560px;margin:0 auto 16px;line-height:1.5;">
+          A sua escalação titular foi gravada com sucesso. A escalação oficial do clube é divulgada cerca de <strong>45 a 60 minutos antes do jogo</strong>. 
+          Assim que for confirmada, o sistema fará o <strong>cálculo automático de acertos</strong> e exibirá aqui o comparativo jogador por jogador!
         </p>
-        <a class="btn primary small" href="#/minha-escalacao/montar/${teamId}${fixtureId ? `/${fixtureId}` : ''}">Editar Minha Escalação</a>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <a class="btn primary small" href="#/minha-escalacao/montar/${teamId}${activeFixtureId ? `/${activeFixtureId}` : ''}">✏️ Editar Minha Escalação</a>
+          <a class="btn ghost small" href="#/minha-escalacao">📋 Ver Todas as Minhas Escalações</a>
+        </div>
       </div>
 
       <!-- Prévia da Escalação Salva do Usuário -->
