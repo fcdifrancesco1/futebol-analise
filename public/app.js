@@ -14,7 +14,10 @@ const COUNTRIES = [
   { id: "alemanha", name: "Alemanha", flagImg: "/flags/de.png", leagues: [78, 81] },
   { id: "italia", name: "Itália", flagImg: "/flags/it.png", leagues: [135, 137] },
   { id: "franca", name: "França", flagImg: "/flags/fr.png", leagues: [61, 66] },
-  { id: "arabia-saudita", name: "Arábia Saudita", flagImg: "/flags/sa.png", leagues: [307] },
+  { id: "portugal", name: "Portugal", flagImg: "/flags/pt.png", leagues: [94, 96] },
+  { id: "holanda", name: "Holanda", flagImg: "/flags/nl.png", leagues: [88, 90] },
+  { id: "turquia", name: "Turquia", flagImg: "/flags/tr.png", leagues: [203, 206] },
+  { id: "arabia-saudita", name: "Arábia Saudita", flagImg: "/flags/sa.png", leagues: [307, 504] },
   { id: "uefa", name: "UEFA (Europa)", flagImg: "/flags/eu.png", leagues: [2, 3, 4] },
   { id: "conmebol", name: "América do Sul", flagImg: "/flags/conmebol.png", leagues: [13, 11] },
 ];
@@ -28,6 +31,9 @@ const LEAGUES = [
   { id: 61, name: "Ligue 1", country: "França", calendarYear: false, isCup: false },
   { id: 78, name: "Bundesliga", country: "Alemanha", calendarYear: false, isCup: false },
   { id: 135, name: "Serie A", country: "Itália", calendarYear: false, isCup: false },
+  { id: 94, name: "Liga Portuguesa", country: "Portugal", calendarYear: false, isCup: false },
+  { id: 88, name: "Eredivisie", country: "Holanda", calendarYear: false, isCup: false },
+  { id: 203, name: "Campeonato Turco", country: "Turquia", calendarYear: false, isCup: false },
   { id: 307, name: "Liga Profissional Saudita", country: "Arábia Saudita", calendarYear: false, isCup: false },
 
   // Copas Continentais
@@ -44,7 +50,11 @@ const LEAGUES = [
   { id: 48, name: "Copa da Liga Inglesa", country: "Inglaterra", calendarYear: false, isCup: true },
   { id: 137, name: "Copa da Itália", country: "Itália", calendarYear: false, isCup: true },
   { id: 66, name: "Copa da França", country: "França", calendarYear: false, isCup: true },
-  { id: 81, name: "Copa da Alemanha", country: "Alemanha", calendarYear: false, isCup: true }
+  { id: 81, name: "Copa da Alemanha", country: "Alemanha", calendarYear: false, isCup: true },
+  { id: 96, name: "Copa de Portugal", country: "Portugal", calendarYear: false, isCup: true },
+  { id: 90, name: "Copa da Holanda", country: "Holanda", calendarYear: false, isCup: true },
+  { id: 206, name: "Copa da Turquia", country: "Turquia", calendarYear: false, isCup: true },
+  { id: 504, name: "Copa do Rei Saudita", country: "Arábia Saudita", calendarYear: false, isCup: true }
 ];
 
 
@@ -6198,6 +6208,39 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
 
   // 9. Liga Saudita (307)
   if (leagueId === 307) {
+    return [
+      { name: "Canal GOAT", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.15)", border: "rgba(250, 204, 21, 0.4)", url: goatUrl },
+      { name: "BandSports", tag: "TV Fechada", logo: "/broadcast-logos/band.svg", color: "#00A650", bg: "rgba(0, 166, 80, 0.15)", border: "rgba(0, 166, 80, 0.4)", url: "https://bandsports.band.uol.com.br/" }
+    ];
+  }
+
+  // Liga Portuguesa (94) & Copa de Portugal (96)
+  if (leagueId === 94 || leagueId === 96) {
+    return [
+      { name: "Disney+", tag: "100% dos Jogos Ao Vivo", logo: "/broadcast-logos/disney-plus.webp", color: "#0063E5", bg: "rgba(0, 99, 229, 0.15)", border: "rgba(0, 99, 229, 0.4)", url: "https://www.disneyplus.com/" },
+      { name: "ESPN", tag: "TV Fechada", logo: "/broadcast-logos/espn.png", color: "#CC0000", bg: "rgba(204, 0, 0, 0.15)", border: "rgba(204, 0, 0, 0.4)", url: "https://www.espn.com.br/watch/" }
+    ];
+  }
+
+  // Eredivisie (88) & Copa da Holanda (90)
+  if (leagueId === 88 || leagueId === 90) {
+    return [
+      { name: "Disney+", tag: "100% dos Jogos Ao Vivo", logo: "/broadcast-logos/disney-plus.webp", color: "#0063E5", bg: "rgba(0, 99, 229, 0.15)", border: "rgba(0, 99, 229, 0.4)", url: "https://www.disneyplus.com/" },
+      { name: "ESPN", tag: "TV Fechada", logo: "/broadcast-logos/espn.png", color: "#CC0000", bg: "rgba(204, 0, 0, 0.15)", border: "rgba(204, 0, 0, 0.4)", url: "https://www.espn.com.br/watch/" }
+    ];
+  }
+
+  // Campeonato Turco (203) & Copa da Turquia (206)
+  if (leagueId === 203 || leagueId === 206) {
+    return [
+      { name: "Disney+", tag: "100% dos Jogos Ao Vivo", logo: "/broadcast-logos/disney-plus.webp", color: "#0063E5", bg: "rgba(0, 99, 229, 0.15)", border: "rgba(0, 99, 229, 0.4)", url: "https://www.disneyplus.com/" },
+      { name: "ESPN", tag: "TV Fechada", logo: "/broadcast-logos/espn.png", color: "#CC0000", bg: "rgba(204, 0, 0, 0.15)", border: "rgba(204, 0, 0, 0.4)", url: "https://www.espn.com.br/watch/" },
+      { name: "Canal GOAT", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.15)", border: "rgba(250, 204, 21, 0.4)", url: goatUrl }
+    ];
+  }
+
+  // Copa do Rei Saudita (504)
+  if (leagueId === 504) {
     return [
       { name: "Canal GOAT", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/canal-goat.png", color: "#FACC15", bg: "rgba(250, 204, 21, 0.15)", border: "rgba(250, 204, 21, 0.4)", url: goatUrl },
       { name: "BandSports", tag: "TV Fechada", logo: "/broadcast-logos/band.svg", color: "#00A650", bg: "rgba(0, 166, 80, 0.15)", border: "rgba(0, 166, 80, 0.4)", url: "https://bandsports.band.uol.com.br/" }
