@@ -1590,34 +1590,38 @@ async function renderMyTeam() {
             <div class="fixture-list">
               ${nextFixtures.map(f => {
                 const dObj = new Date(f.fixture.date);
-                const dayNum = dObj.toLocaleDateString("pt-BR", { day: "2-digit" });
-                const monthName = dObj.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+                const day = String(dObj.getDate()).padStart(2, "0");
+                const month = String(dObj.getMonth() + 1).padStart(2, "0");
+                const year = dObj.getFullYear();
                 const timeStr = dObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const dateFormatted = `${day}/${month}/${year}${timeStr && timeStr !== "00:00" ? ' · ' + timeStr : ''}`;
                 const isHome = f.teams.home.id === favTeam.id;
                 const leagueLogo = f.league?.logo;
                 const leagueName = formatTeamName(f.league?.name || "");
 
                 return `
-                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
-                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:65px;">
-                      <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;min-width:28px;">
-                        <span class="fixture-date" style="color:var(--gold);font-weight:800;font-size:0.95rem;">${dayNum}</span>
-                        <span style="font-size:0.68rem;color:var(--chalk-dim);text-transform:lowercase;font-weight:600;">${monthName}</span>
-                        <span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--chalk-dim);margin-top:2px;">${timeStr}</span>
+                  <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                    <div class="fixture-card-topbar">
+                      <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
+                        ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" onerror="this.style.display='none'">` : ''}
+                        <span>${escapeHtml(leagueName)}</span>
                       </div>
-                      ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
+                      <div class="fixture-card-top-right">
+                        <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
+                      </div>
                     </div>
-                    <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
-                      <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
-                      <img src="${f.teams.home.logo}" alt="" loading="lazy">
-                    </div>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;">
-                      ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
-                      <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;padding:2px 8px;min-width:38px;">vs</span>
-                    </div>
-                    <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
-                      <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                    <div class="fixture-card-matchup">
+                      <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                        <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                      </div>
+                      <div class="fixture-card-score-box">
+                        <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;padding:2px 8px;min-width:38px;">vs</span>
+                      </div>
+                      <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                        <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                      </div>
                     </div>
                   </a>
                 `;
@@ -1641,8 +1645,10 @@ async function renderMyTeam() {
             <div class="fixture-list">
               ${lastFixtures.map(f => {
                 const dObj = new Date(f.fixture.date);
-                const dayNum = dObj.toLocaleDateString("pt-BR", { day: "2-digit" });
-                const monthName = dObj.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+                const day = String(dObj.getDate()).padStart(2, "0");
+                const month = String(dObj.getMonth() + 1).padStart(2, "0");
+                const year = dObj.getFullYear();
+                const dateFormatted = `${day}/${month}/${year}`;
                 const isHome = f.teams.home.id === favTeam.id;
                 const homeGoals = f.goals.home ?? 0;
                 const awayGoals = f.goals.away ?? 0;
@@ -1669,34 +1675,35 @@ async function renderMyTeam() {
                 }
 
                 return `
-                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
-                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:65px;">
-                      <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;min-width:28px;">
-                        <span class="fixture-date" style="font-size:0.95rem;font-weight:800;color:var(--chalk);">${dayNum}</span>
-                        <span style="font-size:0.68rem;color:var(--chalk-dim);text-transform:lowercase;font-weight:600;">${monthName}</span>
+                  <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                    <div class="fixture-card-topbar">
+                      <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
+                        ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" onerror="this.style.display='none'">` : ''}
+                        <span>${escapeHtml(leagueName)}</span>
                       </div>
-                      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
-                        ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:18px;height:18px;object-fit:contain;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
+                      <div class="fixture-card-top-right">
                         <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.68rem;font-weight:800;line-height:1;">
                           ${outcomeLetter}
                         </span>
+                        <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
                       </div>
                     </div>
-                    <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
-                      <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
-                      <img src="${f.teams.home.logo}" alt="" loading="lazy">
-                    </div>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:60px;">
-                      ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
-                      <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
-                      <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
-                        <span style="font-size:0.6rem;line-height:1;">▶</span>
-                        <span>Melhores Momentos</span>
-                      </button>
-                    </div>
-                    <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
-                      <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                    <div class="fixture-card-matchup">
+                      <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                        <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                      </div>
+                      <div class="fixture-card-score-box">
+                        <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
+                        <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                          <span style="font-size:0.6rem;line-height:1;">▶</span>
+                          <span>Melhores Momentos</span>
+                        </button>
+                      </div>
+                      <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                        <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                      </div>
                     </div>
                   </a>
                 `;
@@ -3047,34 +3054,38 @@ async function renderTeam(teamId, leagueId, season) {
             <div class="fixture-list">
               ${nextFixtures.map(f => {
                 const dObj = new Date(f.fixture.date);
-                const dayNum = dObj.toLocaleDateString("pt-BR", { day: "2-digit" });
-                const monthName = dObj.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+                const day = String(dObj.getDate()).padStart(2, "0");
+                const month = String(dObj.getMonth() + 1).padStart(2, "0");
+                const year = dObj.getFullYear();
                 const timeStr = dObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const dateFormatted = `${day}/${month}/${year}${timeStr && timeStr !== "00:00" ? ' · ' + timeStr : ''}`;
                 const isHome = f.teams.home.id === teamId;
                 const leagueLogo = f.league?.logo;
                 const leagueName = formatTeamName(f.league?.name || "");
 
                 return `
-                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
-                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:65px;">
-                      <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;min-width:28px;">
-                        <span class="fixture-date" style="color:var(--gold);font-weight:800;font-size:0.95rem;">${dayNum}</span>
-                        <span style="font-size:0.68rem;color:var(--chalk-dim);text-transform:lowercase;font-weight:600;">${monthName}</span>
-                        <span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--chalk-dim);margin-top:2px;">${timeStr}</span>
+                  <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                    <div class="fixture-card-topbar">
+                      <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
+                        ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" onerror="this.style.display='none'">` : ''}
+                        <span>${escapeHtml(leagueName)}</span>
                       </div>
-                      ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
+                      <div class="fixture-card-top-right">
+                        <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
+                      </div>
                     </div>
-                    <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
-                      <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
-                      <img src="${f.teams.home.logo}" alt="" loading="lazy">
-                    </div>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;">
-                      ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
-                      <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;padding:2px 8px;min-width:38px;">vs</span>
-                    </div>
-                    <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
-                      <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                    <div class="fixture-card-matchup">
+                      <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                        <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                      </div>
+                      <div class="fixture-card-score-box">
+                        <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;padding:2px 8px;min-width:38px;">vs</span>
+                      </div>
+                      <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                        <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                      </div>
                     </div>
                   </a>
                 `;
@@ -3098,8 +3109,10 @@ async function renderTeam(teamId, leagueId, season) {
             <div class="fixture-list">
               ${recentFixtures.map(f => {
                 const dObj = new Date(f.fixture.date);
-                const dayNum = dObj.toLocaleDateString("pt-BR", { day: "2-digit" });
-                const monthName = dObj.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+                const day = String(dObj.getDate()).padStart(2, "0");
+                const month = String(dObj.getMonth() + 1).padStart(2, "0");
+                const year = dObj.getFullYear();
+                const dateFormatted = `${day}/${month}/${year}`;
                 const isHome = f.teams.home.id === teamId;
                 const homeGoals = f.goals.home ?? 0;
                 const awayGoals = f.goals.away ?? 0;
@@ -3126,34 +3139,35 @@ async function renderTeam(teamId, leagueId, season) {
                 }
 
                 return `
-                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
-                    <div class="fixture-date-col" style="display:flex;flex-direction:row;align-items:center;gap:8px;min-width:65px;">
-                      <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;min-width:28px;">
-                        <span class="fixture-date" style="font-size:0.95rem;font-weight:800;color:var(--chalk);">${dayNum}</span>
-                        <span style="font-size:0.68rem;color:var(--chalk-dim);text-transform:lowercase;font-weight:600;">${monthName}</span>
+                  <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                    <div class="fixture-card-topbar">
+                      <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
+                        ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" onerror="this.style.display='none'">` : ''}
+                        <span>${escapeHtml(leagueName)}</span>
                       </div>
-                      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
-                        ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:18px;height:18px;object-fit:contain;" title="${escapeHtml(leagueName)}" onerror="this.style.display='none'">` : ''}
+                      <div class="fixture-card-top-right">
                         <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.68rem;font-weight:800;line-height:1;">
                           ${outcomeLetter}
                         </span>
+                        <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
                       </div>
                     </div>
-                    <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
-                      <span>${escapeHtml(formatTeamName(f.teams.home.name))}</span>
-                      <img src="${f.teams.home.logo}" alt="" loading="lazy">
-                    </div>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:60px;">
-                      ${leagueName ? `<span style="font-size:0.65rem;color:var(--chalk-dim);font-weight:600;white-space:nowrap;max-width:85px;overflow:hidden;text-overflow:ellipsis;text-align:center;" title="${escapeHtml(leagueName)}">${escapeHtml(leagueName)}</span>` : ''}
-                      <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
-                      <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
-                        <span style="font-size:0.6rem;line-height:1;">▶</span>
-                        <span>Melhores Momentos</span>
-                      </button>
-                    </div>
-                    <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
-                      <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span>${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                    <div class="fixture-card-matchup">
+                      <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                        <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                      </div>
+                      <div class="fixture-card-score-box">
+                        <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
+                        <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                          <span style="font-size:0.6rem;line-height:1;">▶</span>
+                          <span>Melhores Momentos</span>
+                        </button>
+                      </div>
+                      <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                        <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                      </div>
                     </div>
                   </a>
                 `;
