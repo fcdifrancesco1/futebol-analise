@@ -4216,7 +4216,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
                 const aGoals = f.goals.away ?? 0;
                 const { homeProb, drawProb, awayProb } = calculateMatchProbability(f);
 
-                let statusBadge = `<span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--chalk-dim);font-weight:700;">${timeStr}</span>`;
+                let statusBadge = `<span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);font-weight:700;">${timeStr}</span>`;
                 if (isLive) {
                   statusBadge = `<span class="match-live-pulse-badge">🔴 ${f.fixture.status.elapsed}' LIVE</span>`;
                 } else if (isFinished) {
@@ -4229,25 +4229,28 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
 
                 return `
                   <a class="match-row-futuristic ${isFinished ? 'is-finished-row' : ''}" href="#/jogo/${f.fixture.id}" title="Clique para abrir análise completa da partida">
-                    <!-- Mandante -->
-                    <div class="match-team-block right">
-                      <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
-                      <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                    <!-- Confronto Simétrico dos Times e Placar -->
+                    <div class="match-teams-score-row">
+                      <!-- Mandante -->
+                      <div class="match-team-block right">
+                        <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                        <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                      </div>
+
+                      <!-- Placar e Status Central -->
+                      <div class="match-center-score-wrap">
+                        ${scoreDisplay}
+                        ${statusBadge}
+                      </div>
+
+                      <!-- Visitante -->
+                      <div class="match-team-block">
+                        <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                        <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                      </div>
                     </div>
 
-                    <!-- Placar e Status Central -->
-                    <div class="match-center-score-wrap">
-                      ${scoreDisplay}
-                      ${statusBadge}
-                    </div>
-
-                    <!-- Visitante -->
-                    <div class="match-team-block">
-                      <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
-                    </div>
-
-                    <!-- Probabilidades (SEM SPARKLINE) -->
+                    <!-- Probabilidades (Em Jogos Futuros / Ao Vivo) ou Melhores Momentos (Finalizados) -->
                     ${!isFinished ? `
                       <div class="win-prob-wrapper">
                         <div class="win-prob-labels">
@@ -4262,8 +4265,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
                         </div>
                       </div>
                     ` : `
-                      <!-- Partida Finalizada -->
-                      <div style="display:flex; justify-content:flex-end;">
+                      <div class="match-highlights-wrap">
                         <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}', '_blank', 'noopener,noreferrer');">
                           <span style="font-size:0.65rem;line-height:1;">▶</span>
                           <span>Melhores Momentos</span>
@@ -4334,30 +4336,28 @@ async function fetchLiveMatches(isForced = false) {
 
             return `
               <a class="match-row-futuristic" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
-                <!-- Mandante -->
-                <div class="match-team-block right">
-                  <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
-                  <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                <!-- Confronto Simétrico dos Times e Placar -->
+                <div class="match-teams-score-row">
+                  <!-- Mandante -->
+                  <div class="match-team-block right">
+                    <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                    <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                  </div>
+
+                  <!-- Placar e Status Central -->
+                  <div class="match-center-score-wrap">
+                    <span class="match-score-badge live-score">${hGoals} - ${aGoals}</span>
+                    <span class="match-live-pulse-badge">🔴 ${f.fixture.status.elapsed}' LIVE</span>
+                  </div>
+
+                  <!-- Visitante -->
+                  <div class="match-team-block">
+                    <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                    <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                  </div>
                 </div>
 
-                <!-- Placar e Status Central -->
-                <div class="match-center-score-wrap">
-                  <span class="match-score-badge live-score">${hGoals} - ${aGoals}</span>
-                  <span class="match-live-pulse-badge">🔴 ${f.fixture.status.elapsed}' LIVE</span>
-                </div>
-
-                <!-- Visitante -->
-                <div class="match-team-block">
-                  <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                  <span class="match-team-name-text" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
-                </div>
-
-                <!-- Mini Sparkline de Ritmo / Momentum -->
-                <div class="match-sparkline-wrap">
-                  ${generateSparklineSvg(true, hGoals, aGoals, homeProb >= awayProb)}
-                </div>
-
-                <!-- Barra Tripla de Probabilidade na Temporada -->
+                <!-- Barra de Probabilidade Dinâmica -->
                 <div class="win-prob-wrapper">
                   <div class="win-prob-labels">
                     <span class="win-prob-home-text">${homeProb}% <small>CASA</small></span>
