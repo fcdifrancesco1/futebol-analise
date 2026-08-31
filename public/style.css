@@ -4049,3 +4049,19 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   background: #00E5FF;
   transition: width 0.3s;
 }
+
+
+.match-row-futuristic.is-finished-row {
+  grid-template-columns: 1fr 140px 1fr 180px;
+}
+
+@media (max-width: 1000px) {
+  .match-row-futuristic.is-finished-row {
+    grid-template-columns: 1fr auto 1fr;
+  }
+  .match-row-futuristic.is-finished-row > div:last-child {
+    grid-column: 1 / -1;
+    justify-content: center !important;
+    margin-top: 6px;
+  }
+}
