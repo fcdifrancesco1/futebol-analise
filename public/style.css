@@ -4428,3 +4428,161 @@ html, body {
   margin-bottom: 6px !important;
   width: 100% !important;
 }
+
+
+/* ============================================================
+   SIMETRIA FUTURÍSTICA: JOGOS DO DIA E AO VIVO (FLEXBOX BALANCEADO)
+   ============================================================ */
+.match-row-futuristic {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  background: rgba(13, 38, 59, 0.65) !important;
+  border: 1px solid rgba(0, 229, 255, 0.18) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 12px 18px !important;
+  margin-bottom: 8px !important;
+  text-decoration: none !important;
+  color: inherit !important;
+  transition: all 0.2s ease !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.match-row-futuristic:hover {
+  background: rgba(13, 38, 59, 0.9) !important;
+  border-color: var(--cyan) !important;
+  box-shadow: 0 4px 18px rgba(0, 229, 255, 0.2) !important;
+  transform: translateX(2px) !important;
+}
+
+.match-teams-score-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 16px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.match-team-block {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.match-team-block.right {
+  justify-content: flex-end !important;
+  text-align: right !important;
+}
+
+.match-team-block:not(.right) {
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+.match-team-name-text {
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.match-team-block img {
+  width: 28px !important;
+  height: 28px !important;
+  object-fit: contain !important;
+  flex-shrink: 0 !important;
+}
+
+.match-center-score-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 90px !important;
+  flex-shrink: 0 !important;
+}
+
+.win-prob-wrapper {
+  width: 220px !important;
+  flex-shrink: 0 !important;
+}
+
+.match-highlights-wrap {
+  width: 180px !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  flex-shrink: 0 !important;
+}
+
+@media (max-width: 850px) {
+  .match-row-futuristic {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+  }
+  .win-prob-wrapper,
+  .match-highlights-wrap {
+    width: 100% !important;
+    justify-content: center !important;
+    margin-top: 4px !important;
+  }
+}
+
+/* ============================================================
+   SIMETRIA DO BANCO DE RESERVAS (2 COLUNAS UNIFORMES)
+   ============================================================ */
+.substitutes-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 8px !important;
+  margin-top: 12px !important;
+}
+
+.sub-player-card {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-faint) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 8px 10px !important;
+  text-decoration: none !important;
+  color: var(--chalk) !important;
+  transition: all 0.2s ease !important;
+  overflow: hidden !important;
+  min-height: 42px !important;
+  box-sizing: border-box !important;
+}
+
+.sub-player-card:hover {
+  background: var(--gold-soft) !important;
+  border-color: var(--gold) !important;
+}
+
+.sub-player-card.was-subbed-in {
+  border-color: rgba(0, 229, 255, 0.4) !important;
+  background: rgba(0, 229, 255, 0.08) !important;
+}
+
+.sub-name {
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  flex: 1 !important;
+}
+
+.sub-events {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+}

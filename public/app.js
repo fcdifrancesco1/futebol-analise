@@ -5849,12 +5849,17 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
     return "";
   }
 
-  function generateSubBadge(pid) {
+  function generateSubBadge(pid, isStarter = true) {
     const ev = playerEventsMap[pid];
     if (!ev) return "";
-    if (ev.subOut) {
-      return `<span class="pitch-sub-pill sub-out" title="Substituído aos ${ev.subOut}'"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l8-8h-6v-8h-4v8h-6z"/></svg></span>`;
+    // No campo tático (titulares no 11 inicial), apenas exibe se o atleta foi SUBSTITUÍDO (saiu aos X min)
+    if (isStarter) {
+      if (ev.subOut) {
+        return `<span class="pitch-sub-pill sub-out" title="Substituído aos ${ev.subOut}'"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l8-8h-6v-8h-4v8h-6z"/></svg></span>`;
+      }
+      return "";
     }
+    // No banco de reservas, exibe se o atleta ENTROU na partida
     if (ev.subIn) {
       return `<span class="pitch-sub-pill sub-in" title="Entrou aos ${ev.subIn}'"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-8 8h6v8h4v-8h6z"/></svg></span>`;
     }
@@ -5939,7 +5944,7 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
                       const pid = p.player?.id;
                       const goalBadge = generateGoalBadge(pid);
                       const cardBadge = generateCardBadge(pid);
-                      const subBadge = generateSubBadge(pid);
+                      const subBadge = generateSubBadge(pid, true);
                       const photoUrl = pid ? `https://media.api-sports.io/football/players/${pid}.png` : 'https://media.api-sports.io/football/players/placeholder.png';
                       return `
                         ${(() => {
