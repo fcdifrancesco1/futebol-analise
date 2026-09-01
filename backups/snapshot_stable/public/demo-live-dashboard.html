@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FutStats Analytics | Live Match Dashboard</title>
+  
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js para Gráficos Profissionais de Linha e Radar -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg-main: #F4F6F9;
+      --bg-card: #FFFFFF;
+      --bg-card-subtle: #F8FAFC;
+      --border-color: #E2E8F0;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --text-dim: #94A3B8;
+      
+      --primary: #0284C7;
+      --primary-dark: #0369A1;
+      --primary-light: #E0F2FE;
+      
+      --accent-home: #0284C7;
+      --accent-away: #10B981;
+      --gold: #D97706;
+      --danger: #EF4444;
+      
+      --heat-high: #0284C7;
+      --heat-high-text: #FFFFFF;
+      --heat-med: #38BDF8;
+      --heat-med-text: #0F172A;
+      --heat-low: #BAE6FD;
+      --heat-low-text: #0369A1;
+      
+      --heat-green-high: #10B981;
+      --heat-green-med: #6EE7B7;
+      --heat-green-low: #D1FAE5;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+      --radius: 8px;
+    }
+
+    /* Tema Dark Opcional */
+    body.dark-theme {
+      --bg-main: #0B132B;
+      --bg-card: #1C2541;
+      --bg-card-subtle: #151D35;
+      --border-color: #2D3A5D;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+      --primary-light: rgba(2, 132, 199, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.4;
+      font-size: 13px;
+      overflow-x: hidden;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    /* ============================================================
+       TOP NAVBAR
+       ============================================================ */
+    header.dashboard-header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-logo {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--primary-dark);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+
+    .brand-logo span {
+      color: var(--text-main);
+    }
+
+    .nav-tabs {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      height: 100%;
+    }
+
+    .nav-tab-item {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      text-decoration: none;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      position: relative;
+      transition: color 0.2s;
+    }
+
+    .nav-tab-item:hover {
+      color: var(--text-main);
+    }
+
+    .nav-tab-item.active {
+      color: var(--primary);
+    }
+
+    .nav-tab-item.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--primary);
+      border-radius: 3px 3px 0 0;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-theme-toggle {
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #E2E8F0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* ============================================================
+       DASHBOARD GRID CONTAINER
+       ============================================================ */
+    .dashboard-container {
+      max-width: 1600px;
+      margin: 16px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 360px 1fr 310px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    /* Card Base */
+    .dash-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 14px;
+    }
+
+    .dash-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .dash-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dash-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ============================================================
+       COLUNA 1: LIVE MATCH OVERVIEW & KEY EVENTS
+       ============================================================ */
+    .live-match-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 12px;
+    }
+
+    .team-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .team-badge-row img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+
+    .team-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .score-box {
+      text-align: center;
+    }
+
+    .score-numbers {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--text-main);
+      line-height: 1;
+    }
+
+    .match-clock {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--danger);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--danger);
+      border-radius: 50%;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.3); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Possession & xG Trends Graph */
+    .chart-container-trend {
+      height: 170px;
+      position: relative;
+      margin: 10px 0;
+    }
+
+    .trend-legend {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 14px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-line {
+      width: 14px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    /* Key Events */
+    .event-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .event-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      color: var(--text-main);
+      padding: 4px 6px;
+      border-radius: 4px;
+      background: var(--bg-card-subtle);
+    }
+
+    .event-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--text-muted);
+      width: 26px;
+    }
+
+    .event-icon {
+      font-size: 12px;
+    }
+
+    /* ============================================================
+       TABELAS DE MÉTRICAS COM CONDITIONAL FORMATTING (HEATMAP)
+       ============================================================ */
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      text-align: left;
+    }
+
+    .matrix-table th {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .matrix-table td {
+      padding: 7px 6px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    .matrix-table tr:hover td {
+      background: rgba(2, 132, 199, 0.03);
+    }
+
+    .cell-center {
+      text-align: center;
+    }
+
+    /* Heatmap Cells */
+    .heat-cell {
+      text-align: center;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      border-radius: 3px;
+    }
+
+    .heat-blue-3 { background: #0284C7; color: #FFFFFF; }
+    .heat-blue-2 { background: #7DD3FC; color: #0369A1; }
+    .heat-blue-1 { background: #E0F2FE; color: #0284C7; }
+
+    .heat-green-3 { background: #10B981; color: #FFFFFF; }
+    .heat-green-2 { background: #6EE7B7; color: #065F46; }
+    .heat-green-1 { background: #D1FAE5; color: #047857; }
+
+    .heat-legend-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .heat-pill {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+
+    /* ============================================================
+       COLUNA 2: RADAR CHARTS & LEAGUE TABLE
+       ============================================================ */
+    .radar-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 10px;
+    }
+
+    .radar-box {
+      text-align: center;
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 10px;
+    }
+
+    .radar-box-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+
+    .radar-canvas-wrap {
+      height: 180px;
+      position: relative;
+    }
+
+    /* League Table with Sparkline Trends */
+    .sparkline-svg {
+      width: 60px;
+      height: 20px;
+      stroke: var(--primary);
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .form-pills {
+      display: flex;
+      gap: 3px;
+    }
+
+    .form-pill {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 800;
+      color: #FFFFFF;
+    }
+
+    .form-pill.w { background: #10B981; }
+    .form-pill.d { background: #94A3B8; }
+    .form-pill.l { background: #EF4444; }
+
+    /* ============================================================
+       COLUNA 3: SLICERS, FILTERS & PROBABILITIES
+       ============================================================ */
+    .slicer-group {
+      margin-bottom: 14px;
+    }
+
+    .slicer-label {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .select-slicer {
+      width: 100%;
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .btn-toggle-group {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-card-subtle);
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-toggle-item {
+      flex: 1;
+      text-align: center;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      transition: all 0.2s;
+    }
+
+    .btn-toggle-item.active {
+      background: var(--primary);
+      color: #FFFFFF;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Match Probability Cards */
+    .prob-match-card {
+      padding: 10px;
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+
+    .prob-match-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .prob-bar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .prob-team {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+
+    .prob-team img {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+    }
+
+    .prob-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: #E2E8F0;
+      border-radius: 3px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .prob-fill-home { background: var(--primary); height: 100%; }
+    .prob-fill-away { background: var(--accent-away); height: 100%; }
+
+    .prob-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Onde Assistir Section */
+    .broadcast-slicer-wrap {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .broadcast-mini-pills {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .btn-broadcast-mini {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-main);
+      text-decoration: none;
+      font-size: 11.5px;
+      font-weight: 700;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .btn-broadcast-mini:hover {
+      border-color: var(--primary);
+      transform: translateX(2px);
+    }
+
+    .btn-broadcast-mini img {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      object-fit: cover;
+    }
+
+    /* Responsive */
+    @media (max-width: 1280px) {
+      .dashboard-container {
+        grid-template-columns: 1fr 1fr;
+      }
+      .col-right {
+        grid-column: span 2;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .dashboard-container {
+        grid-template-columns: 1fr;
+      }
+      .col-right {
+        grid-column: span 1;
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       TOP NAVBAR
+       ============================================================ -->
+  <header class="dashboard-header">
+    <a href="#" class="brand-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary);">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+      </svg>
+      PREMIER <span>INSIGHTS</span>
+    </a>
+
+    <nav class="nav-tabs">
+      <a href="#" class="nav-tab-item active">Dashboard</a>
+      <a href="#" class="nav-tab-item">Matches</a>
+      <a href="#" class="nav-tab-item">Players</a>
+      <a href="#" class="nav-tab-item">Teams</a>
+      <a href="#" class="nav-tab-item">Analytics</a>
+    </nav>
+
+    <div class="header-actions">
+      <button class="btn-theme-toggle" id="theme-btn" onclick="toggleTheme()">
+        <span>🌙</span> Tema
+      </button>
+      <div class="user-avatar" title="Felipe Corteletti">FC</div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       CORPO DO DASHBOARD (3 COLUNAS)
+       ============================================================ -->
+  <main class="dashboard-container">
+
+    <!-- ============================================================
+         COLUNA 1 (ESQUERDA): PLACAR AO VIVO, XG TRENDS & EVENTOS
+         ============================================================ -->
+    <div class="col-left">
+
+      <!-- Card 1: Live Match Overview -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <span class="dash-title">Live Match Overview</span>
+          <span style="font-size:10px;font-weight:700;background:var(--primary-light);color:var(--primary);padding:2px 6px;border-radius:4px;">PREMIER LEAGUE</span>
+        </div>
+
+        <div class="live-match-header">
+          <div class="team-badge-row">
+            <img src="https://media.api-sports.io/football/teams/42.png" alt="Arsenal">
+            <span class="team-name">Arsenal</span>
+          </div>
+
+          <div class="score-box">
+            <div class="score-numbers">1 - 1</div>
+            <div class="match-clock">
+              <span class="live-dot"></span>
+              <span id="live-clock">68:45</span>
+            </div>
+          </div>
+
+          <div class="team-badge-row">
+            <span class="team-name">Man City</span>
+            <img src="https://media.api-sports.io/football/teams/50.png" alt="Man City">
+          </div>
+        </div>
+
+        <!-- Possession & xG Trends -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Possession & xG Trends</span>
+            <div class="trend-legend">
+              <div class="legend-item"><span class="legend-line" style="background:var(--accent-home);"></span> Arsenal</div>
+              <div class="legend-item"><span class="legend-line" style="background:var(--accent-away);"></span> Man City</div>
+            </div>
+          </div>
+
+          <div class="chart-container-trend">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Key Events -->
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-color);">
+          <span style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);">Key Events</span>
+          <div class="event-list">
+            <div class="event-item">
+              <span class="event-time">10'</span>
+              <span class="event-icon">⚽</span>
+              <span><strong>Arsenal</strong> 1-0 Man City (B. Saka)</span>
+            </div>
+            <div class="event-item">
+              <span class="event-time">28'</span>
+              <span class="event-icon">🟨</span>
+              <span><strong>Arsenal vs Man City</strong> (Rodri - Falta tática)</span>
+            </div>
+            <div class="event-item">
+              <span class="event-time">64'</span>
+              <span class="event-icon">⚽</span>
+              <span><strong>Man City</strong> 1-1 Arsenal (E. Haaland)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Player Performance Metrics (Heatmap Condicional Inferior) -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <span class="dash-title">Player Performance Metrics</span>
+          <div class="heat-legend-pills">
+            <span class="heat-pill heat-blue-3"></span> High
+            <span class="heat-pill heat-blue-2"></span> Med
+            <span class="heat-pill heat-blue-1"></span> Low
+          </div>
+        </div>
+        <p class="dash-subtitle" style="margin-bottom:8px;">Conditional formatting in top player stats.</p>
+
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Player</th>
+              <th class="cell-center">MIN</th>
+              <th class="cell-center">G</th>
+              <th class="cell-center">A</th>
+              <th class="cell-center">SHOTS</th>
+              <th class="cell-center">PASS%</th>
+              <th class="cell-center">TACKLES</th>
+              <th class="cell-center">DIST (KM)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><strong>Saka, B.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">1</td>
+              <td class="cell-center">0</td>
+              <td class="heat-cell heat-green-3">4</td>
+              <td class="heat-cell heat-blue-3">88%</td>
+              <td class="cell-center">2-3</td>
+              <td class="cell-center">8.3</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><strong>De Bruyne, K.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">0</td>
+              <td class="cell-center">1</td>
+              <td class="heat-cell heat-green-3">4</td>
+              <td class="heat-cell heat-blue-3">86%</td>
+              <td class="cell-center">4-3</td>
+              <td class="cell-center">9.1</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><strong>Saka, B.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">0</td>
+              <td class="cell-center">0</td>
+              <td class="heat-cell heat-green-3">4</td>
+              <td class="heat-cell heat-blue-3">85%</td>
+              <td class="cell-center">5-3</td>
+              <td class="cell-center">8.0</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><strong>De Bruyne, K.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">0</td>
+              <td class="cell-center">0</td>
+              <td class="heat-cell heat-green-2">2</td>
+              <td class="heat-cell heat-blue-2">84%</td>
+              <td class="cell-center">3-8</td>
+              <td class="cell-center">7.3</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- ============================================================
+         COLUNA 2 (CENTRO): MATRIZ DETALHADA, RADAR TÁTICO & TABELA
+         ============================================================ -->
+    <div class="col-center">
+
+      <!-- Card 1: Player Performance Metrics (Matriz Completa Topo) -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div>
+            <span class="dash-title">Player Performance Metrics</span>
+            <p class="dash-subtitle">Real-time individual player ratings and in-game tactical contribution</p>
+          </div>
+          <div class="heat-legend-pills">
+            <span class="heat-pill heat-blue-3"></span> High
+            <span class="heat-pill heat-green-3"></span> Medium
+            <span class="heat-pill heat-blue-1"></span> Low
+          </div>
+        </div>
+
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th class="cell-center">MIN</th>
+              <th class="cell-center">G</th>
+              <th class="cell-center">A</th>
+              <th class="cell-center">SHOTS</th>
+              <th class="cell-center">PASS%</th>
+              <th class="cell-center">TACKLES</th>
+              <th class="cell-center">DIST (KM)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Saka, B.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">0</td>
+              <td class="cell-center">0</td>
+              <td class="heat-cell heat-green-3">4</td>
+              <td class="heat-cell heat-blue-3">88%</td>
+              <td class="heat-cell heat-blue-1">5</td>
+              <td class="heat-cell heat-blue-2">13.3</td>
+            </tr>
+            <tr>
+              <td><strong>De Bruyne, K.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">0</td>
+              <td class="cell-center">1</td>
+              <td class="heat-cell heat-green-3">4</td>
+              <td class="heat-cell heat-blue-3">93%</td>
+              <td class="heat-cell heat-blue-1">4</td>
+              <td class="heat-cell heat-blue-3">13.9</td>
+            </tr>
+            <tr>
+              <td><strong>Haaland, E.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">1</td>
+              <td class="cell-center">0</td>
+              <td class="heat-cell heat-green-2">2</td>
+              <td class="heat-cell heat-blue-3">88%</td>
+              <td class="heat-cell heat-blue-1">4</td>
+              <td class="heat-cell heat-blue-2">13.3</td>
+            </tr>
+            <tr>
+              <td><strong>Martinelli, G.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">2</td>
+              <td class="cell-center">1</td>
+              <td class="heat-cell heat-green-3">4</td>
+              <td class="heat-cell heat-blue-3">96%</td>
+              <td class="heat-cell heat-blue-1">5</td>
+              <td class="heat-cell heat-blue-3">14.8</td>
+            </tr>
+            <tr>
+              <td><strong>Ødegaard, M.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">1</td>
+              <td class="cell-center">0</td>
+              <td class="heat-cell heat-green-2">3</td>
+              <td class="heat-cell heat-blue-3">88%</td>
+              <td class="heat-cell heat-blue-1">5</td>
+              <td class="heat-cell heat-blue-3">16.6</td>
+            </tr>
+            <tr>
+              <td><strong>Foden, P.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">0</td>
+              <td class="cell-center">0</td>
+              <td class="heat-cell heat-green-1">1</td>
+              <td class="heat-cell heat-blue-3">88%</td>
+              <td class="heat-cell heat-blue-1">4</td>
+              <td class="heat-cell heat-blue-2">13.4</td>
+            </tr>
+            <tr>
+              <td><strong>Bernardo, S.</strong></td>
+              <td class="cell-center">68'</td>
+              <td class="cell-center">0</td>
+              <td class="cell-center">1</td>
+              <td class="heat-cell heat-green-2">3</td>
+              <td class="heat-cell heat-blue-2">80%</td>
+              <td class="heat-cell heat-blue-1">4</td>
+              <td class="heat-cell heat-blue-2">13.4</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Card 2: Team Performance Analysis (Radar Charts) -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div>
+            <span class="dash-title">Team Performance Analysis</span>
+            <p class="dash-subtitle">Compared attacking power and defensive balance in the current match</p>
+          </div>
+        </div>
+
+        <div class="radar-grid">
+          <div class="radar-box">
+            <span class="radar-box-title">Attacking Strength</span>
+            <div class="radar-canvas-wrap">
+              <canvas id="attackRadar"></canvas>
+            </div>
+          </div>
+
+          <div class="radar-box">
+            <span class="radar-box-title">Defensive Solidity</span>
+            <div class="radar-canvas-wrap">
+              <canvas id="defenseRadar"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: League Table & Form Trends -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <span class="dash-title">League Table & Form</span>
+        </div>
+
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Team</th>
+              <th>Trend 1</th>
+              <th>Trend 2</th>
+              <th>Trend 3</th>
+              <th>Trend 4</th>
+              <th class="cell-center">Pass %</th>
+              <th class="cell-center">Match</th>
+              <th class="cell-center">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><strong>Liverpool</strong></td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,15 15,8 30,12 45,4 60,7" stroke="#0284C7" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,18 15,14 30,6 45,5 60,3" stroke="#10B981" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,5 15,10 30,8 45,15 60,6" stroke="#D97706" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,12 15,6 30,14 45,8 60,4" stroke="#0284C7" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td class="cell-center"><strong>86%</strong></td>
+              <td class="cell-center">19 - 21</td>
+              <td>
+                <div class="form-pills">
+                  <span class="form-pill w">W</span>
+                  <span class="form-pill w">W</span>
+                  <span class="form-pill d">D</span>
+                  <span class="form-pill l">L</span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><strong>Arsenal</strong></td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,14 15,10 30,6 45,4 60,2" stroke="#0284C7" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,10 15,12 30,8 45,4 60,6" stroke="#10B981" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,16 15,14 30,9 45,6 60,3" stroke="#0284C7" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,8 15,6 30,10 45,5 60,4" stroke="#10B981" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td class="cell-center"><strong>78%</strong></td>
+              <td class="cell-center">12 - 12</td>
+              <td>
+                <div class="form-pills">
+                  <span class="form-pill w">W</span>
+                  <span class="form-pill w">W</span>
+                  <span class="form-pill d">D</span>
+                  <span class="form-pill l">L</span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><strong>Man City</strong></td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,16 15,12 30,14 45,8 60,4" stroke="#10B981" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,12 15,8 30,10 45,6 60,3" stroke="#0284C7" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,6 15,8 30,12 45,5 60,3" stroke="#10B981" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td>
+                <svg class="sparkline-svg" viewBox="0 0 60 20">
+                  <polyline points="0,15 15,10 30,6 45,4 60,2" stroke="#0284C7" fill="none" stroke-width="2"/>
+                </svg>
+              </td>
+              <td class="cell-center"><strong>57%</strong></td>
+              <td class="cell-center">14 - 12</td>
+              <td>
+                <div class="form-pills">
+                  <span class="form-pill w">W</span>
+                  <span class="form-pill d">D</span>
+                  <span class="form-pill l">L</span>
+                  <span class="form-pill w">W</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- ============================================================
+         COLUNA 3 (DIREITA): SLICERS, FILTERS & PROBABILIDADES
+         ============================================================ -->
+    <div class="col-right">
+
+      <!-- Card 1: Interactive Slicers & Filters -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <span class="dash-title">Upcoming Matches & Slicers</span>
+          <span style="font-size:10px;font-weight:700;color:var(--primary);">FILTER</span>
+        </div>
+
+        <div class="slicer-group">
+          <label class="slicer-label">League</label>
+          <select class="select-slicer" id="league-select" onchange="filterMatches()">
+            <option value="39" selected>Premier League</option>
+            <option value="140">La Liga</option>
+            <option value="71">Brasileirão Série A</option>
+            <option value="2">Champions League</option>
+            <option value="78">Bundesliga</option>
+          </select>
+        </div>
+
+        <div class="slicer-group">
+          <label class="slicer-label">Date Range</label>
+          <div class="btn-toggle-group">
+            <button class="btn-toggle-item active">Today</button>
+            <button class="btn-toggle-item">This Week</button>
+            <button class="btn-toggle-item">Next Month</button>
+          </div>
+        </div>
+
+        <div class="slicer-group">
+          <label class="slicer-label">Team Filter</label>
+          <select class="select-slicer">
+            <option>Select</option>
+            <option>Arsenal</option>
+            <option>Man City</option>
+            <option>Liverpool</option>
+            <option>Chelsea</option>
+          </select>
+        </div>
+
+        <div class="slicer-group">
+          <label class="slicer-label">Metric Focus</label>
+          <div class="btn-toggle-group">
+            <button class="btn-toggle-item active">Goals</button>
+            <button class="btn-toggle-item">Assists</button>
+            <button class="btn-toggle-item">Clean Sheets</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Upcoming Matches & Win Probability -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <span class="dash-title">Upcoming</span>
+          <span style="font-size:10px;font-weight:700;color:var(--text-muted);">WIN PROBABILITY</span>
+        </div>
+
+        <div class="prob-match-card">
+          <div class="prob-match-title">
+            <span>Liverpool vs Chelsea · Oct 26</span>
+          </div>
+          <div class="prob-bar-row">
+            <div class="prob-team">
+              <img src="https://media.api-sports.io/football/teams/40.png" alt="Liverpool">
+              <span class="prob-val">86%</span>
+            </div>
+            <div class="prob-bar-wrap">
+              <div class="prob-fill-home" style="width:53%;"></div>
+              <div class="prob-fill-away" style="width:47%;"></div>
+            </div>
+            <div class="prob-team">
+              <span class="prob-val">76%</span>
+              <img src="https://media.api-sports.io/football/teams/49.png" alt="Chelsea">
+            </div>
+          </div>
+        </div>
+
+        <div class="prob-match-card">
+          <div class="prob-match-title">
+            <span>Liverpool vs Chelsea · Oct 26</span>
+          </div>
+          <div class="prob-bar-row">
+            <div class="prob-team">
+              <img src="https://media.api-sports.io/football/teams/40.png" alt="Liverpool">
+              <span class="prob-val">80%</span>
+            </div>
+            <div class="prob-bar-wrap">
+              <div class="prob-fill-home" style="width:51%;"></div>
+              <div class="prob-fill-away" style="width:49%;"></div>
+            </div>
+            <div class="prob-team">
+              <span class="prob-val">76%</span>
+              <img src="https://media.api-sports.io/football/teams/49.png" alt="Chelsea">
+            </div>
+          </div>
+        </div>
+
+        <div class="prob-match-card">
+          <div class="prob-match-title">
+            <span>Arsenal vs Man City · Oct 26</span>
+          </div>
+          <div class="prob-bar-row">
+            <div class="prob-team">
+              <img src="https://media.api-sports.io/football/teams/42.png" alt="Arsenal">
+              <span class="prob-val">80%</span>
+            </div>
+            <div class="prob-bar-wrap">
+              <div class="prob-fill-home" style="width:48%;"></div>
+              <div class="prob-fill-away" style="width:52%;"></div>
+            </div>
+            <div class="prob-team">
+              <span class="prob-val">86%</span>
+              <img src="https://media.api-sports.io/football/teams/50.png" alt="Man City">
+            </div>
+          </div>
+        </div>
+
+        <div class="prob-match-card">
+          <div class="prob-match-title">
+            <span>Liverpool vs Chelsea · Oct 26</span>
+          </div>
+          <div class="prob-bar-row">
+            <div class="prob-team">
+              <img src="https://media.api-sports.io/football/teams/40.png" alt="Liverpool">
+              <span class="prob-val">56%</span>
+            </div>
+            <div class="prob-bar-wrap">
+              <div class="prob-fill-home" style="width:40%;"></div>
+              <div class="prob-fill-away" style="width:60%;"></div>
+            </div>
+            <div class="prob-team">
+              <span class="prob-val">83%</span>
+              <img src="https://media.api-sports.io/football/teams/49.png" alt="Chelsea">
+            </div>
+          </div>
+        </div>
+
+        <!-- Onde Assistir Mini Widget -->
+        <div class="broadcast-slicer-wrap">
+          <span class="dash-title" style="font-size:11px;">📺 Onde Assistir (Transmissão)</span>
+          <div class="broadcast-mini-pills">
+            <a href="https://www.disneyplus.com/" target="_blank" class="btn-broadcast-mini">
+              <img src="/broadcast-logos/disney-plus.webp" alt="Disney+">
+              <span>Disney+ (100% dos Jogos)</span>
+            </a>
+            <a href="https://www.espn.com.br/watch/" target="_blank" class="btn-broadcast-mini">
+              <img src="/broadcast-logos/espn.png" alt="ESPN">
+              <span>ESPN (TV Fechada)</span>
+            </a>
+            <a href="https://www.youtube.com/" target="_blank" class="btn-broadcast-mini">
+              <img src="/broadcast-logos/cazetv.png" alt="CazéTV">
+              <span>CazéTV (YouTube Grátis)</span>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ============================================================
+       SCRIPTS: RENDERIZAÇÃO DOS GRÁFICOS INTERATIVOS
+       ============================================================ -->
+  <script>
+    // 1. Tema Light/Dark Toggle
+    function toggleTheme() {
+      document.body.classList.toggle('dark-theme');
+      const isDark = document.body.classList.contains('dark-theme');
+      document.getElementById('theme-btn').innerHTML = isDark ? '<span>☀️</span> Claro' : '<span>🌙</span> Escuro';
+      updateChartsTheme(isDark);
+    }
+
+    // 2. Gráfico de Tendência (Possession & xG Trends)
+    const ctxTrend = document.getElementById('trendChart').getContext('2d');
+    const trendChart = new Chart(ctxTrend, {
+      type: 'line',
+      data: {
+        labels: ['08:00', '15:00', '22:00', '32:00', '44:00', '55:00', '64:00', '68:00'],
+        datasets: [
+          {
+            label: 'Arsenal',
+            data: [48, 62, 75, 52, 68, 71, 58, 64],
+            borderColor: '#0284C7',
+            backgroundColor: 'rgba(2, 132, 199, 0.08)',
+            tension: 0.35,
+            fill: true,
+            pointRadius: [0, 0, 4, 0, 0, 0, 4, 2],
+            pointBackgroundColor: '#0284C7'
+          },
+          {
+            label: 'Man City',
+            data: [52, 38, 25, 48, 32, 29, 42, 36],
+            borderColor: '#10B981',
+            backgroundColor: 'transparent',
+            tension: 0.35,
+            borderDash: [3, 3],
+            pointRadius: [0, 0, 0, 0, 0, 0, 4, 2],
+            pointBackgroundColor: '#10B981'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': ' + context.parsed.y + '% Posse (xG: ' + (context.parsed.y / 50).toFixed(2) + ')';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 9, family: 'Inter' }, color: '#94A3B8' }
+          },
+          y: {
+            min: 0,
+            max: 100,
+            grid: { color: '#E2E8F0', borderDash: [2, 2] },
+            ticks: { font: { size: 9, family: 'Inter' }, color: '#94A3B8', stepSize: 25 }
+          }
+        }
+      }
+    });
+
+    // 3. Radar Chart: Attacking Strength
+    const ctxAttack = document.getElementById('attackRadar').getContext('2d');
+    const attackRadar = new Chart(ctxAttack, {
+      type: 'radar',
+      data: {
+        labels: ['Attackenoil', 'Gooling', 'Toramoiding', 'Esnosouli', 'Solidity'],
+        datasets: [
+          {
+            label: 'Arsenal',
+            data: [85, 78, 90, 72, 65],
+            borderColor: '#0284C7',
+            backgroundColor: 'rgba(2, 132, 199, 0.35)',
+            pointRadius: 2
+          },
+          {
+            label: 'Man City',
+            data: [80, 88, 85, 68, 80],
+            borderColor: '#10B981',
+            backgroundColor: 'rgba(16, 185, 129, 0.35)',
+            pointRadius: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          r: {
+            angleLines: { color: '#E2E8F0' },
+            grid: { color: '#E2E8F0' },
+            pointLabels: { font: { size: 8.5, family: 'Inter', weight: '600' }, color: '#64748B' },
+            ticks: { display: false }
+          }
+        }
+      }
+    });
+
+    // 4. Radar Chart: Defensive Solidity
+    const ctxDefense = document.getElementById('defenseRadar').getContext('2d');
+    const defenseRadar = new Chart(ctxDefense, {
+      type: 'radar',
+      data: {
+        labels: ['Beshinnation', 'Strength', 'Deliensity', 'Teams', 'Premary'],
+        datasets: [
+          {
+            label: 'Arsenal',
+            data: [88, 82, 75, 90, 85],
+            borderColor: '#0284C7',
+            backgroundColor: 'rgba(2, 132, 199, 0.35)',
+            pointRadius: 2
+          },
+          {
+            label: 'Man City',
+            data: [75, 80, 85, 82, 78],
+            borderColor: '#10B981',
+            backgroundColor: 'rgba(16, 185, 129, 0.35)',
+            pointRadius: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          r: {
+            angleLines: { color: '#E2E8F0' },
+            grid: { color: '#E2E8F0' },
+            pointLabels: { font: { size: 8.5, family: 'Inter', weight: '600' }, color: '#64748B' },
+            ticks: { display: false }
+          }
+        }
+      }
+    });
+
+    function updateChartsTheme(isDark) {
+      const gridColor = isDark ? '#2D3A5D' : '#E2E8F0';
+      const labelColor = isDark ? '#94A3B8' : '#64748B';
+      
+      [trendChart, attackRadar, defenseRadar].forEach(chart => {
+        chart.update();
+      });
+    }
+
+    function filterMatches() {
+      const sel = document.getElementById('league-select').value;
+      console.log('Filtrando dashboard pela liga ID:', sel);
+    }
+  </script>
+</body>
+</html>
