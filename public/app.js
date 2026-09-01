@@ -3830,36 +3830,56 @@ async function renderTeam(teamId, leagueId, season) {
 
             <div class="team-top-stats-bar">
               <!-- Linha 1 -->
+              <!-- 1. Aproveitamento (< 40% vermelho, 41-50% laranja, >= 51% verde) -->
               <div class="team-stat-box">
-                <span class="team-stat-box-val gold">${winPct}%</span>
+                <span class="team-stat-box-val" style="color:${winPct >= 51 ? '#10B981' : winPct >= 41 ? '#F97316' : '#EF4444'};">${winPct}%</span>
                 <span class="team-stat-box-label">Aproveitamento</span>
               </div>
+
+              <!-- 2. Total de Jogos -->
               <div class="team-stat-box">
                 <span class="team-stat-box-val">${totalPlayed}</span>
                 <span class="team-stat-box-label">Total de Jogos</span>
               </div>
+
+              <!-- 3. V / E / D (Vitória verde, Empate laranja, Derrota vermelho) -->
               <div class="team-stat-box">
-                <span class="team-stat-box-val green">${totalWins}V - ${totalDraws}E - ${totalLoses}D</span>
+                <span class="team-stat-box-val">
+                  <span style="color:#10B981;">${totalWins}V</span>
+                  <span style="color:var(--chalk-dim);font-size:0.85rem;">-</span>
+                  <span style="color:#F97316;">${totalDraws}E</span>
+                  <span style="color:var(--chalk-dim);font-size:0.85rem;">-</span>
+                  <span style="color:#EF4444;">${totalLoses}D</span>
+                </span>
                 <span class="team-stat-box-label">V / E / D</span>
               </div>
+
+              <!-- 4. Gols Pró (em verde) -->
               <div class="team-stat-box">
-                <span class="team-stat-box-val green">${gfTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${gfAvg.toFixed(1)}/j)</small></span>
+                <span class="team-stat-box-val" style="color:#10B981;">${gfTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${gfAvg.toFixed(1)}/j)</small></span>
                 <span class="team-stat-box-label">Gols Pró</span>
               </div>
 
               <!-- Linha 2 -->
+              <!-- 5. Gols Contra (em vermelho) -->
               <div class="team-stat-box">
                 <span class="team-stat-box-val" style="color:#EF4444;">${gaTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${gaAvg.toFixed(1)}/j)</small></span>
                 <span class="team-stat-box-label">Gols Contra</span>
               </div>
+
+              <!-- 6. Saldo de Gols (positivo verde, negativo vermelho, zero branco) -->
               <div class="team-stat-box">
-                <span class="team-stat-box-val ${goalDiff >= 0 ? 'green' : ''}" style="${goalDiff < 0 ? 'color:#EF4444;' : ''}">${goalDiff > 0 ? '+' : ''}${goalDiff}</span>
+                <span class="team-stat-box-val" style="color:${goalDiff > 0 ? '#10B981' : goalDiff < 0 ? '#EF4444' : '#F0F6FC'};">${goalDiff > 0 ? '+' : ''}${goalDiff}</span>
                 <span class="team-stat-box-label">Saldo de Gols</span>
               </div>
+
+              <!-- 7. Clean Sheets -->
               <div class="team-stat-box">
                 <span class="team-stat-box-val cyan">${csTotal}</span>
                 <span class="team-stat-box-label">Clean Sheets</span>
               </div>
+
+              <!-- 8. Mando de Campo -->
               <div class="team-stat-box">
                 <span class="team-stat-box-val gold" style="font-size:0.95rem;">${homeWinPct}% <small style="color:var(--chalk-dim);font-size:0.7rem;">CASA</small> · ${awayWinPct}% <small style="color:var(--chalk-dim);font-size:0.7rem;">FORA</small></span>
                 <span class="team-stat-box-label">Mando de Campo</span>
