@@ -4400,3 +4400,20 @@ html, body {
     padding: 14px 10px !important;
   }
 }
+
+
+/* Grade de 3 Colunas Lado a Lado no Perfil do Jogador */
+.player-metrics-grid-3col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+  margin-top: 20px;
+}
+
+@media (max-width: 1100px) {
+  .player-metrics-grid-3col {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}

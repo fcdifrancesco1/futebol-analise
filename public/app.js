@@ -2564,7 +2564,6 @@ function generatePlayerRadarChart(p, s, pos, isPerGame) {
     const passAcc = parseInt(s.passes?.accuracy) || 65;
     const interceptions = s.tackles?.interceptions || 0;
 
-    // Métricas exclusivas de Goleiro
     const scoreSaves = Math.min(Math.round((saves / Math.max(apps, 1)) * 25), 100);
     const scoreSafety = Math.max(Math.min(Math.round(100 - (conceded / Math.max(apps, 1)) * 30), 100), 20);
     const scorePass = Math.min(passAcc, 100);
@@ -2573,12 +2572,12 @@ function generatePlayerRadarChart(p, s, pos, isPerGame) {
     const scoreRating = Math.min(Math.round((ratingNum / 10) * 100), 100);
 
     axes = [
-      { label: "Defesas/Jogo", icon: "🧤" },
-      { label: "Solidez no Gol", icon: "🛡️" },
-      { label: "Reposição/Passe", icon: "🎯" },
-      { label: "Saídas & Aéreo", icon: "🤾" },
-      { label: "Minutagem", icon: "⏱️" },
-      { label: "Nota Média", icon: "⭐" }
+      { label: "Defesas/J", icon: "🧤" },
+      { label: "Solidez", icon: "🛡️" },
+      { label: "Reposição", icon: "🎯" },
+      { label: "Saídas", icon: "🤾" },
+      { label: "Minutos", icon: "⏱️" },
+      { label: "Nota", icon: "⭐" }
     ];
     values = [scoreSaves, scoreSafety, scorePass, scoreAerial, scoreRegularity, scoreRating];
   } else if (isDef) {
@@ -2598,11 +2597,11 @@ function generatePlayerRadarChart(p, s, pos, isPerGame) {
 
     axes = [
       { label: "Desarmes", icon: "🛡️" },
-      { label: "Interceptações", icon: "🧤" },
-      { label: "Duelos Ganhos", icon: "⚔️" },
-      { label: "Qualidade Passe", icon: "🎯" },
-      { label: "Apoio Ofensivo", icon: "💨" },
-      { label: "Nota Média", icon: "⭐" }
+      { label: "Intercep.", icon: "🧤" },
+      { label: "Duelos", icon: "⚔️" },
+      { label: "Passe", icon: "🎯" },
+      { label: "Apoio", icon: "💨" },
+      { label: "Nota", icon: "⭐" }
     ];
     values = [scoreTackles, scoreInterceptions, scoreDuels, scorePass, scoreOffensive, scoreRating];
   } else if (isMid) {
@@ -2620,12 +2619,12 @@ function generatePlayerRadarChart(p, s, pos, isPerGame) {
     const scoreRating = Math.min(Math.round((ratingNum / 10) * 100), 100);
 
     axes = [
-      { label: "Visão & Criação", icon: "🪄" },
-      { label: "Precisão Passe", icon: "🎯" },
-      { label: "Dribles & 1x1", icon: "⚡" },
-      { label: "Recuperações", icon: "🛡️" },
-      { label: "Chegada na Área", icon: "⚽" },
-      { label: "Nota Média", icon: "⭐" }
+      { label: "Criação", icon: "🪄" },
+      { label: "Passe %", icon: "🎯" },
+      { label: "Dribles", icon: "⚡" },
+      { label: "Recuper.", icon: "🛡️" },
+      { label: "Chegada", icon: "⚽" },
+      { label: "Nota", icon: "⭐" }
     ];
     values = [scoreCreation, scorePass, scoreDribble, scoreRecovery, scoreAttackArrival, scoreRating];
   } else {
@@ -2645,21 +2644,21 @@ function generatePlayerRadarChart(p, s, pos, isPerGame) {
     const scoreRating = Math.min(Math.round((ratingNum / 10) * 100), 100);
 
     axes = [
-      { label: "Faro de Gol", icon: "⚽" },
-      { label: "Pontaria no Alvo", icon: "🎯" },
-      { label: "1x1 & Dribles", icon: "⚡" },
-      { label: "Criação & Passes", icon: "👟" },
-      { label: "Duelos Ofensivos", icon: "⚔️" },
-      { label: "Nota Média", icon: "⭐" }
+      { label: "Faro Gol", icon: "⚽" },
+      { label: "Pontaria", icon: "🎯" },
+      { label: "1x1 Drible", icon: "⚡" },
+      { label: "Criação", icon: "👟" },
+      { label: "Duelos", icon: "⚔️" },
+      { label: "Nota", icon: "⭐" }
     ];
     values = [scoreFinishing, scoreAccuracy, scoreDribble, scoreAssists, scoreDuels, scoreRating];
   }
 
-  // Gera SVG do Gráfico de Teia
-  const size = 360;
+  // Gera SVG do Gráfico de Teia Compacto (280x280)
+  const size = 280;
   const cx = size / 2;
   const cy = size / 2;
-  const r = size * 0.32;
+  const r = size * 0.31;
   const numAxes = axes.length;
   const angleStep = (2 * Math.PI) / numAxes;
 
@@ -2688,7 +2687,7 @@ function generatePlayerRadarChart(p, s, pos, isPerGame) {
 
     axesSvg += `<line x1="${cx}" y1="${cy}" x2="${xEnd.toFixed(1)}" y2="${yEnd.toFixed(1)}" stroke="rgba(0, 229, 255, 0.2)" stroke-width="1" />`;
 
-    const labelR = r + 26;
+    const labelR = r + 24;
     const xLabel = cx + labelR * Math.cos(angle);
     const yLabel = cy + labelR * Math.sin(angle);
 
@@ -2701,11 +2700,11 @@ function generatePlayerRadarChart(p, s, pos, isPerGame) {
 
     labelsSvg += `
       <g transform="translate(${xLabel.toFixed(1)}, ${yLabel.toFixed(1)})">
-        <text text-anchor="${textAnchor}" fill="#F0F6FC" font-family="'Plus Jakarta Sans', sans-serif" font-size="10.5" font-weight="700" dy="-2">
+        <text text-anchor="${textAnchor}" fill="#F0F6FC" font-family="'Plus Jakarta Sans', sans-serif" font-size="9.5" font-weight="700" dy="-2">
           ${axisObj.icon} ${axisObj.label}
         </text>
-        <text text-anchor="${textAnchor}" fill="#00E5FF" font-family="'JetBrains Mono', monospace" font-size="10.5" font-weight="800" dy="11">
-          ${scoreVal} <tspan fill="#8B949E" font-size="8.5">/100</tspan>
+        <text text-anchor="${textAnchor}" fill="#00E5FF" font-family="'JetBrains Mono', monospace" font-size="9.5" font-weight="800" dy="10">
+          ${scoreVal} <tspan fill="#8B949E" font-size="7.5">/100</tspan>
         </text>
       </g>
     `;
@@ -2722,23 +2721,20 @@ function generatePlayerRadarChart(p, s, pos, isPerGame) {
 
     dataPoints.push(`${x.toFixed(1)},${y.toFixed(1)}`);
     pointCircles.push(`
-      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="#FFB800" stroke="#07111E" stroke-width="2" />
-      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="none" stroke="rgba(255, 184, 0, 0.4)" stroke-width="1.5" />
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="#FFB800" stroke="#07111E" stroke-width="1.5" />
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="none" stroke="rgba(255, 184, 0, 0.4)" stroke-width="1" />
     `);
   }
 
   return `
-    <div class="player-radar-card card" style="padding:18px;margin-bottom:20px;background:linear-gradient(180deg, rgba(13,38,59,0.85) 0%, rgba(7,17,30,0.95) 100%);border:1px solid rgba(0,229,255,0.22);">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:1.15rem;">🕸️</span>
-          <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Radar Tático de Desempenho</h3>
-        </div>
-        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">Scouts Específicos: ${pos === 'Goalkeeper' ? 'Goleiro' : pos === 'Defender' ? 'Defensor' : pos === 'Midfielder' ? 'Meio-Campo' : 'Ataque'}</span>
+    <div class="player-metrics-card" style="display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(180deg, rgba(13,38,59,0.85) 0%, rgba(7,17,30,0.95) 100%);border:1px solid rgba(0,229,255,0.22);border-radius:var(--radius-md);">
+      <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
+        <span class="metrics-header-icon">🕸️</span>
+        <span class="metrics-header-title">Radar Tático (6 Eixos)</span>
       </div>
 
-      <div style="display:flex;justify-content:center;align-items:center;padding:10px 0;width:100%;">
-        <svg viewBox="0 0 ${size} ${size}" class="player-radar-chart-svg" style="width:100%;max-width:${size}px;height:auto;filter:drop-shadow(0 4px 16px rgba(0,229,255,0.15));overflow:visible;">
+      <div style="display:flex;justify-content:center;align-items:center;padding:10px 4px;flex:1;">
+        <svg viewBox="0 0 ${size} ${size}" class="player-radar-chart-svg" style="width:100%;max-width:${size}px;height:auto;filter:drop-shadow(0 4px 14px rgba(0,229,255,0.18));overflow:visible;">
           <defs>
             <radialGradient id="radarGrad_${p.id || 'p'}" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stop-color="rgba(0, 229, 255, 0.45)" />
@@ -2752,7 +2748,7 @@ function generatePlayerRadarChart(p, s, pos, isPerGame) {
           ${axesSvg}
 
           <!-- Área Poligonal de Dados -->
-          <polygon points="${dataPoints.join(" ")}" fill="url(#radarGrad_${p.id || 'p'})" stroke="#00E5FF" stroke-width="2.5" stroke-linejoin="round" />
+          <polygon points="${dataPoints.join(" ")}" fill="url(#radarGrad_${p.id || 'p'})" stroke="#00E5FF" stroke-width="2.2" stroke-linejoin="round" />
 
           <!-- Vértices -->
           ${pointCircles.join("")}
@@ -2760,6 +2756,10 @@ function generatePlayerRadarChart(p, s, pos, isPerGame) {
           <!-- Rótulos e Scores -->
           ${labelsSvg}
         </svg>
+      </div>
+
+      <div style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;font-family:var(--font-mono);font-size:0.72rem;color:var(--gold);">
+        Scouts Específicos: ${pos === 'Goalkeeper' ? 'Goleiro' : pos === 'Defender' ? 'Defensor' : pos === 'Midfielder' ? 'Meio-Campo' : 'Ataque'}
       </div>
     </div>
   `;
@@ -3202,7 +3202,8 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
       if (isGK) {
         // Detalhes Goleiro
         detailedSectionsHtml = `
-          <div class="player-metrics-grid">
+          <div class="player-metrics-grid-3col">
+            <!-- 1. Desempenho no Gol -->
             <div class="player-metrics-card">
               <div class="player-metrics-header defense">
                 <span class="metrics-header-icon">🧤</span>
@@ -3243,6 +3244,10 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
               </div>
             </div>
 
+            <!-- 2. Gráfico de Teia Central -->
+            ${generatePlayerRadarChart(p, s, position, isPerGame)}
+
+            <!-- 3. Reposições & Disciplina -->
             <div class="player-metrics-card">
               <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
                 <span class="metrics-header-icon">⚽</span>
@@ -3267,8 +3272,10 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🛡️</span>
-                    <span class="metric-label">Faltas Sofridas</span>
+                    <span class="metric-info">
+                      <span class="metric-icon">🛡️</span>
+                      <span class="metric-label">Faltas Sofridas</span>
+                    </span>
                   </div>
                   <span class="metric-val">${fmt(s.fouls?.drawn)}</span>
                 </div>
@@ -3289,7 +3296,8 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
       } else if (isDefender) {
         // Detalhes Defensor
         detailedSectionsHtml = `
-          <div class="player-metrics-grid">
+          <div class="player-metrics-grid-3col">
+            <!-- 1. Desarmes e Cortes -->
             <div class="player-metrics-card">
               <div class="player-metrics-header defense">
                 <span class="metrics-header-icon">🛡️</span>
@@ -3330,6 +3338,10 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
               </div>
             </div>
 
+            <!-- 2. Gráfico de Teia Central -->
+            ${generatePlayerRadarChart(p, s, position, isPerGame)}
+
+            <!-- 3. Construção e Disciplina -->
             <div class="player-metrics-card">
               <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
                 <span class="metrics-header-icon">⚡</span>
@@ -3376,7 +3388,8 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
       } else if (isMidfielder) {
         // Detalhes Meio-Campista
         detailedSectionsHtml = `
-          <div class="player-metrics-grid">
+          <div class="player-metrics-grid-3col">
+            <!-- 1. Criação & Transição -->
             <div class="player-metrics-card">
               <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(255,184,0,0.15), transparent);border-left:3px solid var(--gold);">
                 <span class="metrics-header-icon">🧠</span>
@@ -3417,6 +3430,10 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
               </div>
             </div>
 
+            <!-- 2. Gráfico de Teia Central -->
+            ${generatePlayerRadarChart(p, s, position, isPerGame)}
+
+            <!-- 3. Contenção & Desarmes -->
             <div class="player-metrics-card">
               <div class="player-metrics-header defense">
                 <span class="metrics-header-icon">🛡️</span>
@@ -3598,8 +3615,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           ${topCardsHtml}
         </div>
 
-        <!-- Gráfico de Teia Tático por Posição -->
-        ${generatePlayerRadarChart(p, s, position, isPerGame)}
+
 
         ${detailedSectionsHtml}
       `;
