@@ -4417,3 +4417,14 @@ html, body {
     gap: 16px;
   }
 }
+
+.match-league-header {
+  grid-column: 1 / -1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  padding-bottom: 6px !important;
+  margin-bottom: 6px !important;
+  width: 100% !important;
+}
