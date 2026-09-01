@@ -5159,34 +5159,42 @@ function buildFallbackStatsFromPlayers(playersArr, events = [], fx = null) {
     let shotsTotal = 0, shotsOn = 0, shotsOff = 0, shotsBlocked = 0;
     let passesTotal = 0, passesAccCount = 0, foulsCommitted = 0, saves = 0, offsides = 0;
 
+    let yellowCards = 0, redCards = 0;
+
     (t.players || []).forEach(p => {
       const st = p.statistics?.[0] || {};
       shotsTotal += (st.shots?.total || 0);
       shotsOn += (st.shots?.on || 0);
       shotsOff += Math.max(0, (st.shots?.total || 0) - (st.shots?.on || 0));
       passesTotal += (st.passes?.total || 0);
-      const acc = parseFloat(st.passes?.accuracy || "0") / 100;
-      passesAccCount += Math.round((st.passes?.total || 0) * (acc || 0.8));
+      const acc = parseFloat(st.passes?.accuracy || "0");
+      if (st.passes?.total && !isNaN(acc)) {
+        passesAccCount += Math.round((st.passes.total || 0) * (acc / 100));
+      }
       foulsCommitted += (st.fouls?.committed || 0);
       saves += (st.goals?.saves || 0);
       offsides += (st.offsides || 0);
+      yellowCards += (st.cards?.yellow || 0);
+      redCards += (st.cards?.red || 0);
     });
 
-    const passPct = passesTotal > 0 ? Math.round((passesAccCount / passesTotal) * 100) + "%" : "80%";
+    const passPct = passesTotal > 0 ? Math.round((passesAccCount / passesTotal) * 100) + "%" : null;
 
-    return {
-      team: t.team,
-      statistics: [
-        { type: "Total Shots", value: shotsTotal },
-        { type: "Shots on Goal", value: shotsOn },
-        { type: "Shots off Goal", value: shotsOff },
-        { type: "Total passes", value: passesTotal },
-        { type: "Passes accurate", value: passesAccCount },
-        { type: "Passes %", value: passPct },
-        { type: "Fouls", value: foulsCommitted },
-        { type: "Goalkeeper Saves", value: saves }
-      ]
-    };
+    const statistics = [
+      { type: "Total Shots", value: shotsTotal },
+      { type: "Shots on Goal", value: shotsOn },
+      { type: "Shots off Goal", value: shotsOff },
+      { type: "Total passes", value: passesTotal },
+      { type: "Passes accurate", value: passesAccCount },
+      { type: "Fouls", value: foulsCommitted },
+      { type: "Goalkeeper Saves", value: saves },
+      { type: "Yellow Cards", value: yellowCards },
+      { type: "Red Cards", value: redCards }
+    ];
+    if (passPct !== null) statistics.push({ type: "Passes %", value: passPct });
+    if (offsides > 0) statistics.push({ type: "Offsides", value: offsides });
+
+    return { team: t.team, statistics };
   });
 }
 
@@ -5289,22 +5297,16 @@ function renderLiveMatchStats(statsArr, fx, isLiveMatch = false, events = [], fi
     });
   }
 
-  // Fallback rico a partir de eventos
-  if (!validRows.length && (events.length > 0 || (isLiveMatch && fx?.fixture?.status?.elapsed))) {
+  // Fallback a partir de eventos reais (apenas contagens efetivamente observadas na partida,
+  // nunca derivadas do placar — evita exibir "Gols"/"Finalizações" como cópia do resultado)
+  if (!validRows.length && events.length > 0) {
     let homeYellows = 0, awayYellows = 0;
     let homeReds = 0, awayReds = 0;
     let homeSubs = 0, awaySubs = 0;
-    let homeGoalsCount = 0, awayGoalsCount = 0;
-    let homeAssists = 0, awayAssists = 0;
 
     (events || []).forEach(e => {
       const isHome = e.team?.id === fx?.teams?.home?.id;
-      if (e.type === "Goal" && e.detail !== "Missed Penalty") {
-        if (isHome) homeGoalsCount++; else awayGoalsCount++;
-        if (e.assist?.id) {
-          if (isHome) homeAssists++; else awayAssists++;
-        }
-      } else if (e.type === "Card") {
+      if (e.type === "Card") {
         if (e.detail === "Yellow Card") {
           if (isHome) homeYellows++; else awayYellows++;
         } else if (e.detail === "Red Card" || e.detail === "Yellow Red") {
@@ -5315,25 +5317,11 @@ function renderLiveMatchStats(statsArr, fx, isLiveMatch = false, events = [], fi
       }
     });
 
-    const hGoals = fx?.goals?.home ?? homeGoalsCount;
-    const aGoals = fx?.goals?.away ?? awayGoalsCount;
-
-    // Estimativa de posse de bola dinâmica por eventos e placar
-    const totalEventsHome = hGoals * 3 + homeAssists * 2 + homeSubs;
-    const totalEventsAway = aGoals * 3 + awayAssists * 2 + awaySubs;
-    const sumEv = totalEventsHome + totalEventsAway || 1;
-    const estHomePoss = Math.min(75, Math.max(30, Math.round((totalEventsHome / sumEv) * 50 + 25)));
-    const estAwayPoss = 100 - estHomePoss;
-
     const fallbackStats = [
-      { label: "Posse de Bola Estimada", va: estHomePoss + "%", vb: estAwayPoss + "%", numA: estHomePoss, numB: estAwayPoss },
-      { label: "Gols Marcados", va: hGoals, vb: aGoals, numA: hGoals, numB: aGoals },
-      { label: "Assistências em Gols", va: homeAssists, vb: awayAssists, numA: homeAssists, numB: awayAssists },
-      { label: "Finalizações no Alvo (Gols)", va: Math.max(hGoals, 1), vb: Math.max(aGoals, 0), numA: Math.max(hGoals, 1), numB: Math.max(aGoals, 0) },
       { label: "Cartões Amarelos", va: homeYellows, vb: awayYellows, numA: homeYellows, numB: awayYellows },
       { label: "Cartões Vermelhos", va: homeReds, vb: awayReds, numA: homeReds, numB: awayReds },
       { label: "Substituições Realizadas", va: homeSubs, vb: awaySubs, numA: homeSubs, numB: awaySubs }
-    ];
+    ].filter(st => st.numA > 0 || st.numB > 0);
 
     validRows = fallbackStats.map(st => {
       const numA = Number(st.numA) || 0;
@@ -5710,53 +5698,66 @@ function buildLineupFromSquadAndEvents(teamId, teamName, squadPlayers, events = 
   });
 
   const squad = Array.isArray(squadPlayers) ? squadPlayers : [];
-  const starters = [];
   const bench = [];
   const seenIds = new Set();
 
-  squad.forEach(p => {
+  const toPlayerObj = p => {
     const posLetter = (p.position || 'Midfielder').charAt(0).toUpperCase();
     const pos = posLetter === 'G' ? 'G' : posLetter === 'D' ? 'D' : posLetter === 'M' ? 'M' : 'F';
-    const pObj = {
-      player: {
-        id: p.id,
-        name: p.name,
-        number: p.number,
-        pos,
-        grid: null
-      }
-    };
+    return { player: { id: p.id, name: p.name, number: p.number, pos, grid: null } };
+  };
 
-    if (activePlayerIds.has(p.id)) {
-      starters.push(pObj);
-      seenIds.add(p.id);
-    }
+  // Escolhe a formação alvo com base em quantos jogadores de cada posição estão de fato
+  // "ativos" (envolvidos em eventos), em vez de forçar sempre "4-3-3" — isso evita estourar
+  // a cota de uma posição e empurrar jogadores para a linha tática errada.
+  const activeByPos = { G: 0, D: 0, M: 0, F: 0 };
+  squad.forEach(p => {
+    if (!activePlayerIds.has(p.id)) return;
+    activeByPos[toPlayerObj(p).player.pos]++;
   });
 
-  const targetCounts = { G: 1, D: 4, M: 3, F: 3 };
+  const formationOptions = [
+    { formation: "4-4-2", counts: { G: 1, D: 4, M: 4, F: 2 } },
+    { formation: "4-3-3", counts: { G: 1, D: 4, M: 3, F: 3 } },
+    { formation: "4-2-3-1", counts: { G: 1, D: 4, M: 5, F: 1 } },
+    { formation: "3-5-2", counts: { G: 1, D: 3, M: 5, F: 2 } },
+    { formation: "3-4-3", counts: { G: 1, D: 3, M: 4, F: 3 } }
+  ];
+  let bestOption = formationOptions[1];
+  let bestScore = -Infinity;
+  formationOptions.forEach(opt => {
+    const score = -(Math.abs(opt.counts.D - activeByPos.D) + Math.abs(opt.counts.M - activeByPos.M) + Math.abs(opt.counts.F - activeByPos.F));
+    if (score > bestScore) { bestScore = score; bestOption = opt; }
+  });
+  const targetCounts = bestOption.counts;
+
+  const starters = [];
   const currentCounts = { G: 0, D: 0, M: 0, F: 0 };
-  starters.forEach(s => {
-    currentCounts[s.player.pos] = (currentCounts[s.player.pos] || 0) + 1;
+
+  // Prioriza jogadores ativos na partida, mas sempre respeitando a cota da posição —
+  // se a cota já estiver cheia, o jogador vai para o banco em vez de estourar a linha.
+  squad.forEach(p => {
+    if (seenIds.has(p.id) || !activePlayerIds.has(p.id)) return;
+    const pObj = toPlayerObj(p);
+    const pos = pObj.player.pos;
+    if (starters.length < 11 && currentCounts[pos] < targetCounts[pos]) {
+      starters.push(pObj);
+      currentCounts[pos]++;
+    } else {
+      bench.push(pObj);
+    }
+    seenIds.add(p.id);
   });
 
-  // Completa o time titular com 11 jogadores respeitando posições
+  // Completa o time titular com 11 jogadores respeitando as posições
   squad.forEach(p => {
     if (seenIds.has(p.id)) return;
-    const posLetter = (p.position || 'Midfielder').charAt(0).toUpperCase();
-    const pos = posLetter === 'G' ? 'G' : posLetter === 'D' ? 'D' : posLetter === 'M' ? 'M' : 'F';
-    const pObj = {
-      player: {
-        id: p.id,
-        name: p.name,
-        number: p.number,
-        pos,
-        grid: null
-      }
-    };
+    const pObj = toPlayerObj(p);
+    const pos = pObj.player.pos;
 
-    if (starters.length < 11 && (currentCounts[pos] || 0) < (targetCounts[pos] || 3)) {
+    if (starters.length < 11 && currentCounts[pos] < targetCounts[pos]) {
       starters.push(pObj);
-      currentCounts[pos] = (currentCounts[pos] || 0) + 1;
+      currentCounts[pos]++;
       seenIds.add(p.id);
     } else {
       bench.push(pObj);
@@ -5772,7 +5773,7 @@ function buildLineupFromSquadAndEvents(teamId, teamName, squadPlayers, events = 
 
   return {
     team: { id: teamId, name: teamName, logo: teamLogo },
-    formation: "4-3-3",
+    formation: bestOption.formation,
     startXI: starters,
     substitutes: bench.slice(0, 12)
   };
@@ -5878,16 +5879,37 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
         const isAway = teamIdx === 1;
         const formation = l.formation || "4-4-2";
         const formLines = formation.split("-").map(Number);
-        
-        const rows = [];
-        let cursor = 1;
-        rows.push([l.startXI[0]]);
-        formLines.forEach(count => {
-          rows.push(l.startXI.slice(cursor, cursor + count));
-          cursor += count;
-        });
 
-        if (cursor < l.startXI.length) rows.push(l.startXI.slice(cursor));
+        // Prefer the real `grid` field ("row:col") the API returns per player — it encodes
+        // the exact tactical row/column and must not be discarded in favor of array-order slicing,
+        // which breaks whenever startXI isn't returned in perfectly formation-sorted order.
+        const gridRegex = /^(\d+):(\d+)$/;
+        const hasFullGrid = l.startXI.length > 0 && l.startXI.every(p => gridRegex.test(p.player?.grid || ""));
+
+        let rows;
+        if (hasFullGrid) {
+          const byRow = new Map();
+          l.startXI.forEach(p => {
+            const m = p.player.grid.match(gridRegex);
+            const rowNum = Number(m[1]);
+            const col = Number(m[2]);
+            if (!byRow.has(rowNum)) byRow.set(rowNum, []);
+            byRow.get(rowNum).push({ p, col });
+          });
+          rows = Array.from(byRow.keys())
+            .sort((a, b) => a - b)
+            .map(rowNum => byRow.get(rowNum).sort((a, b) => a.col - b.col).map(x => x.p));
+        } else {
+          rows = [];
+          let cursor = 1;
+          rows.push([l.startXI[0]]);
+          formLines.forEach(count => {
+            rows.push(l.startXI.slice(cursor, cursor + count));
+            cursor += count;
+          });
+          if (cursor < l.startXI.length) rows.push(l.startXI.slice(cursor));
+        }
+
         const displayRows = isAway ? [...rows].reverse() : rows;
 
         return `
