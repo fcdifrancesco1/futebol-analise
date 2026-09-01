@@ -3685,51 +3685,26 @@ async function renderTeam(teamId, leagueId, season) {
     const t = teamInfoResp?.[0]?.team || { id: teamId, name: "Clube", logo: `https://media.api-sports.io/football/teams/${teamId}.png` };
     const teamFormattedName = formatTeamName(t.name);
     
-    // Filtrar todos os jogos finalizados do clube na temporada (Brasileirão, Copa do Brasil, Estaduais, Continentais)
-    const finishedSeason = Array.isArray(allSeasonFixtures)
-      ? allSeasonFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short))
-      : [];
+    // Todos os jogos da temporada
+    const allFixturesList = Array.isArray(allSeasonFixtures) ? allSeasonFixtures : [];
+    const finishedSeasonAll = allFixturesList.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short));
 
-    let totalWins = 0, totalDraws = 0, totalLoses = 0;
-    let gfTotal = 0, gaTotal = 0, csTotal = 0;
-    let winsHome = 0, playedHome = 0, winsAway = 0, playedAway = 0;
-
-    finishedSeason.forEach(f => {
-      const isHome = f.teams?.home?.id === teamId;
-      const myGoals = isHome ? (f.goals?.home ?? 0) : (f.goals?.away ?? 0);
-      const oppGoals = isHome ? (f.goals?.away ?? 0) : (f.goals?.home ?? 0);
-
-      gfTotal += myGoals;
-      gaTotal += oppGoals;
-
-      if (oppGoals === 0) csTotal++;
-
-      if (isHome) {
-        playedHome++;
-        if (myGoals > oppGoals) { totalWins++; winsHome++; }
-        else if (myGoals === oppGoals) { totalDraws++; }
-        else { totalLoses++; }
-      } else {
-        playedAway++;
-        if (myGoals > oppGoals) { totalWins++; winsAway++; }
-        else if (myGoals === oppGoals) { totalDraws++; }
-        else { totalLoses++; }
+    // Descobrir todas as competições que o clube disputou no ano
+    const availableLeaguesMap = new Map();
+    allFixturesList.forEach(f => {
+      if (f.league?.id && f.league?.name) {
+        availableLeaguesMap.set(f.league.id, {
+          id: f.league.id,
+          name: f.league.name,
+          logo: f.league.logo
+        });
       }
     });
-
-    const totalPlayed = finishedSeason.length;
-    const points = (totalWins * 3) + totalDraws;
-    const maxPoints = totalPlayed * 3;
-    const winPct = maxPoints ? Math.round((points / maxPoints) * 100) : 0;
-    const gfAvg = totalPlayed ? (gfTotal / totalPlayed) : 0;
-    const gaAvg = totalPlayed ? (gaTotal / totalPlayed) : 0;
-    const goalDiff = gfTotal - gaTotal;
-    const homeWinPct = playedHome ? Math.round((winsHome / playedHome) * 100) : 0;
-    const awayWinPct = playedAway ? Math.round((winsAway / playedAway) * 100) : 0;
+    const availableLeagues = Array.from(availableLeaguesMap.values());
 
     const isFav = state.favoriteTeams.some(fav => fav.id === teamId);
 
-    // Mapear todas as estatísticas dos jogadores da temporada (todas as competições agregadas)
+    // Mapear todas as estatísticas dos jogadores da temporada
     const allPlayerItems = [
       ...(Array.isArray(pPage1) ? pPage1 : []),
       ...(Array.isArray(pPage2) ? pPage2 : [])
@@ -3744,408 +3719,501 @@ async function renderTeam(teamId, leagueId, season) {
 
     const squadPlayers = squadResp?.[0]?.players || [];
 
-    // Cruzamento rico com agregação de todas as competições da temporada para os atletas
-    const enrichedRoster = squadPlayers.map(p => {
-      const pStatsItem = playerStatsMap.get(p.id);
-      const stList = pStatsItem?.statistics || [];
+    let selectedCompFilter = "ALL"; // Padrão: Todas as Competições
 
-      // Agrega scouts de TODAS as competições disputadas pelo atleta na temporada
-      const totalGoals = stList.reduce((acc, s) => acc + (s.goals?.total || 0), 0);
-      const totalAssists = stList.reduce((acc, s) => acc + (s.goals?.assists || 0), 0);
-      const totalMinutes = stList.reduce((acc, s) => acc + (s.games?.minutes || 0), 0);
-      const totalApps = stList.reduce((acc, s) => acc + (s.games?.appearences || 0), 0);
-      const totalTackles = stList.reduce((acc, s) => acc + (s.tackles?.total || 0), 0);
-      const totalInterceptions = stList.reduce((acc, s) => acc + (s.tackles?.interceptions || 0), 0);
-      const totalSaves = stList.reduce((acc, s) => acc + (s.goals?.saves || 0), 0);
+    function computeTeamStats(filteredFinished) {
+      let totalWins = 0, totalDraws = 0, totalLoses = 0;
+      let gfTotal = 0, gaTotal = 0, csTotal = 0;
+      let winsHome = 0, playedHome = 0, winsAway = 0, playedAway = 0;
 
-      const validRatings = stList.map(s => parseFloat(s.games?.rating)).filter(r => !isNaN(r) && r > 0);
-      const avgRating = validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(1) : "-";
+      filteredFinished.forEach(f => {
+        const isHome = f.teams?.home?.id === teamId;
+        const myGoals = isHome ? (f.goals?.home ?? 0) : (f.goals?.away ?? 0);
+        const oppGoals = isHome ? (f.goals?.away ?? 0) : (f.goals?.home ?? 0);
 
-      const primarySt = stList[0] || {};
-      const specificRole = getSpecificPlayerRole(p, primarySt);
+        gfTotal += myGoals;
+        gaTotal += oppGoals;
+
+        if (oppGoals === 0) csTotal++;
+
+        if (isHome) {
+          playedHome++;
+          if (myGoals > oppGoals) { totalWins++; winsHome++; }
+          else if (myGoals === oppGoals) { totalDraws++; }
+          else { totalLoses++; }
+        } else {
+          playedAway++;
+          if (myGoals > oppGoals) { totalWins++; winsAway++; }
+          else if (myGoals === oppGoals) { totalDraws++; }
+          else { totalLoses++; }
+        }
+      });
+
+      const totalPlayed = filteredFinished.length;
+      const points = (totalWins * 3) + totalDraws;
+      const maxPoints = totalPlayed * 3;
+      const winPct = maxPoints ? Math.round((points / maxPoints) * 100) : 0;
+      const gfAvg = totalPlayed ? (gfTotal / totalPlayed) : 0;
+      const gaAvg = totalPlayed ? (gaTotal / totalPlayed) : 0;
+      const goalDiff = gfTotal - gaTotal;
+      const homeWinPct = playedHome ? Math.round((winsHome / playedHome) * 100) : 0;
+      const awayWinPct = playedAway ? Math.round((winsAway / playedAway) * 100) : 0;
 
       return {
-        id: p.id,
-        name: p.name,
-        photo: p.photo || `https://media.api-sports.io/football/players/${p.id}.png`,
-        position: p.position,
-        specificRole: specificRole,
-        number: p.number || primarySt.games?.number || "-",
-        goals: totalGoals,
-        assists: totalAssists,
-        minutes: totalMinutes,
-        apps: totalApps,
-        rating: avgRating,
-        tackles: totalTackles,
-        interceptions: totalInterceptions,
-        saves: totalSaves
+        totalPlayed, totalWins, totalDraws, totalLoses,
+        gfTotal, gaTotal, gfAvg, gaAvg, goalDiff, csTotal,
+        winPct, homeWinPct, awayWinPct
       };
-    });
+    }
 
-    content.innerHTML = `
-      ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league?.name || "Liga", href: `#/liga/${leagueId}/${season}` }, { label: t.name, href: "" }])}
-      
-      <!-- Cabeçalho do Clube -->
-      <div class="team-header" style="display:flex;align-items:center;gap:16px;margin-bottom:20px;background:var(--pitch-card);border:1px solid var(--pitch-border);padding:16px;border-radius:var(--radius-lg);flex-wrap:wrap;">
-        <img src="${t.logo}" alt="" style="width:64px;height:64px;object-fit:contain;">
-        <div>
-          <p class="page-eyebrow">${escapeHtml(league?.name || "")} · Temporada ${season}</p>
-          <h1 class="page-title" style="margin:0;">${escapeHtml(teamFormattedName)}</h1>
-        </div>
-        <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
-          <button class="btn ${isFav ? 'ghost' : ''} small" id="btn-toggle-team-fav">
-            ${isFav ? '⭐ Seguindo Alertas' : '🔔 Seguir Time'}
-          </button>
-        </div>
-      </div>
-
-      <!-- ESTRUTURA EXPANDIDA DE 3 COLUNAS -->
-      <div class="team-page-grid">
+    function getEnrichedRoster(selectedLeagueId) {
+      return squadPlayers.map(p => {
+        const pStatsItem = playerStatsMap.get(p.id);
+        const allStList = pStatsItem?.statistics || [];
         
-        <!-- COLUNA 1: NOTÍCIAS RECENTES DO CLUBE (ESQUERDA) -->
-        <aside class="team-news-col">
-          <div class="card" style="padding:14px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">
-              <span style="font-size:1.1rem;">📰</span>
-              <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--chalk);">Notícias do Clube</h3>
-            </div>
-            <div id="team-sidebar-news-container">
-              <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">Carregando notícias de ${escapeHtml(teamFormattedName)}...</div>
-            </div>
-          </div>
-        </aside>
+        // Filtra por competição se selecionado
+        const stList = selectedLeagueId === "ALL"
+          ? allStList
+          : allStList.filter(s => s.league?.id === Number(selectedLeagueId));
 
-        <!-- COLUNA 2: ESTATÍSTICAS GERAIS SIMÉTRICAS (4x2) + ELENCO (CENTRO) -->
-        <main class="team-main-col">
-          
-          <!-- Estatísticas Gerais na Temporada (8 Cards em Grade Simétrica 4x2 Consolidando Todas as Competições) -->
-          <div class="card" style="padding:16px;margin-bottom:20px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:1.1rem;">📊</span>
-                <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Estatísticas Gerais na Temporada</h3>
-              </div>
-              <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">Todas as Competições</span>
-            </div>
+        const totalGoals = stList.reduce((acc, s) => acc + (s.goals?.total || 0), 0);
+        const totalAssists = stList.reduce((acc, s) => acc + (s.goals?.assists || 0), 0);
+        const totalMinutes = stList.reduce((acc, s) => acc + (s.games?.minutes || 0), 0);
+        const totalApps = stList.reduce((acc, s) => acc + (s.games?.appearences || 0), 0);
+        const totalTackles = stList.reduce((acc, s) => acc + (s.tackles?.total || 0), 0);
+        const totalInterceptions = stList.reduce((acc, s) => acc + (s.tackles?.interceptions || 0), 0);
+        const totalSaves = stList.reduce((acc, s) => acc + (s.goals?.saves || 0), 0);
 
-            <div class="team-top-stats-bar">
-              <!-- Linha 1 -->
-              <!-- 1. Aproveitamento (< 40% vermelho, 41-50% laranja, >= 51% verde) -->
-              <div class="team-stat-box">
-                <span class="team-stat-box-val" style="color:${winPct >= 51 ? '#10B981' : winPct >= 41 ? '#F97316' : '#EF4444'};">${winPct}%</span>
-                <span class="team-stat-box-label">Aproveitamento</span>
-              </div>
+        const validRatings = stList.map(s => parseFloat(s.games?.rating)).filter(r => !isNaN(r) && r > 0);
+        const avgRating = validRatings.length ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(1) : "-";
 
-              <!-- 2. Total de Jogos -->
-              <div class="team-stat-box">
-                <span class="team-stat-box-val">${totalPlayed}</span>
-                <span class="team-stat-box-label">Total de Jogos</span>
-              </div>
+        const primarySt = stList[0] || allStList[0] || {};
+        const specificRole = getSpecificPlayerRole(p, primarySt);
 
-              <!-- 3. V / E / D (Vitória verde, Empate laranja, Derrota vermelho) -->
-              <div class="team-stat-box">
-                <span class="team-stat-box-val">
-                  <span style="color:#10B981;">${totalWins}V</span>
-                  <span style="color:var(--chalk-dim);font-size:0.85rem;">-</span>
-                  <span style="color:#F97316;">${totalDraws}E</span>
-                  <span style="color:var(--chalk-dim);font-size:0.85rem;">-</span>
-                  <span style="color:#EF4444;">${totalLoses}D</span>
-                </span>
-                <span class="team-stat-box-label">V / E / D</span>
-              </div>
-
-              <!-- 4. Gols Pró (em verde) -->
-              <div class="team-stat-box">
-                <span class="team-stat-box-val" style="color:#10B981;">${gfTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${gfAvg.toFixed(1)}/j)</small></span>
-                <span class="team-stat-box-label">Gols Pró</span>
-              </div>
-
-              <!-- Linha 2 -->
-              <!-- 5. Gols Contra (em vermelho) -->
-              <div class="team-stat-box">
-                <span class="team-stat-box-val" style="color:#EF4444;">${gaTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${gaAvg.toFixed(1)}/j)</small></span>
-                <span class="team-stat-box-label">Gols Contra</span>
-              </div>
-
-              <!-- 6. Saldo de Gols (positivo verde, negativo vermelho, zero branco) -->
-              <div class="team-stat-box">
-                <span class="team-stat-box-val" style="color:${goalDiff > 0 ? '#10B981' : goalDiff < 0 ? '#EF4444' : '#F0F6FC'};">${goalDiff > 0 ? '+' : ''}${goalDiff}</span>
-                <span class="team-stat-box-label">Saldo de Gols</span>
-              </div>
-
-              <!-- 7. Clean Sheets -->
-              <div class="team-stat-box">
-                <span class="team-stat-box-val cyan">${csTotal}</span>
-                <span class="team-stat-box-label">Clean Sheets</span>
-              </div>
-
-              <!-- 8. Mando de Campo -->
-              <div class="team-stat-box">
-                <span class="team-stat-box-val gold" style="font-size:0.95rem;">${homeWinPct}% <small style="color:var(--chalk-dim);font-size:0.7rem;">CASA</small> · ${awayWinPct}% <small style="color:var(--chalk-dim);font-size:0.7rem;">FORA</small></span>
-                <span class="team-stat-box-label">Mando de Campo</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Elenco do Clube (Rosters com Estatísticas Gerais da Temporada) -->
-          <div class="card" style="padding:16px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:1.1rem;">👥</span>
-                <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Elenco / Jogadores (${enrichedRoster.length})</h3>
-              </div>
-              <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">Estatísticas Gerais da Temporada</span>
-            </div>
-
-            ${enrichedRoster.length ? `
-              <div class="rosters-grid">
-                ${enrichedRoster.map(p => {
-                  const isGoalkeeper = p.specificRole === "Goleiro";
-                  const isDef = p.specificRole.includes("Zagueiro") || p.specificRole.includes("Lateral");
-                  const isMid = p.specificRole.includes("Volante") || p.specificRole.includes("Meia");
-
-                  // 3 Barras dinâmicas por posição com dados reais da temporada:
-                  let bar1Label = "GOLS", bar1Val = `${p.goals} gols`, bar1Pct = Math.min(p.goals * 8, 100);
-                  let bar2Label = "MINUTOS", bar2Val = `${p.minutes} min`, bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
-                  let bar3Label = "NOTA MÉDIA", bar3Val = p.rating, bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 50;
-
-                  if (isGoalkeeper) {
-                    bar1Label = "DEFESAS"; bar1Val = `${p.saves} def`; bar1Pct = Math.min(p.saves * 3, 100);
-                    bar2Label = "MINUTOS"; bar2Val = `${p.minutes} min`; bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
-                    bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
-                  } else if (isDef) {
-                    bar1Label = "DESARMES"; bar1Val = `${p.tackles} des`; bar1Pct = Math.min(p.tackles * 3, 100);
-                    bar2Label = "MINUTOS"; bar2Val = `${p.minutes} min`; bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
-                    bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
-                  } else if (isMid) {
-                    bar1Label = "ASSISTÊNCIAS"; bar1Val = `${p.assists} ast`; bar1Pct = Math.min(p.assists * 10, 100);
-                    bar2Label = "GOLS"; bar2Val = `${p.goals} gols`; bar2Pct = Math.min(p.goals * 10, 100);
-                    bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
-                  }
-
-                  return `
-                    <div class="roster-card">
-                      <div class="roster-avatar-wrap">
-                        <img class="roster-avatar-img" src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
-                      </div>
-                      <div class="roster-player-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</div>
-                      <div class="roster-player-pos">${escapeHtml(p.specificRole)} #${p.number}</div>
-
-                      <div class="roster-bars-container">
-                        <!-- Barra 1 -->
-                        <div class="roster-bar-item">
-                          <div class="roster-bar-labels">
-                            <span class="roster-bar-name">${bar1Label}</span>
-                            <span class="roster-bar-val">${bar1Val}</span>
-                          </div>
-                          <div class="roster-bar-track">
-                            <div class="roster-bar-fill gold" style="width:${Math.max(bar1Pct, 6)}%;"></div>
-                          </div>
-                        </div>
-
-                        <!-- Barra 2 -->
-                        <div class="roster-bar-item">
-                          <div class="roster-bar-labels">
-                            <span class="roster-bar-name">${bar2Label}</span>
-                            <span class="roster-bar-val">${bar2Val}</span>
-                          </div>
-                          <div class="roster-bar-track">
-                            <div class="roster-bar-fill cyan" style="width:${Math.max(bar2Pct, 6)}%;"></div>
-                          </div>
-                        </div>
-
-                        <!-- Barra 3 -->
-                        <div class="roster-bar-item">
-                          <div class="roster-bar-labels">
-                            <span class="roster-bar-name">${bar3Label}</span>
-                            <span class="roster-bar-val">${bar3Val}</span>
-                          </div>
-                          <div class="roster-bar-track">
-                            <div class="roster-bar-fill" style="width:${Math.max(bar3Pct, 6)}%;"></div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <a class="btn-roster-profile" href="#/jogador/${p.id}/${teamId}/${leagueId}/${season}">
-                        Ver Perfil →
-                      </a>
-                    </div>
-                  `;
-                }).join("")}
-              </div>
-            ` : `
-              <div style="padding:30px;text-align:center;color:var(--chalk-dim);font-size:0.88rem;">
-                Nenhum jogador cadastrado para o elenco neste momento.
-              </div>
-            `}
-          </div>
-        </main>
-
-        <!-- COLUNA 3: PRÓXIMAS PARTIDAS E ÚLTIMOS RESULTADOS (DIREITA) -->
-        <aside class="team-fixtures-col">
-          <!-- 1. Próximas Partidas (5 jogos) -->
-          <div class="card" style="padding:14px;margin-bottom:16px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">
-              <span style="font-size:1.1rem;">⏳</span>
-              <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--chalk);">Próximas Partidas</h3>
-            </div>
-
-            ${(nextFixtures && nextFixtures.length) ? `
-              <div class="fixture-list">
-                ${nextFixtures.map(f => {
-                  const dObj = new Date(f.fixture.date);
-                  const day = String(dObj.getDate()).padStart(2, "0");
-                  const month = String(dObj.getMonth() + 1).padStart(2, "0");
-                  const year = dObj.getFullYear();
-                  const timeStr = dObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-                  const dateFormatted = `${day}/${month}/${year}${timeStr && timeStr !== "00:00" ? ' · ' + timeStr : ''}`;
-                  const isHome = f.teams.home.id === teamId;
-                  const leagueLogo = f.league?.logo;
-                  const leagueName = formatTeamName(f.league?.name || "");
-
-                  return `
-                    <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
-                      <div class="fixture-card-topbar">
-                        <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
-                          ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" onerror="this.style.display='none'">` : ''}
-                          <span>${escapeHtml(leagueName)}</span>
-                        </div>
-                        <div class="fixture-card-top-right">
-                          <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
-                        </div>
-                      </div>
-                      <div class="fixture-card-matchup">
-                        <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
-                          <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
-                          <img src="${f.teams.home.logo}" alt="" loading="lazy">
-                        </div>
-                        <div class="fixture-card-score-box">
-                          <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;padding:2px 8px;min-width:38px;">vs</span>
-                        </div>
-                        <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
-                          <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                          <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
-                        </div>
-                      </div>
-                    </a>
-                  `;
-                }).join("")}
-              </div>
-            ` : `
-              <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">
-                Nenhuma partida futura agendada.
-              </div>
-            `}
-          </div>
-
-          <!-- 2. Últimos Resultados (5 jogos) -->
-          <div class="card" style="padding:14px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">
-              <span style="font-size:1.1rem;">✅</span>
-              <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--chalk);">Últimos Resultados</h3>
-            </div>
-
-            ${(recentFixtures && recentFixtures.length) ? `
-              <div class="fixture-list">
-                ${recentFixtures.map(f => {
-                  const dObj = new Date(f.fixture.date);
-                  const day = String(dObj.getDate()).padStart(2, "0");
-                  const month = String(dObj.getMonth() + 1).padStart(2, "0");
-                  const year = dObj.getFullYear();
-                  const dateFormatted = `${day}/${month}/${year}`;
-                  const isHome = f.teams.home.id === teamId;
-                  const homeGoals = f.goals.home ?? 0;
-                  const awayGoals = f.goals.away ?? 0;
-                  const leagueLogo = f.league?.logo;
-                  const leagueName = formatTeamName(f.league?.name || "");
-
-                  let outcomeLetter = "E";
-                  let outcomeBg = "rgba(255,184,0,0.2)";
-                  let outcomeColor = "#FFB800";
-                  let outcomeBorder = "rgba(255,184,0,0.5)";
-
-                  if (homeGoals !== awayGoals) {
-                    if ((isHome && homeGoals > awayGoals) || (!isHome && awayGoals > homeGoals)) {
-                      outcomeLetter = "V";
-                      outcomeBg = "rgba(16,185,129,0.2)";
-                      outcomeColor = "#10B981";
-                      outcomeBorder = "rgba(16,185,129,0.5)";
-                    } else {
-                      outcomeLetter = "D";
-                      outcomeBg = "rgba(239,68,68,0.2)";
-                      outcomeColor = "#EF4444";
-                      outcomeBorder = "rgba(239,68,68,0.5)";
-                    }
-                  }
-
-                  return `
-                    <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
-                      <div class="fixture-card-topbar">
-                        <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
-                          ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" onerror="this.style.display='none'">` : ''}
-                          <span>${escapeHtml(leagueName)}</span>
-                        </div>
-                        <div class="fixture-card-top-right">
-                          <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.68rem;font-weight:800;line-height:1;">
-                            ${outcomeLetter}
-                          </span>
-                          <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
-                        </div>
-                      </div>
-                      <div class="fixture-card-matchup">
-                        <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
-                          <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
-                          <img src="${f.teams.home.logo}" alt="" loading="lazy">
-                        </div>
-                        <div class="fixture-card-score-box">
-                          <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
-                          <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
-                            <span style="font-size:0.6rem;line-height:1;">▶</span>
-                            <span>Melhores Momentos</span>
-                          </button>
-                        </div>
-                        <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
-                          <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                          <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
-                        </div>
-                      </div>
-                    </a>
-                  `;
-                }).join("")}
-              </div>
-            ` : `
-              <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">
-                Nenhum resultado recente encontrado.
-              </div>
-            `}
-          </div>
-        </aside>
-
-      </div>
-    `;
-
-    // Carregar notícias do time na coluna esquerda
-    loadTeamNews(t.name, "team-sidebar-news-container");
-
-    const favBtn = document.getElementById("btn-toggle-team-fav");
-    if (favBtn) {
-      favBtn.addEventListener("click", () => {
-        const teamObj = { id: teamId, name: t.name, logo: t.logo };
-        const exists = state.favoriteTeams.some(fav => fav.id === teamId);
-        if (exists) {
-          state.favoriteTeams = state.favoriteTeams.filter(fav => fav.id !== teamId);
-          favBtn.classList.remove("ghost");
-          favBtn.textContent = "🔔 Seguir Time";
-          toast(`${t.name} removido dos seus times favoritos.`, false);
-        } else {
-          state.favoriteTeams.push(teamObj);
-          favBtn.classList.add("ghost");
-          favBtn.textContent = "⭐ Seguindo Alertas";
-          toast(`${t.name} adicionado aos favoritos!`, false);
-        }
-        NotificationManager.syncPreferences();
+        return {
+          id: p.id,
+          name: p.name,
+          photo: p.photo || `https://media.api-sports.io/football/players/${p.id}.png`,
+          position: p.position,
+          specificRole: specificRole,
+          number: p.number || primarySt.games?.number || "-",
+          goals: totalGoals,
+          assists: totalAssists,
+          minutes: totalMinutes,
+          apps: totalApps,
+          rating: avgRating,
+          tackles: totalTackles,
+          interceptions: totalInterceptions,
+          saves: totalSaves
+        };
       });
     }
+
+    function renderView() {
+      const activeFinished = selectedCompFilter === "ALL"
+        ? finishedSeasonAll
+        : finishedSeasonAll.filter(f => f.league?.id === Number(selectedCompFilter));
+
+      const compName = selectedCompFilter === "ALL"
+        ? "Todas as Competições"
+        : (availableLeagues.find(l => l.id === Number(selectedCompFilter))?.name || "Competição Selecionada");
+
+      const stats = computeTeamStats(activeFinished);
+      const enrichedRoster = getEnrichedRoster(selectedCompFilter);
+
+      content.innerHTML = `
+        ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league?.name || "Liga", href: `#/liga/${leagueId}/${season}` }, { label: t.name, href: "" }])}
+        
+        <!-- Cabeçalho do Clube -->
+        <div class="team-header" style="display:flex;align-items:center;gap:16px;margin-bottom:20px;background:var(--pitch-card);border:1px solid var(--pitch-border);padding:16px;border-radius:var(--radius-lg);flex-wrap:wrap;">
+          <img src="${t.logo}" alt="" style="width:64px;height:64px;object-fit:contain;">
+          <div>
+            <p class="page-eyebrow">${escapeHtml(league?.name || "")} · Temporada ${season}</p>
+            <h1 class="page-title" style="margin:0;">${escapeHtml(teamFormattedName)}</h1>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
+            <button class="btn ${isFav ? 'ghost' : ''} small" id="btn-toggle-team-fav">
+              ${isFav ? '⭐ Seguindo Alertas' : '🔔 Seguir Time'}
+            </button>
+          </div>
+        </div>
+
+        <!-- ESTRUTURA EXPANDIDA DE 3 COLUNAS -->
+        <div class="team-page-grid">
+          
+          <!-- COLUNA 1: NOTÍCIAS RECENTES DO CLUBE (ESQUERDA) -->
+          <aside class="team-news-col">
+            <div class="card" style="padding:14px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">
+                <span style="font-size:1.1rem;">📰</span>
+                <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--chalk);">Notícias do Clube</h3>
+              </div>
+              <div id="team-sidebar-news-container">
+                <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">Carregando notícias de ${escapeHtml(teamFormattedName)}...</div>
+              </div>
+            </div>
+          </aside>
+
+          <!-- COLUNA 2: FILTRO DE COMPETIÇÃO + ESTATÍSTICAS GERAIS SIMÉTRICAS (4x2) + ELENCO (CENTRO) -->
+          <main class="team-main-col">
+            
+            <!-- Barra de Filtro de Competição -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;background:var(--glass-bg);border:1px solid var(--glass-border);padding:12px 16px;border-radius:var(--radius-md);flex-wrap:wrap;gap:12px;">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;letter-spacing:0.5px;">FILTRO DE COMPETIÇÃO:</span>
+                <select id="team-comp-filter-select" style="background:var(--pitch-card);border:1px solid var(--line-strong);color:var(--chalk);padding:8px 14px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.85rem;cursor:pointer;outline:none;">
+                  <option value="ALL" ${selectedCompFilter === 'ALL' ? 'selected' : ''}>📊 Todas as Competições (Geral da Temporada)</option>
+                  ${availableLeagues.map(l => `
+                    <option value="${l.id}" ${selectedCompFilter === String(l.id) ? 'selected' : ''}>🏆 ${escapeHtml(formatTeamName(l.name))}</option>
+                  `).join("")}
+                </select>
+              </div>
+              <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--cyan);background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.25);padding:4px 10px;border-radius:999px;">
+                ${escapeHtml(formatTeamName(compName))}
+              </span>
+            </div>
+
+            <!-- Estatísticas na Competição / Temporada (8 Cards em Grade Simétrica 4x2) -->
+            <div class="card" style="padding:16px;margin-bottom:20px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:1.1rem;">📊</span>
+                  <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Estatísticas ${selectedCompFilter === 'ALL' ? 'Gerais na Temporada' : 'na Competição'}</h3>
+                </div>
+                <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">${escapeHtml(formatTeamName(compName))}</span>
+              </div>
+
+              <div class="team-top-stats-bar">
+                <!-- Linha 1 -->
+                <!-- 1. Aproveitamento (< 40% vermelho, 41-50% laranja, >= 51% verde) -->
+                <div class="team-stat-box">
+                  <span class="team-stat-box-val" style="color:${stats.winPct >= 51 ? '#10B981' : stats.winPct >= 41 ? '#F97316' : '#EF4444'};">${stats.winPct}%</span>
+                  <span class="team-stat-box-label">Aproveitamento</span>
+                </div>
+
+                <!-- 2. Total de Jogos -->
+                <div class="team-stat-box">
+                  <span class="team-stat-box-val">${stats.totalPlayed}</span>
+                  <span class="team-stat-box-label">Total de Jogos</span>
+                </div>
+
+                <!-- 3. V / E / D (Vitória verde, Empate laranja, Derrota vermelho) -->
+                <div class="team-stat-box">
+                  <span class="team-stat-box-val">
+                    <span style="color:#10B981;">${stats.totalWins}V</span>
+                    <span style="color:var(--chalk-dim);font-size:0.85rem;">-</span>
+                    <span style="color:#F97316;">${stats.totalDraws}E</span>
+                    <span style="color:var(--chalk-dim);font-size:0.85rem;">-</span>
+                    <span style="color:#EF4444;">${stats.totalLoses}D</span>
+                  </span>
+                  <span class="team-stat-box-label">V / E / D</span>
+                </div>
+
+                <!-- 4. Gols Pró (em verde) -->
+                <div class="team-stat-box">
+                  <span class="team-stat-box-val" style="color:#10B981;">${stats.gfTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${stats.gfAvg.toFixed(1)}/j)</small></span>
+                  <span class="team-stat-box-label">Gols Pró</span>
+                </div>
+
+                <!-- Linha 2 -->
+                <!-- 5. Gols Contra (em vermelho) -->
+                <div class="team-stat-box">
+                  <span class="team-stat-box-val" style="color:#EF4444;">${stats.gaTotal} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${stats.gaAvg.toFixed(1)}/j)</small></span>
+                  <span class="team-stat-box-label">Gols Contra</span>
+                </div>
+
+                <!-- 6. Saldo de Gols (positivo verde, negativo vermelho, zero branco) -->
+                <div class="team-stat-box">
+                  <span class="team-stat-box-val" style="color:${stats.goalDiff > 0 ? '#10B981' : stats.goalDiff < 0 ? '#EF4444' : '#F0F6FC'};">${stats.goalDiff > 0 ? '+' : ''}${stats.goalDiff}</span>
+                  <span class="team-stat-box-label">Saldo de Gols</span>
+                </div>
+
+                <!-- 7. Clean Sheets -->
+                <div class="team-stat-box">
+                  <span class="team-stat-box-val cyan">${stats.csTotal}</span>
+                  <span class="team-stat-box-label">Clean Sheets</span>
+                </div>
+
+                <!-- 8. Mando de Campo -->
+                <div class="team-stat-box">
+                  <span class="team-stat-box-val gold" style="font-size:0.95rem;">${stats.homeWinPct}% <small style="color:var(--chalk-dim);font-size:0.7rem;">CASA</small> · ${stats.awayWinPct}% <small style="color:var(--chalk-dim);font-size:0.7rem;">FORA</small></span>
+                  <span class="team-stat-box-label">Mando de Campo</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Elenco do Clube (Rosters com Estatísticas Filtradas) -->
+            <div class="card" style="padding:16px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:1.1rem;">👥</span>
+                  <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Elenco / Jogadores (${enrichedRoster.length})</h3>
+                </div>
+                <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">${escapeHtml(formatTeamName(compName))}</span>
+              </div>
+
+              ${enrichedRoster.length ? `
+                <div class="rosters-grid">
+                  ${enrichedRoster.map(p => {
+                    const isGoalkeeper = p.specificRole === "Goleiro";
+                    const isDef = p.specificRole.includes("Zagueiro") || p.specificRole.includes("Lateral");
+                    const isMid = p.specificRole.includes("Volante") || p.specificRole.includes("Meia");
+
+                    // 3 Barras dinâmicas por posição com dados reais da competição:
+                    let bar1Label = "GOLS", bar1Val = `${p.goals} gols`, bar1Pct = Math.min(p.goals * 8, 100);
+                    let bar2Label = "MINUTOS", bar2Val = `${p.minutes} min`, bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
+                    let bar3Label = "NOTA MÉDIA", bar3Val = p.rating, bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 50;
+
+                    if (isGoalkeeper) {
+                      bar1Label = "DEFESAS"; bar1Val = `${p.saves} def`; bar1Pct = Math.min(p.saves * 3, 100);
+                      bar2Label = "MINUTOS"; bar2Val = `${p.minutes} min`; bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
+                      bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
+                    } else if (isDef) {
+                      bar1Label = "DESARMES"; bar1Val = `${p.tackles} des`; bar1Pct = Math.min(p.tackles * 3, 100);
+                      bar2Label = "MINUTOS"; bar2Val = `${p.minutes} min`; bar2Pct = Math.min((p.minutes / 2500) * 100, 100);
+                      bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
+                    } else if (isMid) {
+                      bar1Label = "ASSISTÊNCIAS"; bar1Val = `${p.assists} ast`; bar1Pct = Math.min(p.assists * 10, 100);
+                      bar2Label = "GOLS"; bar2Val = `${p.goals} gols`; bar2Pct = Math.min(p.goals * 10, 100);
+                      bar3Label = "NOTA MÉDIA"; bar3Val = p.rating; bar3Pct = p.rating !== "-" ? Math.min((parseFloat(p.rating) / 10) * 100, 100) : 60;
+                    }
+
+                    return `
+                      <div class="roster-card">
+                        <div class="roster-avatar-wrap">
+                          <img class="roster-avatar-img" src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+                        </div>
+                        <div class="roster-player-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</div>
+                        <div class="roster-player-pos">${escapeHtml(p.specificRole)} #${p.number}</div>
+
+                        <div class="roster-bars-container">
+                          <!-- Barra 1 -->
+                          <div class="roster-bar-item">
+                            <div class="roster-bar-labels">
+                              <span class="roster-bar-name">${bar1Label}</span>
+                              <span class="roster-bar-val">${bar1Val}</span>
+                            </div>
+                            <div class="roster-bar-track">
+                              <div class="roster-bar-fill gold" style="width:${Math.max(bar1Pct, 6)}%;"></div>
+                            </div>
+                          </div>
+
+                          <!-- Barra 2 -->
+                          <div class="roster-bar-item">
+                            <div class="roster-bar-labels">
+                              <span class="roster-bar-name">${bar2Label}</span>
+                              <span class="roster-bar-val">${bar2Val}</span>
+                            </div>
+                            <div class="roster-bar-track">
+                              <div class="roster-bar-fill cyan" style="width:${Math.max(bar2Pct, 6)}%;"></div>
+                            </div>
+                          </div>
+
+                          <!-- Barra 3 -->
+                          <div class="roster-bar-item">
+                            <div class="roster-bar-labels">
+                              <span class="roster-bar-name">${bar3Label}</span>
+                              <span class="roster-bar-val">${bar3Val}</span>
+                            </div>
+                            <div class="roster-bar-track">
+                              <div class="roster-bar-fill" style="width:${Math.max(bar3Pct, 6)}%;"></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <a class="btn-roster-profile" href="#/jogador/${p.id}/${teamId}/${leagueId}/${season}">
+                          Ver Perfil →
+                        </a>
+                      </div>
+                    `;
+                  }).join("")}
+                </div>
+              ` : `
+                <div style="padding:30px;text-align:center;color:var(--chalk-dim);font-size:0.88rem;">
+                  Nenhum jogador com scouts registrados nesta competição.
+                </div>
+              `}
+            </div>
+          </main>
+
+          <!-- COLUNA 3: PRÓXIMAS PARTIDAS E ÚLTIMOS RESULTADOS (DIREITA) -->
+          <aside class="team-fixtures-col">
+            <!-- 1. Próximas Partidas (5 jogos) -->
+            <div class="card" style="padding:14px;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">
+                <span style="font-size:1.1rem;">⏳</span>
+                <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--chalk);">Próximas Partidas</h3>
+              </div>
+
+              ${(nextFixtures && nextFixtures.length) ? `
+                <div class="fixture-list">
+                  ${nextFixtures.map(f => {
+                    const dObj = new Date(f.fixture.date);
+                    const day = String(dObj.getDate()).padStart(2, "0");
+                    const month = String(dObj.getMonth() + 1).padStart(2, "0");
+                    const year = dObj.getFullYear();
+                    const timeStr = dObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                    const dateFormatted = `${day}/${month}/${year}${timeStr && timeStr !== "00:00" ? ' · ' + timeStr : ''}`;
+                    const isHome = f.teams.home.id === teamId;
+                    const leagueLogo = f.league?.logo;
+                    const leagueName = formatTeamName(f.league?.name || "");
+
+                    return `
+                      <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                        <div class="fixture-card-topbar">
+                          <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
+                            ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" onerror="this.style.display='none'">` : ''}
+                            <span>${escapeHtml(leagueName)}</span>
+                          </div>
+                          <div class="fixture-card-top-right">
+                            <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
+                          </div>
+                        </div>
+                        <div class="fixture-card-matchup">
+                          <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                            <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                            <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                          </div>
+                          <div class="fixture-card-score-box">
+                            <span class="fixture-score" style="color:var(--chalk-dim);font-size:0.8rem;padding:2px 8px;min-width:38px;">vs</span>
+                          </div>
+                          <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                            <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                            <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                          </div>
+                        </div>
+                      </a>
+                    `;
+                  }).join("")}
+                </div>
+              ` : `
+                <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">
+                  Nenhuma partida futura agendada.
+                </div>
+              `}
+            </div>
+
+            <!-- 2. Últimos Resultados (5 jogos) -->
+            <div class="card" style="padding:14px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;">
+                <span style="font-size:1.1rem;">✅</span>
+                <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--chalk);">Últimos Resultados</h3>
+              </div>
+
+              ${(recentFixtures && recentFixtures.length) ? `
+                <div class="fixture-list">
+                  ${recentFixtures.map(f => {
+                    const dObj = new Date(f.fixture.date);
+                    const day = String(dObj.getDate()).padStart(2, "0");
+                    const month = String(dObj.getMonth() + 1).padStart(2, "0");
+                    const year = dObj.getFullYear();
+                    const dateFormatted = `${day}/${month}/${year}`;
+                    const isHome = f.teams.home.id === teamId;
+                    const homeGoals = f.goals.home ?? 0;
+                    const awayGoals = f.goals.away ?? 0;
+                    const leagueLogo = f.league?.logo;
+                    const leagueName = formatTeamName(f.league?.name || "");
+
+                    let outcomeLetter = "E";
+                    let outcomeBg = "rgba(255,184,0,0.2)";
+                    let outcomeColor = "#FFB800";
+                    let outcomeBorder = "rgba(255,184,0,0.5)";
+
+                    if (homeGoals !== awayGoals) {
+                      if ((isHome && homeGoals > awayGoals) || (!isHome && awayGoals > homeGoals)) {
+                        outcomeLetter = "V";
+                        outcomeBg = "rgba(16,185,129,0.2)";
+                        outcomeColor = "#10B981";
+                        outcomeBorder = "rgba(16,185,129,0.5)";
+                      } else {
+                        outcomeLetter = "D";
+                        outcomeBg = "rgba(239,68,68,0.2)";
+                        outcomeColor = "#EF4444";
+                        outcomeBorder = "rgba(239,68,68,0.5)";
+                      }
+                    }
+
+                    return `
+                      <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                        <div class="fixture-card-topbar">
+                          <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
+                            ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" onerror="this.style.display='none'">` : ''}
+                            <span>${escapeHtml(leagueName)}</span>
+                          </div>
+                          <div class="fixture-card-top-right">
+                            <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.68rem;font-weight:800;line-height:1;">
+                              ${outcomeLetter}
+                            </span>
+                            <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
+                          </div>
+                        </div>
+                        <div class="fixture-card-matchup">
+                          <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
+                            <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                            <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                          </div>
+                          <div class="fixture-card-score-box">
+                            <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
+                            <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" onclick="event.preventDefault(); event.stopPropagation(); window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}', '_blank', 'noopener,noreferrer');">
+                              <span style="font-size:0.6rem;line-height:1;">▶</span>
+                              <span>Melhores Momentos</span>
+                            </button>
+                          </div>
+                          <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
+                            <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                            <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                          </div>
+                        </div>
+                      </a>
+                    `;
+                  }).join("")}
+                </div>
+              ` : `
+                <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">
+                  Nenhum resultado recente encontrado.
+                </div>
+              `}
+            </div>
+          </aside>
+
+        </div>
+      `;
+
+      // Carregar notícias do time na coluna esquerda
+      loadTeamNews(t.name, "team-sidebar-news-container");
+
+      // Listener do Filtro de Competição
+      const compSelect = document.getElementById("team-comp-filter-select");
+      if (compSelect) {
+        compSelect.addEventListener("change", (e) => {
+          selectedCompFilter = e.target.value;
+          renderView();
+        });
+      }
+
+      // Listener do Botão de Favorito
+      const favBtn = document.getElementById("btn-toggle-team-fav");
+      if (favBtn) {
+        favBtn.addEventListener("click", () => {
+          const teamObj = { id: teamId, name: t.name, logo: t.logo };
+          const exists = state.favoriteTeams.some(fav => fav.id === teamId);
+          if (exists) {
+            state.favoriteTeams = state.favoriteTeams.filter(fav => fav.id !== teamId);
+            favBtn.classList.remove("ghost");
+            favBtn.textContent = "🔔 Seguir Time";
+            toast(`${t.name} removido dos seus times favoritos.`, false);
+          } else {
+            state.favoriteTeams.push(teamObj);
+            favBtn.classList.add("ghost");
+            favBtn.textContent = "⭐ Seguindo Alertas";
+            toast(`${t.name} adicionado aos favoritos!`, false);
+          }
+          NotificationManager.syncPreferences();
+        });
+      }
+    }
+
+    renderView();
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
