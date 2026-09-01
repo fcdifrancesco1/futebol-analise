@@ -2541,6 +2541,231 @@ function getSpecificPlayerRole(player, st) {
   return "Meio-Campista";
 }
 
+
+// ============================================================
+// Gráfico de Teia (Radar Chart) com Atributos Próprios por Posição
+// ============================================================
+function generatePlayerRadarChart(p, s, pos, isPerGame) {
+  const isGK = pos === "Goalkeeper";
+  const isDef = pos === "Defender";
+  const isMid = pos === "Midfielder";
+  const isAtt = pos === "Attacker";
+
+  const apps = s.games?.appearences || 1;
+  const minutes = s.games?.minutes || 0;
+  const ratingNum = parseFloat(s.games?.rating) || 6.5;
+
+  let axes = [];
+  let values = [];
+
+  if (isGK) {
+    const saves = s.goals?.saves || 0;
+    const conceded = s.goals?.conceded ?? 0;
+    const passAcc = parseInt(s.passes?.accuracy) || 65;
+    const interceptions = s.tackles?.interceptions || 0;
+
+    // Métricas exclusivas de Goleiro
+    const scoreSaves = Math.min(Math.round((saves / Math.max(apps, 1)) * 25), 100);
+    const scoreSafety = Math.max(Math.min(Math.round(100 - (conceded / Math.max(apps, 1)) * 30), 100), 20);
+    const scorePass = Math.min(passAcc, 100);
+    const scoreAerial = Math.min(Math.round((interceptions / Math.max(apps, 1)) * 50 + 40), 100);
+    const scoreRegularity = Math.min(Math.round((minutes / 2500) * 100), 100);
+    const scoreRating = Math.min(Math.round((ratingNum / 10) * 100), 100);
+
+    axes = [
+      { label: "Defesas/Jogo", icon: "🧤" },
+      { label: "Solidez no Gol", icon: "🛡️" },
+      { label: "Reposição/Passe", icon: "🎯" },
+      { label: "Saídas & Aéreo", icon: "🤾" },
+      { label: "Minutagem", icon: "⏱️" },
+      { label: "Nota Média", icon: "⭐" }
+    ];
+    values = [scoreSaves, scoreSafety, scorePass, scoreAerial, scoreRegularity, scoreRating];
+  } else if (isDef) {
+    const tackles = s.tackles?.total || 0;
+    const interceptions = s.tackles?.interceptions || 0;
+    const duelsWon = s.duels?.won || 0;
+    const duelsTot = s.duels?.total || 1;
+    const passAcc = parseInt(s.passes?.accuracy) || 75;
+    const creation = (s.passes?.key || 0) + (s.dribbles?.success || 0);
+
+    const scoreTackles = Math.min(Math.round((tackles / Math.max(apps, 1)) * 35 + 20), 100);
+    const scoreInterceptions = Math.min(Math.round((interceptions / Math.max(apps, 1)) * 40 + 25), 100);
+    const scoreDuels = Math.min(Math.round((duelsWon / Math.max(duelsTot, 1)) * 100), 100);
+    const scorePass = Math.min(passAcc, 100);
+    const scoreOffensive = Math.min(Math.round((creation / Math.max(apps, 1)) * 40 + 20), 100);
+    const scoreRating = Math.min(Math.round((ratingNum / 10) * 100), 100);
+
+    axes = [
+      { label: "Desarmes", icon: "🛡️" },
+      { label: "Interceptações", icon: "🧤" },
+      { label: "Duelos Ganhos", icon: "⚔️" },
+      { label: "Qualidade Passe", icon: "🎯" },
+      { label: "Apoio Ofensivo", icon: "💨" },
+      { label: "Nota Média", icon: "⭐" }
+    ];
+    values = [scoreTackles, scoreInterceptions, scoreDuels, scorePass, scoreOffensive, scoreRating];
+  } else if (isMid) {
+    const keyPasses = s.passes?.key || 0;
+    const passAcc = parseInt(s.passes?.accuracy) || 78;
+    const dribbles = s.dribbles?.success || 0;
+    const recovery = (s.tackles?.total || 0) + (s.tackles?.interceptions || 0);
+    const goalsShots = (s.goals?.total || 0) * 15 + (s.shots?.total || 0) * 3;
+
+    const scoreCreation = Math.min(Math.round((keyPasses / Math.max(apps, 1)) * 45 + 25), 100);
+    const scorePass = Math.min(passAcc, 100);
+    const scoreDribble = Math.min(Math.round((dribbles / Math.max(apps, 1)) * 40 + 20), 100);
+    const scoreRecovery = Math.min(Math.round((recovery / Math.max(apps, 1)) * 30 + 25), 100);
+    const scoreAttackArrival = Math.min(Math.round(goalsShots + 20), 100);
+    const scoreRating = Math.min(Math.round((ratingNum / 10) * 100), 100);
+
+    axes = [
+      { label: "Visão & Criação", icon: "🪄" },
+      { label: "Precisão Passe", icon: "🎯" },
+      { label: "Dribles & 1x1", icon: "⚡" },
+      { label: "Recuperações", icon: "🛡️" },
+      { label: "Chegada na Área", icon: "⚽" },
+      { label: "Nota Média", icon: "⭐" }
+    ];
+    values = [scoreCreation, scorePass, scoreDribble, scoreRecovery, scoreAttackArrival, scoreRating];
+  } else {
+    // Atacante / Ponta / Centroavante
+    const goals = s.goals?.total || 0;
+    const shotsOn = s.shots?.on || 0;
+    const shotsTot = s.shots?.total || 1;
+    const dribbles = s.dribbles?.success || 0;
+    const assists = (s.goals?.assists || 0) * 20 + (s.passes?.key || 0) * 4;
+    const duels = (s.fouls?.drawn || 0) * 3 + (s.duels?.won || 0) * 0.4;
+
+    const scoreFinishing = Math.min(Math.round((goals / Math.max(apps, 1)) * 120 + 25), 100);
+    const scoreAccuracy = Math.min(Math.round((shotsOn / Math.max(shotsTot, 1)) * 100), 100);
+    const scoreDribble = Math.min(Math.round((dribbles / Math.max(apps, 1)) * 40 + 20), 100);
+    const scoreAssists = Math.min(Math.round((assists / Math.max(apps, 1)) * 30 + 20), 100);
+    const scoreDuels = Math.min(Math.round((duels / Math.max(apps, 1)) * 25 + 25), 100);
+    const scoreRating = Math.min(Math.round((ratingNum / 10) * 100), 100);
+
+    axes = [
+      { label: "Faro de Gol", icon: "⚽" },
+      { label: "Pontaria no Alvo", icon: "🎯" },
+      { label: "1x1 & Dribles", icon: "⚡" },
+      { label: "Criação & Passes", icon: "👟" },
+      { label: "Duelos Ofensivos", icon: "⚔️" },
+      { label: "Nota Média", icon: "⭐" }
+    ];
+    values = [scoreFinishing, scoreAccuracy, scoreDribble, scoreAssists, scoreDuels, scoreRating];
+  }
+
+  // Gera SVG do Gráfico de Teia
+  const size = 360;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size * 0.32;
+  const numAxes = axes.length;
+  const angleStep = (2 * Math.PI) / numAxes;
+
+  // Grade concêntrica (20%, 40%, 60%, 80%, 100%)
+  const levels = [0.2, 0.4, 0.6, 0.8, 1.0];
+  let websSvg = "";
+  levels.forEach((lvl, lIdx) => {
+    const points = [];
+    for (let i = 0; i < numAxes; i++) {
+      const angle = i * angleStep - Math.PI / 2;
+      const x = cx + r * lvl * Math.cos(angle);
+      const y = cy + r * lvl * Math.sin(angle);
+      points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    }
+    const isOuter = lIdx === levels.length - 1;
+    websSvg += `<polygon points="${points.join(" ")}" fill="${isOuter ? 'rgba(0, 229, 255, 0.03)' : 'none'}" stroke="rgba(0, 229, 255, ${isOuter ? '0.35' : '0.12'})" stroke-width="${isOuter ? '1.5' : '1'}" stroke-dasharray="${isOuter ? 'none' : '3,3'}" />`;
+  });
+
+  // Linhas dos Eixos e Rótulos
+  let axesSvg = "";
+  let labelsSvg = "";
+  for (let i = 0; i < numAxes; i++) {
+    const angle = i * angleStep - Math.PI / 2;
+    const xEnd = cx + r * Math.cos(angle);
+    const yEnd = cy + r * Math.sin(angle);
+
+    axesSvg += `<line x1="${cx}" y1="${cy}" x2="${xEnd.toFixed(1)}" y2="${yEnd.toFixed(1)}" stroke="rgba(0, 229, 255, 0.2)" stroke-width="1" />`;
+
+    const labelR = r + 26;
+    const xLabel = cx + labelR * Math.cos(angle);
+    const yLabel = cy + labelR * Math.sin(angle);
+
+    let textAnchor = "middle";
+    if (Math.cos(angle) > 0.3) textAnchor = "start";
+    else if (Math.cos(angle) < -0.3) textAnchor = "end";
+
+    const axisObj = axes[i];
+    const scoreVal = values[i] || 50;
+
+    labelsSvg += `
+      <g transform="translate(${xLabel.toFixed(1)}, ${yLabel.toFixed(1)})">
+        <text text-anchor="${textAnchor}" fill="#F0F6FC" font-family="'Plus Jakarta Sans', sans-serif" font-size="10.5" font-weight="700" dy="-2">
+          ${axisObj.icon} ${axisObj.label}
+        </text>
+        <text text-anchor="${textAnchor}" fill="#00E5FF" font-family="'JetBrains Mono', monospace" font-size="10.5" font-weight="800" dy="11">
+          ${scoreVal} <tspan fill="#8B949E" font-size="8.5">/100</tspan>
+        </text>
+      </g>
+    `;
+  }
+
+  // Polígono de Dados do Jogador
+  const dataPoints = [];
+  const pointCircles = [];
+  for (let i = 0; i < numAxes; i++) {
+    const angle = i * angleStep - Math.PI / 2;
+    const pct = Math.max(Math.min((values[i] || 50) / 100, 1.0), 0.1);
+    const x = cx + r * pct * Math.cos(angle);
+    const y = cy + r * pct * Math.sin(angle);
+
+    dataPoints.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    pointCircles.push(`
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="#FFB800" stroke="#07111E" stroke-width="2" />
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="none" stroke="rgba(255, 184, 0, 0.4)" stroke-width="1.5" />
+    `);
+  }
+
+  return `
+    <div class="player-radar-card card" style="padding:18px;margin-bottom:20px;background:linear-gradient(180deg, rgba(13,38,59,0.85) 0%, rgba(7,17,30,0.95) 100%);border:1px solid rgba(0,229,255,0.22);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:1.15rem;">🕸️</span>
+          <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Radar Tático de Desempenho</h3>
+        </div>
+        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">Scouts Específicos: ${pos === 'Goalkeeper' ? 'Goleiro' : pos === 'Defender' ? 'Defensor' : pos === 'Midfielder' ? 'Meio-Campo' : 'Ataque'}</span>
+      </div>
+
+      <div style="display:flex;justify-content:center;align-items:center;padding:10px 0;width:100%;">
+        <svg viewBox="0 0 ${size} ${size}" class="player-radar-chart-svg" style="width:100%;max-width:${size}px;height:auto;filter:drop-shadow(0 4px 16px rgba(0,229,255,0.15));overflow:visible;">
+          <defs>
+            <radialGradient id="radarGrad_${p.id || 'p'}" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(0, 229, 255, 0.45)" />
+              <stop offset="60%" stop-color="rgba(0, 229, 255, 0.2)" />
+              <stop offset="100%" stop-color="rgba(255, 184, 0, 0.15)" />
+            </radialGradient>
+          </defs>
+
+          <!-- Teia Concêntrica -->
+          ${websSvg}
+          ${axesSvg}
+
+          <!-- Área Poligonal de Dados -->
+          <polygon points="${dataPoints.join(" ")}" fill="url(#radarGrad_${p.id || 'p'})" stroke="#00E5FF" stroke-width="2.5" stroke-linejoin="round" />
+
+          <!-- Vértices -->
+          ${pointCircles.join("")}
+
+          <!-- Rótulos e Scores -->
+          ${labelsSvg}
+        </svg>
+      </div>
+    </div>
+  `;
+}
+
+
 async function renderPlayer(playerId, teamId, leagueId, season) {
   app.innerHTML = `<div id="player-content">${skeletonTable()}</div>`;
   const content = document.getElementById("player-content");
@@ -3368,9 +3593,12 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
         </div>
 
         <h2 class="section-title">${isPerGame ? 'Estatísticas por Jogo' : 'Estatísticas na Temporada'} (${s.league?.id === 'TOTAL' ? 'Todas as Competições' : escapeHtml(formatTeamName(s.league?.name || 'Geral'))})</h2>
-        <div class="stat-grid">
+        <div class="stat-grid" style="margin-bottom:20px;">
           ${topCardsHtml}
         </div>
+
+        <!-- Gráfico de Teia Tático por Posição -->
+        ${generatePlayerRadarChart(p, s, position, isPerGame)}
 
         ${detailedSectionsHtml}
       `;

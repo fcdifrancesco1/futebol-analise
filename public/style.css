@@ -4381,3 +4381,22 @@ html, body {
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
   }
 }
+
+
+/* ============================================================
+   GRÁFICO DE TEIA TÁTICO (RADAR CHART)
+   ============================================================ */
+.player-radar-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.player-radar-card:hover {
+  box-shadow: 0 8px 30px rgba(0, 229, 255, 0.25) !important;
+}
+.player-radar-chart-svg text {
+  user-select: none;
+}
+@media (max-width: 600px) {
+  .player-radar-card {
+    padding: 14px 10px !important;
+  }
+}
