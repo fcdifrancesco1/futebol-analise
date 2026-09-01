@@ -66,7 +66,11 @@ module.exports = async (req, res) => {
     const data = await apiResp.json();
 
     res.status(apiResp.status);
-    res.setHeader("Cache-Control", "public, max-age=60, s-maxage=60");
+    if (endpoint.startsWith("fixtures")) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    } else {
+      res.setHeader("Cache-Control", "public, max-age=60, s-maxage=60");
+    }
     res.json(data);
   } catch (err) {
     clearTimeout(timeout);

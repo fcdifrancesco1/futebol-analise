@@ -4812,14 +4812,15 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
   const content = document.getElementById("fixture-content") || app;
 
   try {
-    // Busca os dados da partida com cache em tempo real
+    // Busca os dados da partida com sincronização instantânea em tempo real
+    const liveTtl = isSilentRefresh ? 0 : 0.2;
     const [fxResponse, eventsRes, statsRes, lineupsRes, predictionsRes, playersRes] = await Promise.allSettled([
-      apiGet("fixtures", { id: fixtureId }, 0.2),
-      apiGet("fixtures/events", { fixture: fixtureId }, 0.2),
-      apiGet("fixtures/statistics", { fixture: fixtureId }, 0.2),
-      apiGet("fixtures/lineups", { fixture: fixtureId }, 0.5),
+      apiGet("fixtures", { id: fixtureId }, liveTtl),
+      apiGet("fixtures/events", { fixture: fixtureId }, liveTtl),
+      apiGet("fixtures/statistics", { fixture: fixtureId }, liveTtl),
+      apiGet("fixtures/lineups", { fixture: fixtureId }, liveTtl),
       apiGet("predictions", { fixture: fixtureId }, 60),
-      apiGet("fixtures/players", { fixture: fixtureId }, 0.5)
+      apiGet("fixtures/players", { fixture: fixtureId }, liveTtl)
     ]);
 
     // Verifica novamente se o usuário ainda está nesta partida após as requisições assíncronas
