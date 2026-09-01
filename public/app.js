@@ -4686,8 +4686,24 @@ async function fetchLiveMatches(isForced = false) {
             const aGoals = f.goals.away ?? 0;
             const { homeProb, drawProb, awayProb } = calculateMatchProbability(f);
 
+            const leagueLogo = f.league?.logo;
+            const leagueName = formatTeamName(f.league?.name || "Competição");
+            const roundName = formatRoundName(f.league?.round);
+
             return `
-              <a class="match-row-futuristic" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
+              <a class="match-row-futuristic" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo de ${escapeHtml(leagueName)}">
+                <!-- Cabeçalho da Competição (Logo + Nome + Rodada) -->
+                <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;margin-bottom:10px;width:100%;">
+                  <div style="display:flex;align-items:center;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    ${leagueLogo ? `<img src="${leagueLogo}" alt="" style="width:18px;height:18px;object-fit:contain;" onerror="this.style.display='none'">` : ''}
+                    <span style="font-family:var(--font-mono);font-size:0.78rem;font-weight:700;color:var(--gold);">${escapeHtml(leagueName)}</span>
+                    ${roundName ? `<span style="color:var(--chalk-dim);font-size:0.72rem;">· ${escapeHtml(roundName)}</span>` : ''}
+                  </div>
+                  <span style="font-family:var(--font-mono);font-size:0.70rem;font-weight:700;color:var(--cyan);background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.25);padding:2px 8px;border-radius:4px;flex-shrink:0;">
+                    AO VIVO
+                  </span>
+                </div>
+
                 <!-- Confronto Simétrico dos Times e Placar -->
                 <div class="match-teams-score-row">
                   <!-- Mandante -->
@@ -4838,9 +4854,9 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     let matchStatsHtml = "";
 
     if (isLive) {
-      matchStatsHtml = renderLiveMatchStats(statsArr, fx, true);
+      matchStatsHtml = renderLiveMatchStats(statsArr, fx, true, events, fixturePlayersArr);
     } else if (isFinished) {
-      matchStatsHtml = renderLiveMatchStats(statsArr, fx, false);
+      matchStatsHtml = renderLiveMatchStats(statsArr, fx, false, events, fixturePlayersArr);
     } else {
       // Pré-Jogo (partida agendada/ainda não iniciada)
       try {
@@ -5095,25 +5111,12 @@ function renderPreMatchStatsComparison(statsA, statsB, fx) {
   `;
 }
 
-function renderLiveMatchStats(statsArr, fx, isLiveMatch = false) {
+function renderLiveMatchStats(statsArr, fx, isLiveMatch = false, events = [], fixturePlayersArr = []) {
   const isFinished = ["FT", "AET", "PEN", "PST", "CANC", "ABD", "AWD", "WO"].includes(fx?.fixture?.status?.short);
   const titleText = isLiveMatch ? "Estatísticas da Partida Ao Vivo" : isFinished ? "Estatísticas Finais da Partida" : "Estatísticas da Partida";
 
-  if (!statsArr || !Array.isArray(statsArr) || statsArr.length === 0) {
-    return `
-      <h2 class="section-title" style="display:flex;align-items:center;gap:8px;">
-        ${isLiveMatch ? '<span class="pulse-dot"></span>' : '📊'}
-        ${titleText}
-      </h2>
-      <div class="card" style="padding:22px;text-align:center;color:var(--chalk-dim);">
-        <p style="margin:0 0 6px 0;font-weight:700;color:var(--chalk);">${isLiveMatch ? `Partida em andamento (${escapeHtml(fx?.fixture?.status?.long || 'Ao Vivo')})` : 'Estatísticas do Confronto'}</p>
-        <span style="font-size:0.85rem;">${isLiveMatch ? 'Aguardando primeiros scouts ao vivo da partida (Posse de bola, finalizações, faltas, escanteios)...' : 'Estatísticas detalhadas da partida não registradas pela organização.'}</span>
-      </div>
-    `;
-  }
-
-  const homeStats = statsArr.find(st => st.team?.id === fx?.teams?.home?.id) || statsArr[0] || { statistics: [] };
-  const awayStats = statsArr.find(st => st.team?.id === fx?.teams?.away?.id) || statsArr[1] || { statistics: [] };
+  const homeStats = (statsArr || []).find(st => st.team?.id === fx?.teams?.home?.id) || statsArr?.[0] || { statistics: [] };
+  const awayStats = (statsArr || []).find(st => st.team?.id === fx?.teams?.away?.id) || statsArr?.[1] || { statistics: [] };
 
   const homeList = homeStats.statistics || [];
   const awayList = awayStats.statistics || [];
@@ -5137,43 +5140,100 @@ function renderLiveMatchStats(statsArr, fx, isLiveMatch = false) {
     { type: "Passes %", label: "Precisão de Passe" }
   ];
 
-  const validRows = [];
+  let validRows = [];
 
-  statCategories.forEach(cat => {
-    const stHome = homeList.find(s => String(s.type || "").toLowerCase() === cat.type.toLowerCase());
-    const stAway = awayList.find(s => String(s.type || "").toLowerCase() === cat.type.toLowerCase());
+  if (homeList.length > 0 || awayList.length > 0) {
+    statCategories.forEach(cat => {
+      const stHome = homeList.find(s => String(s.type || "").toLowerCase() === cat.type.toLowerCase());
+      const stAway = awayList.find(s => String(s.type || "").toLowerCase() === cat.type.toLowerCase());
 
-    const vaRaw = stHome?.value;
-    const vbRaw = stAway?.value;
+      const vaRaw = stHome?.value;
+      const vbRaw = stAway?.value;
 
-    if (vaRaw === null && vbRaw === null && !isLiveMatch) return;
+      if (vaRaw === null && vbRaw === null && !isLiveMatch) return;
 
-    let va = vaRaw ?? (cat.type.includes("%") ? "0%" : 0);
-    let vb = vbRaw ?? (cat.type.includes("%") ? "0%" : 0);
+      let va = vaRaw ?? (cat.type.includes("%") ? "0%" : 0);
+      let vb = vbRaw ?? (cat.type.includes("%") ? "0%" : 0);
 
-    let numA = parseFloat(String(va).replace("%", "")) || 0;
-    let numB = parseFloat(String(vb).replace("%", "")) || 0;
-    let max = Math.max(numA, numB, 1);
+      let numA = parseFloat(String(va).replace("%", "")) || 0;
+      let numB = parseFloat(String(vb).replace("%", "")) || 0;
+      let max = Math.max(numA, numB, 1);
 
-    const aWins = numA > numB;
-    const bWins = numB > numA;
+      const aWins = numA > numB;
+      const bWins = numB > numA;
 
-    validRows.push(`
-      <div class="fifa-stat-row">
-        <div class="fifa-val a ${aWins ? 'highlight' : ''}">
-          <span>${va}</span>
+      validRows.push(`
+        <div class="fifa-stat-row">
+          <div class="fifa-val a ${aWins ? 'highlight' : ''}">
+            <span>${va}</span>
+          </div>
+          <div class="fifa-label">${escapeHtml(cat.label)}</div>
+          <div class="fifa-val b ${bWins ? 'highlight' : ''}">
+            <span>${vb}</span>
+          </div>
         </div>
-        <div class="fifa-label">${escapeHtml(cat.label)}</div>
-        <div class="fifa-val b ${bWins ? 'highlight' : ''}">
-          <span>${vb}</span>
+        <div style="position:relative;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin:0 12px 6px;">
+          <div style="position:absolute;right:50%;height:100%;background:var(--gold);width:${(numA / max) * 50}%;"></div>
+          <div style="position:absolute;left:50%;height:100%;background:var(--terracotta);width:${(numB / max) * 50}%;"></div>
         </div>
-      </div>
-      <div style="position:relative;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin:0 12px 6px;">
-        <div style="position:absolute;right:50%;height:100%;background:var(--gold);width:${(numA / max) * 50}%;"></div>
-        <div style="position:absolute;left:50%;height:100%;background:var(--terracotta);width:${(numB / max) * 50}%;"></div>
-      </div>
-    `);
-  });
+      `);
+    });
+  }
+
+  // Se o endpoint fixtures/statistics da API ainda não populou os scouts (comum nos primeiros minutos),
+  // calcula os scouts ao vivo diretamente dos eventos do jogo e jogadores!
+  if (!validRows.length && (events.length > 0 || (isLiveMatch && fx?.fixture?.status?.elapsed))) {
+    let homeYellows = 0, awayYellows = 0;
+    let homeReds = 0, awayReds = 0;
+    let homeSubs = 0, awaySubs = 0;
+    let homeGoalsCount = 0, awayGoalsCount = 0;
+
+    (events || []).forEach(e => {
+      const isHome = e.team?.id === fx?.teams?.home?.id;
+      if (e.type === "Goal" && e.detail !== "Missed Penalty") {
+        if (isHome) homeGoalsCount++; else awayGoalsCount++;
+      } else if (e.type === "Card") {
+        if (e.detail === "Yellow Card") {
+          if (isHome) homeYellows++; else awayYellows++;
+        } else if (e.detail === "Red Card" || e.detail === "Yellow Red") {
+          if (isHome) homeReds++; else awayReds++;
+        }
+      } else if (e.type === "subst") {
+        if (isHome) homeSubs++; else awaySubs++;
+      }
+    });
+
+    const fallbackStats = [
+      { label: "Gols Marcados", va: fx?.goals?.home ?? homeGoalsCount, vb: fx?.goals?.away ?? awayGoalsCount },
+      { label: "Cartões Amarelos", va: homeYellows, vb: awayYellows },
+      { label: "Cartões Vermelhos", va: homeReds, vb: awayReds },
+      { label: "Substituições", va: homeSubs, vb: awaySubs }
+    ];
+
+    validRows = fallbackStats.map(st => {
+      const numA = Number(st.va) || 0;
+      const numB = Number(st.vb) || 0;
+      const max = Math.max(numA, numB, 1);
+      const aWins = numA > numB;
+      const bWins = numB > numA;
+
+      return `
+        <div class="fifa-stat-row">
+          <div class="fifa-val a ${aWins ? 'highlight' : ''}">
+            <span>${st.va}</span>
+          </div>
+          <div class="fifa-label">${escapeHtml(st.label)}</div>
+          <div class="fifa-val b ${bWins ? 'highlight' : ''}">
+            <span>${st.vb}</span>
+          </div>
+        </div>
+        <div style="position:relative;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin:0 12px 6px;">
+          <div style="position:absolute;right:50%;height:100%;background:var(--gold);width:${(numA / max) * 50}%;"></div>
+          <div style="position:absolute;left:50%;height:100%;background:var(--terracotta);width:${(numB / max) * 50}%;"></div>
+        </div>
+      `;
+    });
+  }
 
   if (!validRows.length) {
     return `
