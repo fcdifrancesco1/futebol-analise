@@ -2973,6 +2973,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
       const isDefender = rawPos.includes("defender") || rawPos === "d" || specificRole.includes("Zagueiro") || specificRole.includes("Lateral");
       const isMidfielder = rawPos.includes("midfielder") || rawPos === "m" || specificRole.includes("Volante") || specificRole.includes("Meia");
       const isAttacker = rawPos.includes("attacker") || rawPos === "f" || rawPos === "a" || specificRole.includes("Centroavante") || specificRole.includes("Ponta") || specificRole.includes("Atacante") || (!isGK && !isDefender && !isMidfielder);
+      const position = isGK ? "Goalkeeper" : isDefender ? "Defender" : isMidfielder ? "Midfielder" : "Attacker";
 
       // Top 4 cards por posição (100% nativos da API)
       let topCardsHtml = "";
