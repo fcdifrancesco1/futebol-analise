@@ -1275,7 +1275,7 @@ async function loadTeamNews(teamName, containerId) {
     container.innerHTML = `
       <div class="news-grid">
         ${items.map(item => `
-          <a class="news-card-item" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" title="Ler matéria completa no portal ${escapeHtml(item.source)}">
+          <a class="news-card-item" href="${sanitizeUrl(item.link)}" target="_blank" rel="noopener noreferrer" title="Ler matéria completa no portal ${escapeHtml(item.source)}">
             <div class="news-title">${escapeHtml(item.title)}</div>
             <div class="news-meta-row">
               <span class="news-source-badge">${escapeHtml(item.source)}</span>
