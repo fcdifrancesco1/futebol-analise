@@ -4831,16 +4831,25 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     const homeGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.home.id);
     const awayGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.away.id);
 
-    // Buscar estatísticas pré-jogo se a partida ainda não começou
-    let preMatchSection = "";
-    if (statsArr.length < 2) {
+    // Estatísticas da Partida:
+    // 1. Se o jogo NÃO começou (!isLive && !isFinished): exibe estatísticas Pré-Jogo do Campeonato
+    // 2. Se o jogo está AO VIVO (isLive): exibe estritamente as estatísticas Ao Vivo em Tempo Real
+    // 3. Se o jogo está ENCERRADO (isFinished): exibe as estatísticas Finais do Confronto
+    let matchStatsHtml = "";
+
+    if (isLive) {
+      matchStatsHtml = renderLiveMatchStats(statsArr, fx, true);
+    } else if (isFinished) {
+      matchStatsHtml = renderLiveMatchStats(statsArr, fx, false);
+    } else {
+      // Pré-Jogo (partida agendada/ainda não iniciada)
       try {
         const [statsA, statsB] = await Promise.all([
           apiGet("teams/statistics", { league: fx.league.id, season: fx.league.season, team: fx.teams.home.id }, 30),
           apiGet("teams/statistics", { league: fx.league.id, season: fx.league.season, team: fx.teams.away.id }, 30)
         ]);
         if (statsA?.team && statsB?.team) {
-          preMatchSection = renderPreMatchStatsComparison(statsA, statsB, fx);
+          matchStatsHtml = renderPreMatchStatsComparison(statsA, statsB, fx);
         }
       } catch { /* fallback */ }
     }
@@ -4941,13 +4950,13 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         ` : ""}
       </div>
 
-      <!-- Estatísticas da Partida (Pré-Jogo ou Ao Vivo) -->
+      <!-- Estatísticas da Partida (Pré-Jogo, Ao Vivo ou Finais) -->
       <div id="fixture-stats-section" style="margin-bottom:24px;">
-        ${statsArr.length >= 2 ? renderLiveMatchStats(statsArr, fx) : (preMatchSection || `
+        ${matchStatsHtml || `
           <div class="card" style="text-align:center;padding:24px;color:var(--chalk-dim);">
             <p style="margin:0;">Estatísticas detalhadas da partida serão disponibilizadas assim que a bola rolar.</p>
           </div>
-        `)}
+        `}
       </div>
 
       <!-- Banner de Escalação do Usuário -->
@@ -5086,49 +5095,61 @@ function renderPreMatchStatsComparison(statsA, statsB, fx) {
   `;
 }
 
-function renderLiveMatchStats(statsArr, fx) {
-  if (!statsArr || statsArr.length < 2) return "";
+function renderLiveMatchStats(statsArr, fx, isLiveMatch = false) {
+  const isFinished = ["FT", "AET", "PEN", "PST", "CANC", "ABD", "AWD", "WO"].includes(fx?.fixture?.status?.short);
+  const titleText = isLiveMatch ? "Estatísticas da Partida Ao Vivo" : isFinished ? "Estatísticas Finais da Partida" : "Estatísticas da Partida";
 
-  const [homeStats, awayStats] = statsArr;
-  const statMap = {
-    "Ball Possession": "Posse de Bola",
-    "Total Shots": "Finalizações Totais",
-    "Shots on Goal": "Chutes no Gol",
-    "Shots off Goal": "Chutes para Fora",
-    "Blocked Shots": "Chutes Bloqueados",
-    "Shots insidebox": "Finalizações na Área",
-    "Shots outsidebox": "Finalizações Fora da Área",
-    "Corner Kicks": "Escanteios",
-    "Offsides": "Impedimentos",
-    "Fouls": "Faltas Cometidas",
-    "Yellow Cards": "Cartões Amarelos",
-    "Red Cards": "Cartões Vermelhos",
-    "Goalkeeper Saves": "Defesas do Goleiro",
-    "Total passes": "Passes Totais",
-    "Passes accurate": "Passes Certos",
-    "Passes %": "Precisão de Passe"
-  };
+  if (!statsArr || !Array.isArray(statsArr) || statsArr.length === 0) {
+    return `
+      <h2 class="section-title" style="display:flex;align-items:center;gap:8px;">
+        ${isLiveMatch ? '<span class="pulse-dot"></span>' : '📊'}
+        ${titleText}
+      </h2>
+      <div class="card" style="padding:22px;text-align:center;color:var(--chalk-dim);">
+        <p style="margin:0 0 6px 0;font-weight:700;color:var(--chalk);">${isLiveMatch ? `Partida em andamento (${escapeHtml(fx?.fixture?.status?.long || 'Ao Vivo')})` : 'Estatísticas do Confronto'}</p>
+        <span style="font-size:0.85rem;">${isLiveMatch ? 'Aguardando primeiros scouts ao vivo da partida (Posse de bola, finalizações, faltas, escanteios)...' : 'Estatísticas detalhadas da partida não registradas pela organização.'}</span>
+      </div>
+    `;
+  }
 
-  const filteredStats = homeStats.statistics.filter((s, i) => {
-    const rawLabel = String(s.type || "").trim();
-    if (rawLabel === "goals_prevented") return false;
-    if (rawLabel === "expected_goals") return false;
-    if (!statMap[rawLabel]) return false;
-    
-    let va = s.value;
-    let vb = awayStats.statistics[i]?.value;
-    if (va === null && vb === null) return false;
-    return true;
-  });
+  const homeStats = statsArr.find(st => st.team?.id === fx?.teams?.home?.id) || statsArr[0] || { statistics: [] };
+  const awayStats = statsArr.find(st => st.team?.id === fx?.teams?.away?.id) || statsArr[1] || { statistics: [] };
 
-  if (!filteredStats.length) return "";
+  const homeList = homeStats.statistics || [];
+  const awayList = awayStats.statistics || [];
 
-  const rows = filteredStats.map((s) => {
-    const origIdx = homeStats.statistics.indexOf(s);
-    const rawLabel = s.type;
-    const label = statMap[rawLabel] || rawLabel;
-    let va = s.value ?? 0;
-    let vb = awayStats.statistics[origIdx]?.value ?? 0;
+  const statCategories = [
+    { type: "Ball Possession", label: "Posse de Bola" },
+    { type: "Total Shots", label: "Finalizações Totais" },
+    { type: "Shots on Goal", label: "Chutes no Gol" },
+    { type: "Shots off Goal", label: "Chutes para Fora" },
+    { type: "Blocked Shots", label: "Chutes Bloqueados" },
+    { type: "Shots insidebox", label: "Finalizações na Área" },
+    { type: "Shots outsidebox", label: "Finalizações Fora da Área" },
+    { type: "Corner Kicks", label: "Escanteios" },
+    { type: "Offsides", label: "Impedimentos" },
+    { type: "Fouls", label: "Faltas Cometidas" },
+    { type: "Yellow Cards", label: "Cartões Amarelos" },
+    { type: "Red Cards", label: "Cartões Vermelhos" },
+    { type: "Goalkeeper Saves", label: "Defesas do Goleiro" },
+    { type: "Total passes", label: "Passes Totais" },
+    { type: "Passes accurate", label: "Passes Certos" },
+    { type: "Passes %", label: "Precisão de Passe" }
+  ];
+
+  const validRows = [];
+
+  statCategories.forEach(cat => {
+    const stHome = homeList.find(s => String(s.type || "").toLowerCase() === cat.type.toLowerCase());
+    const stAway = awayList.find(s => String(s.type || "").toLowerCase() === cat.type.toLowerCase());
+
+    const vaRaw = stHome?.value;
+    const vbRaw = stAway?.value;
+
+    if (vaRaw === null && vbRaw === null && !isLiveMatch) return;
+
+    let va = vaRaw ?? (cat.type.includes("%") ? "0%" : 0);
+    let vb = vbRaw ?? (cat.type.includes("%") ? "0%" : 0);
 
     let numA = parseFloat(String(va).replace("%", "")) || 0;
     let numB = parseFloat(String(vb).replace("%", "")) || 0;
@@ -5137,12 +5158,12 @@ function renderLiveMatchStats(statsArr, fx) {
     const aWins = numA > numB;
     const bWins = numB > numA;
 
-    return `
+    validRows.push(`
       <div class="fifa-stat-row">
         <div class="fifa-val a ${aWins ? 'highlight' : ''}">
           <span>${va}</span>
         </div>
-        <div class="fifa-label">${escapeHtml(label)}</div>
+        <div class="fifa-label">${escapeHtml(cat.label)}</div>
         <div class="fifa-val b ${bWins ? 'highlight' : ''}">
           <span>${vb}</span>
         </div>
@@ -5151,23 +5172,35 @@ function renderLiveMatchStats(statsArr, fx) {
         <div style="position:absolute;right:50%;height:100%;background:var(--gold);width:${(numA / max) * 50}%;"></div>
         <div style="position:absolute;left:50%;height:100%;background:var(--terracotta);width:${(numB / max) * 50}%;"></div>
       </div>
+    `);
+  });
+
+  if (!validRows.length) {
+    return `
+      <h2 class="section-title" style="display:flex;align-items:center;gap:8px;">
+        ${isLiveMatch ? '<span class="pulse-dot"></span>' : '📊'}
+        ${titleText}
+      </h2>
+      <div class="card" style="padding:22px;text-align:center;color:var(--chalk-dim);">
+        <p style="margin:0 0 6px 0;font-weight:700;color:var(--chalk);">${isLiveMatch ? `Partida em andamento (${escapeHtml(fx?.fixture?.status?.long || 'Ao Vivo')})` : 'Estatísticas da Partida'}</p>
+        <span style="font-size:0.85rem;">${isLiveMatch ? 'Aguardando primeiros scouts ao vivo da partida (Posse de bola, finalizações, faltas, escanteios)...' : 'Estatísticas detalhadas da partida não registradas pela organização.'}</span>
+      </div>
     `;
-  }).join("");
+  }
 
   return `
-    <h2 class="section-title">Estatísticas do Jogo em Tempo Real</h2>
+    <h2 class="section-title" style="display:flex;align-items:center;gap:8px;">
+      ${isLiveMatch ? '<span class="pulse-dot"></span>' : '📊'}
+      ${titleText}
+    </h2>
     <div class="card" style="padding:14px 10px;">
       <div class="fifa-stats-center" style="background:transparent;border:none;">
-        ${rows}
+        ${validRows.join("")}
       </div>
     </div>
   `;
 }
 
-
-// ============================================================
-// Modal de Desempenho do Jogador na Partida & Mapa de Calor
-// ============================================================
 
 function openPlayerMatchModal(playerId, teamId, leagueId, season, pData, pObj, teamObj, fx) {
   let backdrop = document.getElementById("player-match-modal-backdrop");
