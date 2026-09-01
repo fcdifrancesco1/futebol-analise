@@ -1038,6 +1038,15 @@ function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function sanitizeUrl(url) {
+  if (!url || typeof url !== "string") return "#";
+  const trimmed = url.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return escapeHtml(trimmed);
+  }
+  return "#";
+}
+
 function formatTeamName(name) {
   if (!name) return "";
   return String(name)
@@ -4845,8 +4854,8 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
 
           if (sqHome?.length && sqAway?.length) {
             lineupsArr = [
-              buildLineupFromSquadAndEvents(fx.teams.home.id, fx.teams.home.name, sqHome, events),
-              buildLineupFromSquadAndEvents(fx.teams.away.id, fx.teams.away.name, sqAway, events)
+              buildLineupFromSquadAndEvents(fx.teams.home.id, fx.teams.home.name, sqHome, events, fx.teams.home.logo),
+              buildLineupFromSquadAndEvents(fx.teams.away.id, fx.teams.away.name, sqAway, events, fx.teams.away.logo)
             ];
           }
         } catch { /* squad fallback */ }
@@ -5688,7 +5697,9 @@ function drawPlayerHeatmap(canvas, position, st, p) {
 }
 
 
-function buildLineupFromSquadAndEvents(teamId, teamName, squadPlayers, events = []) {
+
+
+function buildLineupFromSquadAndEvents(teamId, teamName, squadPlayers, events = [], teamLogo = "") {
   const activePlayerIds = new Set();
 
   (events || []).forEach(e => {
@@ -5728,6 +5739,7 @@ function buildLineupFromSquadAndEvents(teamId, teamName, squadPlayers, events = 
     currentCounts[s.player.pos] = (currentCounts[s.player.pos] || 0) + 1;
   });
 
+  // Completa o time titular com 11 jogadores respeitando posições
   squad.forEach(p => {
     if (seenIds.has(p.id)) return;
     const posLetter = (p.position || 'Midfielder').charAt(0).toUpperCase();
@@ -5752,8 +5764,14 @@ function buildLineupFromSquadAndEvents(teamId, teamName, squadPlayers, events = 
     }
   });
 
+  // Ordena os titulares: Goleiro (G) primeiro, depois Defensores (D), Meias (M) e Atacantes (F)
+  starters.sort((a, b) => {
+    const order = { G: 1, D: 2, M: 3, F: 4 };
+    return (order[a.player.pos] || 5) - (order[b.player.pos] || 5);
+  });
+
   return {
-    team: { id: teamId, name: teamName },
+    team: { id: teamId, name: teamName, logo: teamLogo },
     formation: "4-3-3",
     startXI: starters,
     substitutes: bench.slice(0, 12)
