@@ -2,14 +2,14 @@
 // Service Worker — FutStats PWA & Push Notifications
 // ============================================================
 
-const CACHE_NAME = "futstats-cache-v83";
+const CACHE_NAME = "futstats-cache-v84";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
   "/style.css",
-  "/style.css?v=83",
+  "/style.css?v=84",
   "/app.js",
-  "/app.js?v=83",
+  "/app.js?v=84",
   "/manifest.json",
   "/fundo.jpeg",
   "/icon-192.png",

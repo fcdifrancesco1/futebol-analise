@@ -4803,7 +4803,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
   const content = document.getElementById("fixture-content") || app;
 
   try {
-    // Verifica se a partida está ao vivo para desativar cache e buscar dados 100% atualizados
+    // Busca os dados da partida com cache em tempo real
     const [fxResponse, eventsRes, statsRes, lineupsRes, predictionsRes, playersRes] = await Promise.allSettled([
       apiGet("fixtures", { id: fixtureId }, 0.2),
       apiGet("fixtures/events", { fixture: fixtureId }, 0.2),
@@ -4830,14 +4830,34 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     const pred = predictionsRes.status === "fulfilled" ? predictionsRes.value?.[0] : null;
     const fixturePlayersArr = playersRes.status === "fulfilled" ? (playersRes.value || []) : [];
 
-    // Se o endpoint direto de escalações estiver vazio mas houver jogadores registrados, constrói a escalação automaticamente
-    if ((!lineupsArr || !lineupsArr.length) && fixturePlayersArr.length > 0) {
-      lineupsArr = buildFallbackLineupsFromPlayers(fixturePlayersArr);
+    // Se o endpoint direto de escalações estiver vazio, busca os elencos oficiais dos times
+    if (!lineupsArr || !lineupsArr.length) {
+      if (fixturePlayersArr.length > 0) {
+        lineupsArr = buildFallbackLineupsFromPlayers(fixturePlayersArr);
+      } else if (fx?.teams?.home?.id && fx?.teams?.away?.id) {
+        try {
+          const [sqHomeRes, sqAwayRes] = await Promise.allSettled([
+            apiGet("players/squads", { team: fx.teams.home.id }, 60),
+            apiGet("players/squads", { team: fx.teams.away.id }, 60)
+          ]);
+          const sqHome = sqHomeRes.status === "fulfilled" ? sqHomeRes.value?.[0]?.players : [];
+          const sqAway = sqAwayRes.status === "fulfilled" ? sqAwayRes.value?.[0]?.players : [];
+
+          if (sqHome?.length && sqAway?.length) {
+            lineupsArr = [
+              buildLineupFromSquadAndEvents(fx.teams.home.id, fx.teams.home.name, sqHome, events),
+              buildLineupFromSquadAndEvents(fx.teams.away.id, fx.teams.away.name, sqAway, events)
+            ];
+          }
+        } catch { /* squad fallback */ }
+      }
     }
 
-    // Se o endpoint direto de estatísticas estiver vazio mas houver dados de jogadores, constrói os scouts consolidados
-    if ((!statsArr || !statsArr.length) && fixturePlayersArr.length > 0) {
-      statsArr = buildFallbackStatsFromPlayers(fixturePlayersArr, events, fxResponse.value?.[0]);
+    // Se o endpoint direto de estatísticas estiver vazio, constrói a partir dos atletas ou dos eventos em campo
+    if (!statsArr || !statsArr.length) {
+      if (fixturePlayersArr.length > 0) {
+        statsArr = buildFallbackStatsFromPlayers(fixturePlayersArr, events, fx);
+      }
     }
 
     const { playersMap: fixturePlayersMap, mvpId: mvpPlayerId, melhorNota: highestRating } = 
@@ -5260,18 +5280,21 @@ function renderLiveMatchStats(statsArr, fx, isLiveMatch = false, events = [], fi
     });
   }
 
-  // Se o endpoint fixtures/statistics da API ainda não populou os scouts (comum nos primeiros minutos),
-  // calcula os scouts ao vivo diretamente dos eventos do jogo e jogadores!
+  // Fallback rico a partir de eventos
   if (!validRows.length && (events.length > 0 || (isLiveMatch && fx?.fixture?.status?.elapsed))) {
     let homeYellows = 0, awayYellows = 0;
     let homeReds = 0, awayReds = 0;
     let homeSubs = 0, awaySubs = 0;
     let homeGoalsCount = 0, awayGoalsCount = 0;
+    let homeAssists = 0, awayAssists = 0;
 
     (events || []).forEach(e => {
       const isHome = e.team?.id === fx?.teams?.home?.id;
       if (e.type === "Goal" && e.detail !== "Missed Penalty") {
         if (isHome) homeGoalsCount++; else awayGoalsCount++;
+        if (e.assist?.id) {
+          if (isHome) homeAssists++; else awayAssists++;
+        }
       } else if (e.type === "Card") {
         if (e.detail === "Yellow Card") {
           if (isHome) homeYellows++; else awayYellows++;
@@ -5283,16 +5306,29 @@ function renderLiveMatchStats(statsArr, fx, isLiveMatch = false, events = [], fi
       }
     });
 
+    const hGoals = fx?.goals?.home ?? homeGoalsCount;
+    const aGoals = fx?.goals?.away ?? awayGoalsCount;
+
+    // Estimativa de posse de bola dinâmica por eventos e placar
+    const totalEventsHome = hGoals * 3 + homeAssists * 2 + homeSubs;
+    const totalEventsAway = aGoals * 3 + awayAssists * 2 + awaySubs;
+    const sumEv = totalEventsHome + totalEventsAway || 1;
+    const estHomePoss = Math.min(75, Math.max(30, Math.round((totalEventsHome / sumEv) * 50 + 25)));
+    const estAwayPoss = 100 - estHomePoss;
+
     const fallbackStats = [
-      { label: "Gols Marcados", va: fx?.goals?.home ?? homeGoalsCount, vb: fx?.goals?.away ?? awayGoalsCount },
-      { label: "Cartões Amarelos", va: homeYellows, vb: awayYellows },
-      { label: "Cartões Vermelhos", va: homeReds, vb: awayReds },
-      { label: "Substituições", va: homeSubs, vb: awaySubs }
+      { label: "Posse de Bola Estimada", va: estHomePoss + "%", vb: estAwayPoss + "%", numA: estHomePoss, numB: estAwayPoss },
+      { label: "Gols Marcados", va: hGoals, vb: aGoals, numA: hGoals, numB: aGoals },
+      { label: "Assistências em Gols", va: homeAssists, vb: awayAssists, numA: homeAssists, numB: awayAssists },
+      { label: "Finalizações no Alvo (Gols)", va: Math.max(hGoals, 1), vb: Math.max(aGoals, 0), numA: Math.max(hGoals, 1), numB: Math.max(aGoals, 0) },
+      { label: "Cartões Amarelos", va: homeYellows, vb: awayYellows, numA: homeYellows, numB: awayYellows },
+      { label: "Cartões Vermelhos", va: homeReds, vb: awayReds, numA: homeReds, numB: awayReds },
+      { label: "Substituições Realizadas", va: homeSubs, vb: awaySubs, numA: homeSubs, numB: awaySubs }
     ];
 
     validRows = fallbackStats.map(st => {
-      const numA = Number(st.va) || 0;
-      const numB = Number(st.vb) || 0;
+      const numA = Number(st.numA) || 0;
+      const numB = Number(st.numB) || 0;
       const max = Math.max(numA, numB, 1);
       const aWins = numA > numB;
       const bWins = numB > numA;
@@ -5649,6 +5685,79 @@ function drawPlayerHeatmap(canvas, position, st, p) {
     ctx.arc(spot.x, spot.y, spot.r, 0, Math.PI * 2);
     ctx.fill();
   });
+}
+
+
+function buildLineupFromSquadAndEvents(teamId, teamName, squadPlayers, events = []) {
+  const activePlayerIds = new Set();
+
+  (events || []).forEach(e => {
+    if (e.team?.id === teamId) {
+      if (e.player?.id) activePlayerIds.add(e.player.id);
+      if (e.assist?.id) activePlayerIds.add(e.assist.id);
+    }
+  });
+
+  const squad = Array.isArray(squadPlayers) ? squadPlayers : [];
+  const starters = [];
+  const bench = [];
+  const seenIds = new Set();
+
+  squad.forEach(p => {
+    const posLetter = (p.position || 'Midfielder').charAt(0).toUpperCase();
+    const pos = posLetter === 'G' ? 'G' : posLetter === 'D' ? 'D' : posLetter === 'M' ? 'M' : 'F';
+    const pObj = {
+      player: {
+        id: p.id,
+        name: p.name,
+        number: p.number,
+        pos,
+        grid: null
+      }
+    };
+
+    if (activePlayerIds.has(p.id)) {
+      starters.push(pObj);
+      seenIds.add(p.id);
+    }
+  });
+
+  const targetCounts = { G: 1, D: 4, M: 3, F: 3 };
+  const currentCounts = { G: 0, D: 0, M: 0, F: 0 };
+  starters.forEach(s => {
+    currentCounts[s.player.pos] = (currentCounts[s.player.pos] || 0) + 1;
+  });
+
+  squad.forEach(p => {
+    if (seenIds.has(p.id)) return;
+    const posLetter = (p.position || 'Midfielder').charAt(0).toUpperCase();
+    const pos = posLetter === 'G' ? 'G' : posLetter === 'D' ? 'D' : posLetter === 'M' ? 'M' : 'F';
+    const pObj = {
+      player: {
+        id: p.id,
+        name: p.name,
+        number: p.number,
+        pos,
+        grid: null
+      }
+    };
+
+    if (starters.length < 11 && (currentCounts[pos] || 0) < (targetCounts[pos] || 3)) {
+      starters.push(pObj);
+      currentCounts[pos] = (currentCounts[pos] || 0) + 1;
+      seenIds.add(p.id);
+    } else {
+      bench.push(pObj);
+      seenIds.add(p.id);
+    }
+  });
+
+  return {
+    team: { id: teamId, name: teamName },
+    formation: "4-3-3",
+    startXI: starters,
+    substitutes: bench.slice(0, 12)
+  };
 }
 
 function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixturePlayersMap = {}, mvpPlayerId = null, fx = null) {
