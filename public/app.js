@@ -3426,48 +3426,62 @@ async function renderTeam(teamId, leagueId, season) {
   const content = document.getElementById("team-content");
 
   try {
-    const [stats, recentFixtures, teamSeasonFixtures, nextFixtures, squadResp, pPage1, pPage2] = await Promise.all([
-      apiGet("teams/statistics", { league: leagueId, season, team: teamId }, 5),
-      apiGet("fixtures", { team: teamId, last: 5 }, 5),
-      apiGet("fixtures", { team: teamId, season, league: leagueId }, 5).catch(() => []),
+    // Busca estatísticas gerais completas de TODAS as competições da temporada (sem filtrar league)
+    const [teamInfoResp, recentFixtures, allSeasonFixtures, nextFixtures, squadResp, pPage1, pPage2] = await Promise.all([
+      apiGet("teams", { id: teamId }, 30).catch(() => []),
+      apiGet("fixtures", { team: teamId, last: 5 }, 5).catch(() => []),
+      apiGet("fixtures", { team: teamId, season: season }, 10).catch(() => []),
       apiGet("fixtures", { team: teamId, next: 5 }, 5).catch(() => []),
       apiGet("players/squads", { team: teamId }, 30).catch(() => []),
       apiGet("players", { team: teamId, season: season, page: 1 }, 30).catch(() => []),
       apiGet("players", { team: teamId, season: season, page: 2 }, 30).catch(() => [])
     ]);
 
-    if (!stats || !stats.team) {
-      content.innerHTML = errorBox("Sem estatísticas para esse time nessa temporada.");
-      return;
-    }
-
-    const t = stats.team;
+    const t = teamInfoResp?.[0]?.team || { id: teamId, name: "Clube", logo: `https://media.api-sports.io/football/teams/${teamId}.png` };
     const teamFormattedName = formatTeamName(t.name);
-    const finishedSeason = Array.isArray(teamSeasonFixtures) ? teamSeasonFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short)) : [];
+    
+    // Filtrar todos os jogos finalizados do clube na temporada (Brasileirão, Copa do Brasil, Estaduais, Continentais)
+    const finishedSeason = Array.isArray(allSeasonFixtures)
+      ? allSeasonFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short))
+      : [];
 
-    let totalPlayed = stats.fixtures?.played?.total || 0;
-    let totalWins = stats.fixtures?.wins?.total || 0;
-    let totalDraws = stats.fixtures?.draws?.total || 0;
-    let totalLoses = stats.fixtures?.loses?.total || 0;
-    let gfTotal = stats.goals?.for?.total?.total || 0;
-    let gaTotal = stats.goals?.against?.total?.total || 0;
-    let gfAvg = parseFloat(stats.goals?.for?.average?.total) || 0;
-    let gaAvg = parseFloat(stats.goals?.against?.average?.total) || 0;
-    let csTotal = stats.clean_sheet?.total || 0;
+    let totalWins = 0, totalDraws = 0, totalLoses = 0;
+    let gfTotal = 0, gaTotal = 0, csTotal = 0;
+    let winsHome = 0, playedHome = 0, winsAway = 0, playedAway = 0;
 
-    let winsHome = stats.fixtures?.wins?.home || 0;
-    let playedHome = stats.fixtures?.played?.home || 0;
-    let winsAway = stats.fixtures?.wins?.away || 0;
-    let playedAway = stats.fixtures?.played?.away || 0;
+    finishedSeason.forEach(f => {
+      const isHome = f.teams?.home?.id === teamId;
+      const myGoals = isHome ? (f.goals?.home ?? 0) : (f.goals?.away ?? 0);
+      const oppGoals = isHome ? (f.goals?.away ?? 0) : (f.goals?.home ?? 0);
 
-    if (finishedSeason.length > totalPlayed) {
-      totalPlayed = finishedSeason.length;
-    }
+      gfTotal += myGoals;
+      gaTotal += oppGoals;
 
+      if (oppGoals === 0) csTotal++;
+
+      if (isHome) {
+        playedHome++;
+        if (myGoals > oppGoals) { totalWins++; winsHome++; }
+        else if (myGoals === oppGoals) { totalDraws++; }
+        else { totalLoses++; }
+      } else {
+        playedAway++;
+        if (myGoals > oppGoals) { totalWins++; winsAway++; }
+        else if (myGoals === oppGoals) { totalDraws++; }
+        else { totalLoses++; }
+      }
+    });
+
+    const totalPlayed = finishedSeason.length;
+    const points = (totalWins * 3) + totalDraws;
+    const maxPoints = totalPlayed * 3;
+    const winPct = maxPoints ? Math.round((points / maxPoints) * 100) : 0;
+    const gfAvg = totalPlayed ? (gfTotal / totalPlayed) : 0;
+    const gaAvg = totalPlayed ? (gaTotal / totalPlayed) : 0;
     const goalDiff = gfTotal - gaTotal;
-    const winPct = totalPlayed ? Math.round((totalWins / totalPlayed) * 100) : 0;
     const homeWinPct = playedHome ? Math.round((winsHome / playedHome) * 100) : 0;
     const awayWinPct = playedAway ? Math.round((winsAway / playedAway) * 100) : 0;
+
     const isFav = state.favoriteTeams.some(fav => fav.id === teamId);
 
     // Mapear todas as estatísticas dos jogadores da temporada (todas as competições agregadas)
@@ -3485,7 +3499,7 @@ async function renderTeam(teamId, leagueId, season) {
 
     const squadPlayers = squadResp?.[0]?.players || [];
 
-    // Cruzamento rico com agregação de todas as competições da temporada
+    // Cruzamento rico com agregação de todas as competições da temporada para os atletas
     const enrichedRoster = squadPlayers.map(p => {
       const pStatsItem = playerStatsMap.get(p.id);
       const stList = pStatsItem?.statistics || [];
@@ -3530,12 +3544,14 @@ async function renderTeam(teamId, leagueId, season) {
       <div class="team-header" style="display:flex;align-items:center;gap:16px;margin-bottom:20px;background:var(--pitch-card);border:1px solid var(--pitch-border);padding:16px;border-radius:var(--radius-lg);flex-wrap:wrap;">
         <img src="${t.logo}" alt="" style="width:64px;height:64px;object-fit:contain;">
         <div>
-          <p class="page-eyebrow">${escapeHtml(league?.name || "")} · ${season}</p>
+          <p class="page-eyebrow">${escapeHtml(league?.name || "")} · Temporada ${season}</p>
           <h1 class="page-title" style="margin:0;">${escapeHtml(teamFormattedName)}</h1>
         </div>
-        <button class="btn ${isFav ? 'ghost' : ''} small" id="btn-toggle-team-fav" style="margin-left:auto;">
-          ${isFav ? '⭐ Seguindo Alertas' : '🔔 Seguir Time'}
-        </button>
+        <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
+          <button class="btn ${isFav ? 'ghost' : ''} small" id="btn-toggle-team-fav">
+            ${isFav ? '⭐ Seguindo Alertas' : '🔔 Seguir Time'}
+          </button>
+        </div>
       </div>
 
       <!-- ESTRUTURA EXPANDIDA DE 3 COLUNAS -->
@@ -3557,11 +3573,14 @@ async function renderTeam(teamId, leagueId, season) {
         <!-- COLUNA 2: ESTATÍSTICAS GERAIS SIMÉTRICAS (4x2) + ELENCO (CENTRO) -->
         <main class="team-main-col">
           
-          <!-- Estatísticas Gerais na Temporada (8 Cards em Grade Simétrica 4x2) -->
+          <!-- Estatísticas Gerais na Temporada (8 Cards em Grade Simétrica 4x2 Consolidando Todas as Competições) -->
           <div class="card" style="padding:16px;margin-bottom:20px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-              <span style="font-size:1.1rem;">📊</span>
-              <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Estatísticas Gerais na Temporada</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:1.1rem;">📊</span>
+                <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Estatísticas Gerais na Temporada</h3>
+              </div>
+              <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);">Todas as Competições</span>
             </div>
 
             <div class="team-top-stats-bar">
