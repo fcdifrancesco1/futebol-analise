@@ -438,10 +438,12 @@ async function apiGet(endpoint, params = {}, ttlMinutes = 15, retryCount = 1) {
       const stored = sessionStorage.getItem(cacheKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Date.now() - parsed.timestamp < ttlMinutes * 60 * 1000) {
+        if (parsed && parsed.data !== undefined && Date.now() - parsed.timestamp < ttlMinutes * 60 * 1000) {
           apiCache.set(cacheKey, parsed);
           markUpdated(true);
           return parsed.data;
+        } else if (parsed && parsed.data === undefined) {
+          sessionStorage.removeItem(cacheKey);
         }
       }
     } catch { /* sessionStorage */ }
@@ -477,14 +479,14 @@ async function apiGet(endpoint, params = {}, ttlMinutes = 15, retryCount = 1) {
       throw new Error(typeof firstErr === "string" ? firstErr : "A API retornou um erro.");
     }
 
-    if (ttlMinutes > 0) {
+    if (ttlMinutes > 0 && data.response !== undefined) {
       const cacheObj = { data: data.response, timestamp: Date.now() };
       apiCache.set(cacheKey, cacheObj);
       try { sessionStorage.setItem(cacheKey, JSON.stringify(cacheObj)); } catch { /* quota */ }
     }
 
     markUpdated(false);
-    return data.response;
+    return data.response !== undefined ? data.response : [];
   } catch (err) {
     if (retryCount > 0) {
       await new Promise(r => setTimeout(r, 1200));
@@ -1243,57 +1245,62 @@ async function router() {
   window.scrollTo(0, 0);
   updateCompareBadge();
 
-  if (parts[0] === "minha-escalacao") {
-    setActiveTab("mylineups");
-    if (parts[1] === "montar" && parts[2]) {
-      await renderLineupBuilder(Number(parts[2]), parts[3] ? Number(parts[3]) : undefined);
-    } else if (parts[1] === "comparar" && parts[2]) {
-      await renderLineupComparison(parts[2]);
+  try {
+    if (parts[0] === "minha-escalacao") {
+      setActiveTab("mylineups");
+      if (parts[1] === "montar" && parts[2]) {
+        await renderLineupBuilder(Number(parts[2]), parts[3] ? Number(parts[3]) : undefined);
+      } else if (parts[1] === "comparar" && parts[2]) {
+        await renderLineupComparison(parts[2]);
+      } else {
+        await renderMyLineups();
+      }
+    } else if (parts[0] === "jogos-do-dia") {
+      setActiveTab("today");
+      await renderMatchesOfDay(parts[1]);
+    } else if (parts[0] === "liga" && parts[1] && parts[3] === "jogos") {
+      setActiveTab("home");
+      await renderLeagueFixtures(Number(parts[1]), Number(parts[2]));
+    } else if (parts[0] === "liga" && parts[1] && parts[3] === "artilheiros") {
+      setActiveTab("home");
+      await renderLeagueTopStats(Number(parts[1]), Number(parts[2]));
+    } else if (parts[0] === "liga" && parts[1]) {
+      setActiveTab("home");
+      await renderLeague(Number(parts[1]), parts[2] ? Number(parts[2]) : undefined);
+    } else if (parts[0] === "time" && parts[1] && parts[2] && parts[4] === "elenco") {
+      setActiveTab("home");
+      await renderSquad(Number(parts[1]), Number(parts[2]), Number(parts[3]));
+    } else if (parts[0] === "time" && parts[1] && parts[2] && parts[4] === "lesoes") {
+      setActiveTab("home");
+      await renderInjuries(Number(parts[1]), Number(parts[2]), Number(parts[3]));
+    } else if (parts[0] === "time" && parts[1] && parts[2]) {
+      setActiveTab("home");
+      await renderTeam(Number(parts[1]), Number(parts[2]), parts[3] ? Number(parts[3]) : undefined);
+    } else if (parts[0] === "jogador" && parts[1]) {
+      setActiveTab("home");
+      await renderPlayer(Number(parts[1]), parts[2] ? Number(parts[2]) : undefined, parts[3] ? Number(parts[3]) : undefined, parts[4] ? Number(parts[4]) : undefined);
+    } else if (parts[0] === "jogo" && parts[1]) {
+      await renderFixture(Number(parts[1]));
+    } else if (parts[0] === "aovivo") {
+      setActiveTab("live");
+      await renderLive();
+    } else if (parts[0] === "meu-time" || parts[0] === "seu-time") {
+      setActiveTab("myteam");
+      await renderMyTeam();
+    } else if (parts[0] === "compare") {
+      setActiveTab("home");
+      renderCompare();
+    } else if (parts[0] === "ligas") {
+      setActiveTab("home");
+      renderHome();
     } else {
-      await renderMyLineups();
+      // Página padrão ao abrir o site e app: Jogos do Dia
+      setActiveTab("today");
+      await renderMatchesOfDay(parts[1]);
     }
-  } else if (parts[0] === "jogos-do-dia") {
-    setActiveTab("today");
-    await renderMatchesOfDay(parts[1]);
-  } else if (parts[0] === "liga" && parts[1] && parts[3] === "jogos") {
-    setActiveTab("home");
-    await renderLeagueFixtures(Number(parts[1]), Number(parts[2]));
-  } else if (parts[0] === "liga" && parts[1] && parts[3] === "artilheiros") {
-    setActiveTab("home");
-    await renderLeagueTopStats(Number(parts[1]), Number(parts[2]));
-  } else if (parts[0] === "liga" && parts[1]) {
-    setActiveTab("home");
-    await renderLeague(Number(parts[1]), parts[2] ? Number(parts[2]) : undefined);
-  } else if (parts[0] === "time" && parts[1] && parts[2] && parts[4] === "elenco") {
-    setActiveTab("home");
-    await renderSquad(Number(parts[1]), Number(parts[2]), Number(parts[3]));
-  } else if (parts[0] === "time" && parts[1] && parts[2] && parts[4] === "lesoes") {
-    setActiveTab("home");
-    await renderInjuries(Number(parts[1]), Number(parts[2]), Number(parts[3]));
-  } else if (parts[0] === "time" && parts[1] && parts[2]) {
-    setActiveTab("home");
-    await renderTeam(Number(parts[1]), Number(parts[2]), parts[3] ? Number(parts[3]) : undefined);
-  } else if (parts[0] === "jogador" && parts[1]) {
-    setActiveTab("home");
-    await renderPlayer(Number(parts[1]), parts[2] ? Number(parts[2]) : undefined, parts[3] ? Number(parts[3]) : undefined, parts[4] ? Number(parts[4]) : undefined);
-  } else if (parts[0] === "jogo" && parts[1]) {
-    await renderFixture(Number(parts[1]));
-  } else if (parts[0] === "aovivo") {
-    setActiveTab("live");
-    await renderLive();
-  } else if (parts[0] === "meu-time" || parts[0] === "seu-time") {
-    setActiveTab("myteam");
-    await renderMyTeam();
-  } else if (parts[0] === "compare") {
-    setActiveTab("home");
-    renderCompare();
-  } else if (parts[0] === "ligas") {
-    setActiveTab("home");
-    renderHome();
-  } else {
-    // Página padrão ao abrir o site e app: Jogos do Dia
-    setActiveTab("today");
-    await renderMatchesOfDay(parts[1]);
+  } catch (err) {
+    console.error("Router error:", err);
+    app.innerHTML = errorBox("Erro ao carregar os dados: " + (err.message || "Tente novamente."));
   }
 }
 
@@ -1908,8 +1915,8 @@ async function renderStandingsFromCache(leagueId, season) {
       apiGet("fixtures", { league: leagueId, season }, 5).catch(() => [])
     ]);
 
-    const officialStandings = standingsResp?.[0]?.league?.standings;
-    if (!officialStandings || !officialStandings.length) {
+    const officialStandings = Array.isArray(standingsResp?.[0]?.league?.standings) ? standingsResp[0].league.standings : [];
+    if (!officialStandings.length || !officialStandings[0]) {
       content.innerHTML = `<div class="card" style="text-align:center;color:var(--chalk-dim);padding:30px;">Sem tabela de pontos corridos nesta competição (formato mata-mata). Acesse a aba <strong>Jogos</strong> para ver os confrontos de Ida e Volta.</div>`;
       return;
     }
@@ -2329,8 +2336,8 @@ function renderGroupedFixtures(fixtures, isCup = false) {
     });
 
     const sortedDates = Object.keys(dateGroups).sort((a, b) => {
-      const tA = new Date(dateGroups[a][0].fixture.date).getTime();
-      const tB = new Date(dateGroups[b][0].fixture.date).getTime();
+      const tA = dateGroups[a]?.[0]?.fixture?.date ? new Date(dateGroups[a][0].fixture.date).getTime() : 0;
+      const tB = dateGroups[b]?.[0]?.fixture?.date ? new Date(dateGroups[b][0].fixture.date).getTime() : 0;
       return tA - tB;
     });
 
@@ -2446,8 +2453,8 @@ function renderTopList(list, metricFn, leagueId, season) {
   if (!list || !list.length) return `<p style="color:var(--chalk-dim);">Sem estatísticas disponíveis.</p>`;
   return `<div class="fixture-list">
     ${list.slice(0, 10).map((entry, i) => {
-      const p = entry.player;
-      const s = entry.statistics[0];
+      const p = entry.player || { id: 0, name: "-", photo: "" };
+      const s = (Array.isArray(entry.statistics) && entry.statistics[0]) ? entry.statistics[0] : { team: { id: 0, name: "-" }, goals: { total: 0, assists: 0 }, cards: { yellow: 0 } };
       return `
         <a class="fixture-row" href="#/jogador/${p.id}/${s.team.id}/${leagueId}/${season}" style="grid-template-columns:30px 40px 1fr auto;" title="Ver estatísticas do jogador">
           <span style="font-family:var(--font-mono);font-weight:700;color:var(--chalk-dim);">${i + 1}</span>
@@ -4069,8 +4076,9 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
     });
 
     const groupsHtml = Array.from(leagueMap.values()).map(group => {
-      const leagueInfo = group.league;
-      const matches = group.matches;
+      const leagueInfo = group?.league || {};
+      const matches = Array.isArray(group?.matches) ? group.matches : [];
+      if (!matches.length) return "";
       const season = matches[0]?.league?.season || defaultSeasonFor(leagueInfo);
 
       return `
@@ -5045,18 +5053,27 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;">
       ${lineupsArr.map((l, teamIdx) => {
         const isAway = teamIdx === 1;
+        const startXI = Array.isArray(l.startXI) ? l.startXI : [];
+        const substitutes = Array.isArray(l.substitutes) ? l.substitutes : [];
+        if (!startXI.length) {
+          return `
+            <div class="card" style="text-align:center;padding:24px;color:var(--chalk-dim);">
+              <p style="margin:0;">Escalação de ${escapeHtml(l.team?.name || 'Clube')} ainda não confirmada.</p>
+            </div>`;
+        }
+
         const formation = l.formation || "4-4-2";
         const formLines = formation.split("-").map(Number);
         
         const rows = [];
         let cursor = 1;
-        rows.push([l.startXI[0]]);
+        rows.push([startXI[0]]);
         formLines.forEach(count => {
-          rows.push(l.startXI.slice(cursor, cursor + count));
+          rows.push(startXI.slice(cursor, cursor + count));
           cursor += count;
         });
 
-        if (cursor < l.startXI.length) rows.push(l.startXI.slice(cursor));
+        if (cursor < startXI.length) rows.push(startXI.slice(cursor));
         const displayRows = isAway ? [...rows].reverse() : rows;
 
         return `
@@ -5123,7 +5140,7 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
 
             <p class="stat-label" style="margin-top:18px;">Banco de Reservas</p>
             <div class="substitutes-grid">
-              ${l.substitutes.map(s => {
+              ${(Array.isArray(l.substitutes) ? l.substitutes : []).map(s => {
                 const pid = s.player?.id;
                 const eventBadges = generateEventBadges(pid);
                 const entered = playerEventsMap[pid]?.subIn;
@@ -5316,10 +5333,10 @@ async function selectTeamForCompare(slot, teamId, name, logo) {
     const leagues = await apiGet("leagues", { team: teamId, current: "true" }, 60);
     let leagueId, leagueName, season;
     if (leagues && leagues.length) {
-      const domestic = leagues.find(l => l.league.type === "League") || leagues[0];
-      leagueId = domestic.league.id;
-      leagueName = domestic.league.name;
-      season = domestic.seasons?.[0]?.year;
+      const domestic = leagues.find(l => l.league?.type === "League") || leagues[0];
+      leagueId = domestic?.league?.id;
+      leagueName = domestic?.league?.name;
+      season = domestic?.seasons?.[0]?.year;
     }
     if (!leagueId) throw new Error("Liga ativa não localizada.");
     state.compareSlots[slot] = { teamId: Number(teamId), name, logo, leagueId, leagueName, season };
@@ -6542,16 +6559,19 @@ async function renderLineupComparison(lineupId) {
             </div>
             <div class="pitch-players-layer">
               ${(() => {
-                const offFormation = officialLineup.formation || "4-4-2";
+                const offFormation = officialLineup?.formation || "4-4-2";
                 const formLines = offFormation.split("-").map(Number);
+                const offStartXI = Array.isArray(officialLineup?.startXI) ? officialLineup.startXI : [];
                 const rows = [];
                 let offCursor = 1;
-                rows.push([officialLineup.startXI[0]]);
-                formLines.forEach(c => {
-                  rows.push(officialLineup.startXI.slice(offCursor, offCursor + c));
-                  offCursor += c;
-                });
-                if (offCursor < officialLineup.startXI.length) rows.push(officialLineup.startXI.slice(offCursor));
+                if (offStartXI.length > 0) {
+                  rows.push([offStartXI[0]]);
+                  formLines.forEach(c => {
+                    rows.push(offStartXI.slice(offCursor, offCursor + c));
+                    offCursor += c;
+                  });
+                  if (offCursor < offStartXI.length) rows.push(offStartXI.slice(offCursor));
+                }
 
                 const userStarterIds = new Set((startingXI || []).filter(Boolean).map(p => p.id));
 
