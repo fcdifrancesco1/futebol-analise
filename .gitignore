@@ -1,8 +1,34 @@
+# Dependências
 node_modules/
-.vercel
+
+# Vercel & Deploy
+.vercel/
+
+# Arquivos de Variáveis de Ambiente e Segredos (NUNCA COMMITTAR)
 .env
 .env.local
-.DS_Store
-*.log
-
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env*.local
 .env*
+*.env
+*.pem
+*.key
+
+# Ambientes virtuais Python
+docs/security-audit/.venv/
+docs/security-audit/venv/
+.venv/
+venv/
+
+# Sistema Operacional e Logs
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
