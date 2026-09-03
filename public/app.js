@@ -522,10 +522,13 @@ const NotificationManager = {
       if (savedTeams) state.favoriteTeams = JSON.parse(savedTeams);
       const savedPrefs = localStorage.getItem("ap_notif_prefs");
       if (savedPrefs) state.notificationPrefs = JSON.parse(savedPrefs);
+      const savedFixtures = localStorage.getItem("ap_fav_fixtures");
+      if (savedFixtures) state.favoriteFixtures = JSON.parse(savedFixtures);
     } catch { /* storage */ }
 
     this.updateBellUI();
     this.bindModalEvents();
+    this.startBackgroundPoller();
   },
 
   async isSubscribed() {
@@ -583,7 +586,7 @@ const NotificationManager = {
     toast("Notificações desativadas.");
   },
 
-  async saveToSupabase(endpoint, p256dh, auth) {
+  async saveToSupabase(endpoint, p256dh, auth, isTest = false) {
     const existingSentEvents = JSON.parse(localStorage.getItem("ap_sent_events") || "[]");
     const payload = {
       endpoint,
@@ -595,28 +598,219 @@ const NotificationManager = {
         favorite_fixtures: state.favoriteFixtures,
         sent_events: existingSentEvents
       },
+      test: isTest,
       updated_at: new Date().toISOString()
     };
 
+    // A. Envia para o endpoint backend próprio (/api/subscribe)
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?on_conflict=endpoint`, {
+      await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      console.warn("Aviso ao salvar via /api/subscribe:", err);
+    }
+
+    // B. Sincronização direta com Supabase via DELETE + INSERT (evita 401 de RLS no upsert)
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      }).catch(() => {});
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-          "Prefer": "resolution=merge-duplicates"
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          endpoint,
+          p256dh,
+          auth,
+          favorite_teams: state.favoriteTeams,
+          preferences: payload.preferences,
+          updated_at: payload.updated_at
+        })
       });
 
-      if (!res.ok) {
+      if (!res.ok && res.status !== 201) {
         const errText = await res.text();
         console.warn("Supabase save response:", res.status, errText);
       }
     } catch (err) {
       console.warn("Erro ao sincronizar com Supabase:", err);
     }
+  },
+
+  async unsubscribe() {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        const endpoint = sub.endpoint;
+        fetch("/api/subscribe", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint })
+        }).catch(() => {});
+
+        fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`, {
+          method: "DELETE",
+          headers: {
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        }).catch(() => {});
+
+        await sub.unsubscribe();
+      }
+    } catch (err) {
+      console.warn("Erro ao cancelar inscrição:", err);
+    }
+    this.updateBellUI();
+    toast("Notificações desativadas.");
+  },
+
+  async checkLiveAlerts(fixtures) {
+    if (!Array.isArray(fixtures) || !fixtures.length) return;
+    if (!state.favoriteTeams.length && !state.favoriteFixtures.length) return;
+
+    let sentEvents = [];
+    try {
+      sentEvents = JSON.parse(localStorage.getItem("ap_sent_events") || "[]");
+    } catch { /* storage */ }
+
+    const favTeamIds = new Set(state.favoriteTeams.map(t => t.id));
+    const favFixtureIds = new Set(state.favoriteFixtures.map(f => f.id));
+
+    for (const fx of fixtures) {
+      const homeId = fx.teams?.home?.id;
+      const awayId = fx.teams?.away?.id;
+      const fixtureId = fx.fixture?.id;
+      const homeName = fx.teams?.home?.name || "Casa";
+      const awayName = fx.teams?.away?.name || "Fora";
+      const homeGoals = fx.goals?.home ?? 0;
+      const awayGoals = fx.goals?.away ?? 0;
+      const elapsed = fx.fixture?.status?.elapsed;
+      const status = fx.fixture?.status?.short;
+
+      const isFavTeamMatch = favTeamIds.has(homeId) || favTeamIds.has(awayId);
+      const isFavFixture = favFixtureIds.has(fixtureId);
+
+      if (!isFavTeamMatch && !isFavFixture) continue;
+
+      const teamLogo = favTeamIds.has(homeId) ? fx.teams.home.logo : (favTeamIds.has(awayId) ? fx.teams.away.logo : (fx.teams?.home?.logo || "/icon-192.png"));
+
+      // A. Início de Partida (Kickoff)
+      if (status === "1H" && elapsed <= 3 && state.notificationPrefs.kickoff !== false) {
+        const tag = `kickoff-${fixtureId}`;
+        if (!sentEvents.includes(tag)) {
+          sentEvents.push(tag);
+          this.dispatchLocalAlert({
+            title: `⏱️ BOLA ROLANDO: ${homeName} × ${awayName}`,
+            body: `A partida começou! Acompanhe ao vivo pelo FutStats.`,
+            icon: teamLogo,
+            tag,
+            url: `/#/jogo/${fixtureId}`
+          });
+        }
+      }
+
+      // B. Intervalo (Halftime)
+      if (status === "HT" && state.notificationPrefs.halftime !== false) {
+        const tag = `halftime-${fixtureId}`;
+        if (!sentEvents.includes(tag)) {
+          sentEvents.push(tag);
+          this.dispatchLocalAlert({
+            title: `⏸️ INTERVALO: ${homeName} ${homeGoals} × ${awayGoals} ${awayName}`,
+            body: `Fim do primeiro tempo!`,
+            icon: teamLogo,
+            tag,
+            url: `/#/jogo/${fixtureId}`
+          });
+        }
+      }
+
+      // C. Fim de Jogo (Fulltime)
+      if (["FT", "AET", "PEN"].includes(status) && state.notificationPrefs.fulltime !== false) {
+        const tag = `fulltime-${fixtureId}`;
+        if (!sentEvents.includes(tag)) {
+          sentEvents.push(tag);
+          this.dispatchLocalAlert({
+            title: `🏁 FIM DE JOGO: ${homeName} ${homeGoals} × ${awayGoals} ${awayName}`,
+            body: `Partida finalizada! Placar final: ${homeName} ${homeGoals} × ${awayGoals} ${awayName}.`,
+            icon: teamLogo,
+            tag,
+            url: `/#/jogo/${fixtureId}`
+          });
+        }
+      }
+
+      // D. Gols
+      if (["1H", "2H", "ET", "P", "LIVE"].includes(status) && state.notificationPrefs.goals !== false) {
+        const totalGoals = homeGoals + awayGoals;
+        if (totalGoals > 0) {
+          const tag = `goal-${fixtureId}-${homeGoals}-${awayGoals}`;
+          if (!sentEvents.includes(tag)) {
+            sentEvents.push(tag);
+            this.dispatchLocalAlert({
+              title: `⚽ GOL NA PARTIDA!`,
+              body: `Placar atualizado: ${homeName} ${homeGoals} × ${awayGoals} ${awayName} (${elapsed}')`,
+              icon: teamLogo,
+              tag,
+              url: `/#/jogo/${fixtureId}`
+            });
+          }
+        }
+      }
+    }
+
+    try {
+      localStorage.setItem("ap_sent_events", JSON.stringify(sentEvents.slice(-60)));
+    } catch { /* storage */ }
+  },
+
+  async dispatchLocalAlert({ title, body, icon, tag, url }) {
+    if ("Notification" in window && Notification.permission === "granted" && "serviceWorker" in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        reg.showNotification(title, {
+          body,
+          icon: icon || "/icon-192.png",
+          badge: "/badge-96.png",
+          vibrate: [200, 100, 200, 100, 200],
+          tag,
+          data: { url: url || "/#/" }
+        });
+      } catch (e) {
+        console.warn("Falha ao exibir notificação via SW:", e);
+      }
+    }
+    toast(`${title} — ${body}`, false);
+  },
+
+  startBackgroundPoller() {
+    if (this._pollerActive) return;
+    this._pollerActive = true;
+
+    setInterval(async () => {
+      try {
+        if (state.favoriteTeams.length > 0 || state.favoriteFixtures.length > 0) {
+          const fixtures = await apiGet("fixtures", { live: "all" }, 0.5);
+          if (fixtures) {
+            this.checkLiveAlerts(fixtures);
+          }
+          fetch("/api/cron-alerts").catch(() => {});
+        }
+      } catch { /* silent */ }
+    }, 60000);
   },
 
   async syncPreferences() {
@@ -753,14 +947,52 @@ const NotificationManager = {
 
     if (testBtn) {
       testBtn.addEventListener("click", async () => {
-        const reg = await navigator.serviceWorker.ready;
-        reg.showNotification("📋 ESCALAÇÕES CONFIRMADAS!", {
-          body: "As escalações oficiais de Internacional × Grêmio já estão divulgadas!",
-          icon: "https://media.api-sports.io/football/teams/119.png",
-          vibrate: [200, 100, 200, 100, 200],
-          data: { url: "/#/jogo/1623070" }
-        });
-        toast("Notificação de teste disparada!", false);
+        if (!("Notification" in window)) {
+          toast("Seu navegador não suporta notificações.");
+          return;
+        }
+
+        if (Notification.permission !== "granted") {
+          const perm = await Notification.requestPermission();
+          if (perm !== "granted") {
+            toast("Permissão para notificações negada no navegador.");
+            return;
+          }
+        }
+
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          await reg.showNotification("📋 ESCALAÇÕES CONFIRMADAS!", {
+            body: "As escalações oficiais da sua partida já estão divulgadas!",
+            icon: "/icon-192.png",
+            badge: "/badge-96.png",
+            vibrate: [200, 100, 200, 100, 200],
+            tag: "test-notification-local",
+            data: { url: "/#/" }
+          });
+
+          const sub = await reg.pushManager.getSubscription();
+          if (sub) {
+            const subJson = sub.toJSON();
+            fetch("/api/subscribe", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                endpoint: subJson.endpoint,
+                p256dh: subJson.keys?.p256dh,
+                auth: subJson.keys?.auth,
+                favorite_teams: state.favoriteTeams,
+                preferences: state.notificationPrefs,
+                test: true
+              })
+            }).catch(() => {});
+          }
+
+          toast("🔔 Notificação de teste disparada com sucesso!", false);
+        } catch (err) {
+          console.error("Erro ao testar notificação:", err);
+          toast("Erro ao disparar notificação: " + err.message);
+        }
       });
     }
 
@@ -4177,6 +4409,7 @@ async function fetchLiveMatches(isForced = false) {
   const knownLeagueIds = new Set(LEAGUES.map(l => l.id));
   try {
     const fixtures = await apiGet("fixtures", { live: "all" }, isForced ? 0 : 0.5);
+    NotificationManager.checkLiveAlerts(fixtures);
     const relevant = (fixtures || []).filter(f => knownLeagueIds.has(f.league.id));
 
     if (!relevant.length) {

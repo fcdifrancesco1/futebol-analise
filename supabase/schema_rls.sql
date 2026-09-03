@@ -30,3 +30,19 @@ FOR ALL
 TO service_role
 USING (true)
 WITH CHECK (true);
+
+-- 4. Permitir que anon possa remover assinatura anterior por endpoint e consultar assinaturas ativas para o robô de alertas
+DROP POLICY IF EXISTS "Permitir delete anonimo por endpoint" ON push_subscriptions;
+CREATE POLICY "Permitir delete anonimo por endpoint"
+ON push_subscriptions
+FOR DELETE
+TO anon
+USING (true);
+
+DROP POLICY IF EXISTS "Permitir select de assinaturas" ON push_subscriptions;
+CREATE POLICY "Permitir select de assinaturas"
+ON push_subscriptions
+FOR SELECT
+TO anon, service_role
+USING (true);
+
