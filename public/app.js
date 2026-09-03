@@ -613,40 +613,6 @@ const NotificationManager = {
       console.warn("Aviso ao salvar via /api/subscribe:", err);
     }
 
-    // B. Sincronização direta com Supabase via DELETE + INSERT (evita 401 de RLS no upsert)
-    try {
-      await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`, {
-        method: "DELETE",
-        headers: {
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-        }
-      }).catch(() => {});
-
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          endpoint,
-          p256dh,
-          auth,
-          favorite_teams: state.favoriteTeams,
-          preferences: payload.preferences,
-          updated_at: payload.updated_at
-        })
-      });
-
-      if (!res.ok && res.status !== 201) {
-        const errText = await res.text();
-        console.warn("Supabase save response:", res.status, errText);
-      }
-    } catch (err) {
-      console.warn("Erro ao sincronizar com Supabase:", err);
-    }
   },
 
   async unsubscribe() {
@@ -654,19 +620,14 @@ const NotificationManager = {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
-        const endpoint = sub.endpoint;
+        const subJson = sub.toJSON();
         fetch("/api/subscribe", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint })
-        }).catch(() => {});
-
-        fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`, {
-          method: "DELETE",
-          headers: {
-            "apikey": SUPABASE_ANON_KEY,
-            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-          }
+          body: JSON.stringify({
+            endpoint: subJson.endpoint,
+            auth: subJson.keys ? subJson.keys.auth : undefined
+          })
         }).catch(() => {});
 
         await sub.unsubscribe();
@@ -807,7 +768,7 @@ const NotificationManager = {
           if (fixtures) {
             this.checkLiveAlerts(fixtures);
           }
-          fetch("/api/cron-alerts").catch(() => {});
+          // Poller local verifica alertas ativos dos times favoritos
         }
       } catch { /* silent */ }
     }, 60000);
@@ -1197,6 +1158,24 @@ function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function sanitizeUrl(url) {
+  if (!url || typeof url !== "string") return "#";
+  const trimmed = url.trim();
+  try {
+    if (trimmed.startsWith("/") || trimmed.startsWith("./") || trimmed.startsWith("#")) {
+      return escapeHtml(trimmed);
+    }
+    const base = (typeof window !== "undefined" && window.location && window.location.origin) ? window.location.origin : "https://futebol-analise.vercel.app";
+    const parsed = new URL(trimmed, base);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return escapeHtml(trimmed);
+    }
+  } catch {
+    // Malformed URL
+  }
+  return "#";
+}
+
 function formatTeamName(name) {
   if (!name) return "";
   return String(name)
@@ -1435,7 +1414,7 @@ async function loadTeamNews(teamName, containerId) {
     container.innerHTML = `
       <div class="news-grid">
         ${items.map(item => `
-          <a class="news-card-item" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" title="Ler matéria completa no portal ${escapeHtml(item.source)}">
+          <a class="news-card-item" href="${sanitizeUrl(item.link)}" target="_blank" rel="noopener noreferrer" title="Ler matéria completa no portal ${escapeHtml(item.source)}">
             <div class="news-title">${escapeHtml(item.title)}</div>
             <div class="news-meta-row">
               <span class="news-source-badge">${escapeHtml(item.source)}</span>

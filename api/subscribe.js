@@ -4,15 +4,17 @@
 
 const webpush = require("web-push");
 
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://aqihpureclilnstdacii.supabase.co";
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxaWhwdXJlY2xpbG5zdGRhY2lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3ODIyODksImV4cCI6MjEwMzM1ODI4OX0.2odEs0rD_tBsEbHhaLlu1JMOXkJrqs8WKhboasPgvWw";
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BMjC-8Rjccu_uZoj0BaFDXpUatXC1yShp_foJEdb0uixT398zbT4JlvTfRDeRswaBqRQx6ezRF8mAutCCfE-Q6A";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "gWKwUrc5XBpYUOBExM1ha_M3ugoo5JbM7mQSMt4Lk_c";
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:contato@futstats.com";
 
 try {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  }
 } catch (e) {
   console.warn("Aviso: VAPID setup:", e.message);
 }
@@ -27,21 +29,61 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  // 1. Descadastramento / Remoção de Assinatura
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    return res.status(500).json({ error: "Configuração do banco de dados não disponível no ambiente." });
+  }
+
+  // 1. Descadastramento / Remoção de Assinatura (DELETE)
+  // Proteção contra IDOR: exige correspondência com a chave auth do aparelho
   if (req.method === "DELETE") {
-    const endpoint = req.query.endpoint || (req.body && req.body.endpoint);
+    const endpoint = (req.query && req.query.endpoint) || (req.body && req.body.endpoint);
+    const auth = (req.query && req.query.auth) || (req.body && req.body.auth);
+
     if (!endpoint) {
       return res.status(400).json({ error: "Endpoint não informado para remoção." });
     }
 
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`, {
-        method: "DELETE",
+      // Verifica se o registro existe no banco para validar titularidade
+      const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}&select=auth`, {
         headers: {
           "apikey": SUPABASE_KEY,
           "Authorization": `Bearer ${SUPABASE_KEY}`
         }
       });
+
+      if (checkRes.ok) {
+        const rows = await checkRes.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          // Se o registro existe, valida a posse da chave auth
+          if (!auth || rows[0].auth !== auth) {
+            return res.status(403).json({ error: "Permissão negada: chave auth inválida para este endpoint." });
+          }
+        }
+      }
+
+      // Deleta garantindo a correspondência com a chave auth (elimina IDOR de forma atômica)
+      const deleteQuery = auth
+        ? `endpoint=eq.${encodeURIComponent(endpoint)}&auth=eq.${encodeURIComponent(auth)}`
+        : `endpoint=eq.${encodeURIComponent(endpoint)}`;
+
+      const delRes = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?${deleteQuery}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Prefer": "return=representation"
+        }
+      });
+
+      if (delRes.ok) {
+        const deletedRows = await delRes.json();
+        if (Array.isArray(deletedRows) && deletedRows.length === 0) {
+          // Se nenhuma linha foi removida, o endpoint não existe ou a chave auth informada é inválida
+          return res.status(403).json({ error: "Permissão negada: chave auth inválida ou endpoint não encontrado." });
+        }
+      }
+
       return res.status(200).json({ success: true, message: "Assinatura removida com sucesso." });
     } catch (err) {
       return res.status(500).json({ error: "Falha ao remover assinatura do banco.", details: err.message });
@@ -49,6 +91,7 @@ module.exports = async (req, res) => {
   }
 
   // 2. Cadastro ou Atualização de Assinatura (POST)
+  // Proteção contra IDOR: se o endpoint já existe, exige que o auth coincida antes de sobrescrever
   if (req.method === "POST") {
     const { endpoint, p256dh, auth, favorite_teams = [], preferences = {}, test = false } = req.body || {};
 
@@ -66,8 +109,25 @@ module.exports = async (req, res) => {
     };
 
     try {
-      // Remove registro anterior para evitar violação de unicidade ou problemas com RLS no upsert
-      await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`, {
+      // Verifica se o endpoint já existe para validar titularidade
+      const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}&select=auth`, {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
+        }
+      });
+
+      if (checkRes.ok) {
+        const rows = await checkRes.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          if (rows[0].auth !== auth) {
+            return res.status(403).json({ error: "Permissão negada: endpoint já registrado com credencial diferente." });
+          }
+        }
+      }
+
+      // Remove registro anterior apenas se a chave auth coincidir
+      await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}&auth=eq.${encodeURIComponent(auth)}`, {
         method: "DELETE",
         headers: {
           "apikey": SUPABASE_KEY,
@@ -87,6 +147,9 @@ module.exports = async (req, res) => {
       });
 
       if (!insertRes.ok && insertRes.status !== 201) {
+        if (insertRes.status === 409) {
+          return res.status(403).json({ error: "Permissão negada: endpoint já registrado com credencial diferente." });
+        }
         const errBody = await insertRes.text();
         console.warn("Erro ao inserir no Supabase:", insertRes.status, errBody);
       }
@@ -94,7 +157,7 @@ module.exports = async (req, res) => {
       // Se foi solicitado teste, envia notificação de teste em tempo real via WebPush
       let testSent = false;
       let testError = null;
-      if (test) {
+      if (test && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
         try {
           await webpush.sendNotification(
             {

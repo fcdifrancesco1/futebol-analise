@@ -5,13 +5,13 @@
 const webpush = require("web-push");
 const { createClient } = require("@supabase/supabase-js");
 
-const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY || "a70fc65a67c10981ace9813a509db554";
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://aqihpureclilnstdacii.supabase.co";
+const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
 // Aceita SERVICE_ROLE_KEY com prioridade para leitura segura no backend com RLS ativo, ou ANON_KEY
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxaWhwdXJlY2xpbG5zdGRhY2lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3ODIyODksImV4cCI6MjEwMzM1ODI4OX0.2odEs0rD_tBsEbHhaLlu1JMOXkJrqs8WKhboasPgvWw";
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BMjC-8Rjccu_uZoj0BaFDXpUatXC1yShp_foJEdb0uixT398zbT4JlvTfRDeRswaBqRQx6ezRF8mAutCCfE-Q6A";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "gWKwUrc5XBpYUOBExM1ha_M3ugoo5JbM7mQSMt4Lk_c";
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:contato@futstats.com";
 
 let vapidConfigured = false;
@@ -27,13 +27,14 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 const supabase = (SUPABASE_URL && SUPABASE_KEY) ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 module.exports = async (req, res) => {
-  // Verificação de Autorização: se CRON_SECRET estiver configurado, exige bearer token ou header de Cron
-  if (process.env.CRON_SECRET) {
-    const authHeader = req.headers["authorization"] || "";
-    const isVercelCron = req.headers["x-vercel-cron"] === "1";
-    if (!isVercelCron && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return res.status(401).json({ error: "Acesso não autorizado ao robô de alertas." });
-    }
+  // Verificação de Autorização (Fail-Closed: exige autorização válida)
+  const authHeader = req.headers["authorization"] || "";
+  const isVercelCron = req.headers["x-vercel-cron"] === "1";
+  const cronSecret = process.env.CRON_SECRET;
+
+  const isAuthorized = isVercelCron || (cronSecret && authHeader === `Bearer ${cronSecret}`);
+  if (!isAuthorized) {
+    return res.status(401).json({ error: "Acesso não autorizado ao robô de alertas." });
   }
 
   if (!FOOTBALL_API_KEY) {
