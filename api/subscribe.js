@@ -192,7 +192,29 @@ module.exports = async (req, res) => {
     }
   }
 
-  // GET: Health check
+  // GET: Health check ou Consulta Segura de Assinantes (com Bearer CRON_SECRET)
+  const authHeader = req.headers["authorization"] || "";
+  if (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) {
+    try {
+      const { createClient } = require("@supabase/supabase-js");
+      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+      const { data, error } = await supabase.from("push_subscriptions").select("*");
+      return res.status(200).json({
+        status: "online",
+        count: data ? data.length : 0,
+        subscribers: (data || []).map(s => ({
+          endpoint: s.endpoint.slice(0, 45) + "...",
+          favorite_teams: s.favorite_teams,
+          preferences: s.preferences,
+          updated_at: s.updated_at
+        })),
+        error: error ? error.message : null
+      });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   res.status(200).json({
     status: "online",
     service: "FutStats Push Subscription API",
