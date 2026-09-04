@@ -87,7 +87,14 @@ module.exports = async (req, res) => {
       };
 
       try {
-        await webpush.sendNotification(pushSubscription, JSON.stringify(payloadObj));
+        await webpush.sendNotification(
+          pushSubscription,
+          JSON.stringify(payloadObj),
+          {
+            TTL: 86400, // 24 horas de retenção caso o celular esteja temporariamente sem rede
+            urgency: "high" // Força o Google FCM a acordar o Chrome imediatamente mesmo com app fechado
+          }
+        );
         notificationsSent++;
 
         if (tag) {
@@ -136,13 +143,21 @@ module.exports = async (req, res) => {
       const statusShort = fx.fixture.status.short;
       const baseScore = `${fx.goals.home ?? 0} x ${fx.goals.away ?? 0}`;
 
-      // Filtrar inscritos que seguem os times OU esta partida específica
+      // Filtrar inscritos que seguem os times OU esta partida específica (tolerância numérica e string)
       const matchingSubs = subscribers.filter(sub => {
-        const favTeams = sub.favorite_teams || [];
+        const favTeams = Array.isArray(sub.favorite_teams)
+          ? sub.favorite_teams
+          : (typeof sub.favorite_teams === "string" ? JSON.parse(sub.favorite_teams || "[]") : []);
         const favFixtures = sub.preferences?.favorite_fixtures || sub.favorite_fixtures || [];
 
-        const followsTeam = favTeams.some(f => f.id === homeId || f.id === awayId);
-        const followsFixture = favFixtures.some(f => f.id === fixtureId);
+        const followsTeam = favTeams.some(f => {
+          const fid = typeof f === "object" && f !== null ? f.id : f;
+          return Number(fid) === Number(homeId) || Number(fid) === Number(awayId);
+        });
+        const followsFixture = favFixtures.some(f => {
+          const fid = typeof f === "object" && f !== null ? f.id : f;
+          return Number(fid) === Number(fixtureId);
+        });
 
         return followsTeam || followsFixture;
       });
@@ -151,8 +166,12 @@ module.exports = async (req, res) => {
 
       // Evento 0: Alerta de Escalações Oficiais (Dispara estritamente 1 única vez quando saem as escalações)
       if (["NS", "TBD", "1H"].includes(statusShort)) {
-        const wantsLineups = matchingSubs.some(sub => (sub.preferences?.lineups !== false));
-        if (wantsLineups) {
+        const pendingLineupSubs = matchingSubs.filter(sub => {
+          const currentSent = subUpdates.get(sub.endpoint) || (sub.preferences?.sent_events || []);
+          return sub.preferences?.lineups !== false && !currentSent.includes(`lineups-${fixtureId}`);
+        });
+
+        if (pendingLineupSubs.length > 0) {
           try {
             const lineupsResp = await fetch(`https://v3.football.api-sports.io/fixtures/lineups?fixture=${fixtureId}`, {
               headers: { "x-apisports-key": FOOTBALL_API_KEY }
@@ -160,15 +179,12 @@ module.exports = async (req, res) => {
             const lineupsData = await lineupsResp.json();
             const lineups = lineupsData.response || [];
 
-            if (lineups.length > 0 && lineups[0]?.startXI?.length > 0) {
-              for (const sub of matchingSubs) {
-                const prefs = sub.preferences || {};
-                if (prefs.lineups === false) continue;
-
+            if (lineups.length > 0 && (lineups[0]?.startXI?.length > 0 || lineups[1]?.startXI?.length > 0)) {
+              for (const sub of pendingLineupSubs) {
                 await dispatchPushOnce(sub, {
                   title: `📋 ESCALAÇÕES CONFIRMADAS!`,
                   body: `As escalações oficiais de ${fx.teams.home.name} × ${fx.teams.away.name} já estão no ar!`,
-                  icon: fx.teams.home.logo,
+                  icon: fx.teams.home.logo || "https://futebol-analise.vercel.app/icon-192.png",
                   badge: "https://futebol-analise.vercel.app/badge-96.png",
                   tag: `lineups-${fixtureId}`,
                   data: { url: `/#/jogo/${fixtureId}` }
@@ -181,8 +197,8 @@ module.exports = async (req, res) => {
         }
       }
 
-      // Evento A: Início de Partida (1H até 3 min)
-      if (statusShort === "1H" && elapsed <= 3) {
+      // Evento A: Início de Partida (1H - primeiros 15 minutos com proteção anti-duplicação)
+      if (statusShort === "1H" && (elapsed === null || elapsed === undefined || elapsed <= 15)) {
         for (const sub of matchingSubs) {
           const prefs = sub.preferences || {};
           if (prefs.kickoff === false) continue;

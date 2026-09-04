@@ -1,0 +1,25 @@
+name: FutStats Live Match Monitor
+
+on:
+  schedule:
+    # Executa a cada 5 minutos 24 horas por dia, 7 dias por semana
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  monitor-live-matches:
+    name: Polling Live Alerts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Live Match Alerts Cron (Ciclo contínuo a cada 60s)
+        run: |
+          for i in {1..5}; do
+            echo "--- Executando ciclo de monitoramento ($i/5) em $(date) ---"
+            curl -s -X GET "https://futebol-analise.vercel.app/api/cron-alerts" \
+              -H "Authorization: Bearer futstats_cron_secure_secret_token" \
+              -H "User-Agent: FutStats-GitHub-Monitor/1.0"
+            echo ""
+            if [ $i -lt 5 ]; then
+              sleep 60
+            fi
+          done

@@ -526,9 +526,23 @@ const NotificationManager = {
       if (savedFixtures) state.favoriteFixtures = JSON.parse(savedFixtures);
     } catch { /* storage */ }
 
+    if (!Array.isArray(state.favoriteTeams)) state.favoriteTeams = [];
+    if (!Array.isArray(state.favoriteFixtures)) state.favoriteFixtures = [];
+
+    // Garante que o time do coração (ex: Real Madrid) esteja na lista de times seguidos
+    const heartTeam = UserPrefs.getFavoriteTeam();
+    if (heartTeam && heartTeam.id && !state.favoriteTeams.some(f => Number(f.id) === Number(heartTeam.id))) {
+      state.favoriteTeams.push({ id: Number(heartTeam.id), name: heartTeam.name, logo: heartTeam.logo });
+    }
+
     this.updateBellUI();
     this.bindModalEvents();
     this.startBackgroundPoller();
+
+    // Sincroniza preferências atualizadas com o servidor
+    if (await this.isSubscribed()) {
+      this.syncPreferences();
+    }
   },
 
   async isSubscribed() {
@@ -576,15 +590,7 @@ const NotificationManager = {
     return true;
   },
 
-  async unsubscribe() {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-      await sub.unsubscribe();
-    }
-    this.updateBellUI();
-    toast("Notificações desativadas.");
-  },
+
 
   async saveToSupabase(endpoint, p256dh, auth, isTest = false) {
     const existingSentEvents = JSON.parse(localStorage.getItem("ap_sent_events") || "[]");
@@ -1208,6 +1214,17 @@ const UserPrefs = {
     prefs.onboarded = true;
     localStorage.setItem(this.KEY, JSON.stringify(prefs));
     updateFavoriteTeamHeader();
+
+    // Garante que o clube favorito (ex: Real Madrid) entre nos alertas automáticos
+    if (team && team.id) {
+      const teamObj = { id: Number(team.id), name: team.name, logo: team.logo };
+      if (!state.favoriteTeams.some(f => Number(f.id) === teamObj.id)) {
+        state.favoriteTeams.push(teamObj);
+      }
+      if (typeof NotificationManager !== "undefined" && NotificationManager.syncPreferences) {
+        NotificationManager.syncPreferences();
+      }
+    }
   },
   hasOnboarded() {
     return !!this.get().onboarded;

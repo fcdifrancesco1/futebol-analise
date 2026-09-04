@@ -2,14 +2,14 @@
 // Service Worker — FutStats PWA & Push Notifications
 // ============================================================
 
-const CACHE_NAME = "futstats-cache-v91";
+const CACHE_NAME = "futstats-cache-v92";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
   "/style.css",
-  "/style.css?v=91",
+  "/style.css?v=92",
   "/app.js",
-  "/app.js?v=91",
+  "/app.js?v=92",
   "/manifest.json",
   "/fundo.jpeg",
   "/icon-192.png",
@@ -59,8 +59,7 @@ self.addEventListener("push", (event) => {
   let data = {
     title: "⚽ FutStats",
     body: "Novo evento na partida!",
-    icon: "/icon-192.png",
-    
+    icon: "https://futebol-analise.vercel.app/icon-192.png",
     data: { url: "/#/" }
   };
 
@@ -74,19 +73,36 @@ self.addEventListener("push", (event) => {
     }
   }
 
+  // Opções otimizadas para o Google Chrome em Windows e Android
   const options = {
     body: data.body,
-    icon: data.icon || "/icon-192.png",
-    badge: data.badge || "/badge-96.png",
+    icon: data.icon || "https://futebol-analise.vercel.app/icon-192.png",
+    badge: data.badge || "https://futebol-analise.vercel.app/badge-96.png",
     vibrate: [200, 100, 200, 100, 200],
     data: data.data || { url: "/#/" },
     tag: data.tag || "match-event-" + Date.now(),
     renotify: true,
-    requireInteraction: false
+    requireInteraction: true, // Mantém a notificação visível na tela até ser vista
+    silent: false,
+    actions: [
+      { action: "open", title: "Ver Detalhes ⚽" }
+    ]
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
+    self.registration.showNotification(data.title, options).catch((err) => {
+      console.warn("Aviso ao exibir notificação, acionando fallback local:", err);
+      return self.registration.showNotification(data.title, {
+        body: data.body,
+        icon: "/icon-192.png",
+        badge: "/badge-96.png",
+        vibrate: [200, 100, 200],
+        data: data.data || { url: "/#/" },
+        tag: data.tag || "match-event-" + Date.now(),
+        renotify: true,
+        requireInteraction: true
+      });
+    })
   );
 });
 
