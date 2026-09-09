@@ -4624,27 +4624,67 @@ async function fetchLiveMatches(isForced = false) {
       return;
     }
 
-    content.innerHTML = `
-      <div class="card">
-        <div class="fixture-list">
-          ${relevant.map(f => {
-            const league = LEAGUES.find(l => l.id === f.league.id);
-            return `
-              <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
-                <span class="fixture-date" style="color:var(--gold);font-weight:700;">${formatLiveMatchTime(f.fixture.status)}<br><small style="color:var(--chalk-dim);">${escapeHtml(league?.name || "")}</small></span>
-                <div class="fixture-team-item right">
-                  <span>${escapeHtml(f.teams.home.name)}</span>
-                  <img src="${f.teams.home.logo}" alt="">
-                </div>
-                <span class="fixture-score">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>
-                <div class="fixture-team-item">
-                  <img src="${f.teams.away.logo}" alt="">
-                  <span>${escapeHtml(f.teams.away.name)}</span>
-                </div>
-              </a>`;
-          }).join("")}
+    // Agrupa os jogos ao vivo por Liga mantendo a ordem oficial das Ligas do projeto
+    const leagueMap = new Map();
+    LEAGUES.forEach(l => {
+      const leagueMatches = relevant.filter(f => f.league?.id === l.id);
+      if (leagueMatches.length) {
+        leagueMap.set(l.id, { league: l, matches: leagueMatches });
+      }
+    });
+
+    // Caso haja alguma liga não indexada na ordem padrão
+    relevant.forEach(f => {
+      if (!leagueMap.has(f.league?.id)) {
+        leagueMap.set(f.league?.id, { league: f.league, matches: [f] });
+      }
+    });
+
+    content.innerHTML = Array.from(leagueMap.values()).map(group => {
+      const leagueInfo = group?.league || {};
+      const matches = Array.isArray(group?.matches) ? group.matches : [];
+      if (!matches.length) return "";
+      const season = matches[0]?.league?.season || defaultSeasonFor(leagueInfo);
+
+      return `
+        <div class="league-matches-group">
+          <div class="league-matches-header">
+            <a class="league-matches-header-left" href="#/liga/${leagueInfo.id}/${season}" title="Ver classificação de ${escapeHtml(leagueInfo.name)}">
+              <img src="${matches[0]?.league?.logo || leagueInfo.logo || ''}" alt="" loading="lazy">
+              <span class="league-matches-header-title">${escapeHtml(leagueInfo.name)}</span>
+            </a>
+            <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);">${formatRoundName(matches[0]?.league?.round || "")}</span>
+          </div>
+
+          <div class="card league-matches-body">
+            <div class="fixture-list">
+              ${matches.map(f => {
+                const timeDisplay = formatLiveMatchTime(f.fixture.status);
+
+                return `
+                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
+                    <div class="fixture-date-col">
+                      <span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${timeDisplay}</span>
+                    </div>
+                    <div class="fixture-team-item right">
+                      <span>${escapeHtml(f.teams.home.name)}</span>
+                      <img src="${f.teams.home.logo}" alt="" loading="lazy">
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:54px;">
+                      <span class="fixture-score live-score">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>
+                    </div>
+                    <div class="fixture-team-item">
+                      <img src="${f.teams.away.logo}" alt="" loading="lazy">
+                      <span>${escapeHtml(f.teams.away.name)}</span>
+                    </div>
+                  </a>
+                `;
+              }).join("")}
+            </div>
+          </div>
         </div>
-      </div>`;
+      `;
+    }).join("");
   } catch (err) {
     if (content.querySelector(".fixture-row")) {
       console.warn("Aviso: Falha temporária ao sincronizar ao vivo, mantendo dados atuais:", err.message);
@@ -4829,12 +4869,15 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
                 const playerName = g.player?.name || "Gol";
                 const isOwnGoal = g.detail === 'Own Goal';
                 const isPen = g.detail === 'Penalty';
+                const rawAssist = g.assist?.name;
+                const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
+                const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : '';
 
                 return `
                   <div class="hero-goal-item">
                     <span>⚽</span>
-                    <span class="player-name">${escapeHtml(playerName)}</span>
-                    <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
+                    <span class="player-name">${escapeHtml(playerName)}${assistHtml}</span>
+                    <span class="time">${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ''}'${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
                   </div>
                 `;
               }).join("")}
@@ -4845,12 +4888,15 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
                 const playerName = g.player?.name || "Gol";
                 const isOwnGoal = g.detail === 'Own Goal';
                 const isPen = g.detail === 'Penalty';
+                const rawAssist = g.assist?.name;
+                const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
+                const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : '';
 
                 return `
                   <div class="hero-goal-item">
                     <span>⚽</span>
-                    <span class="player-name">${escapeHtml(playerName)}</span>
-                    <span class="time">${g.time.elapsed}'${g.time.extra ? `+${g.time.extra}` : ''}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
+                    <span class="player-name">${escapeHtml(playerName)}${assistHtml}</span>
+                    <span class="time">${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ''}'${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
                   </div>
                 `;
               }).join("")}
@@ -5613,6 +5659,10 @@ function renderFixtureEvents(events, fx, isFinished = false) {
         ${events.map(e => {
           const isGoal = e.type === "Goal" && e.detail !== "Missed Penalty";
           const pName = e.player?.name || "Gol";
+          const isOwnGoal = e.detail === 'Own Goal';
+          const isPen = e.detail === 'Penalty';
+          const rawAssist = e.assist?.name;
+          const hasAssist = isGoal && !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== pName.toLowerCase();
           const ytGoalUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`Gol ${pName} ${fx.teams.home.name} ${fx.teams.away.name}`)}`;
 
           return `
@@ -5620,7 +5670,7 @@ function renderFixtureEvents(events, fx, isFinished = false) {
               <span class="fixture-date">${e.time.elapsed}'${e.time.extra ? "+" + e.time.extra : ""}</span>
               <span>${e.type === "Goal" ? "⚽" : e.type === "Card" ? (e.detail === "Red Card" ? "🟥" : "🟨") : "🔁"}</span>
               <div>
-                <strong>${escapeHtml(pName)}</strong>
+                <strong>${escapeHtml(pName)}</strong>${hasAssist ? ` <span style="color:var(--chalk-dim);font-size:0.8rem;font-weight:400;">(${escapeHtml(String(rawAssist).trim())})</span>` : ''}
                 <span style="color:var(--chalk-dim);font-size:0.75rem;">(${escapeHtml(e.detail || e.type)})</span>
               </div>
               ${(isFinished && isGoal) ? `

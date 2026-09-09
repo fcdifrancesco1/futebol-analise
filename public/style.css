@@ -1202,6 +1202,16 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   gap: 5px;
   font-size: 0.75rem;
   color: var(--chalk-dim);
+  flex-wrap: wrap;
+}
+.hero-goal-item .player-name {
+  color: var(--chalk);
+  font-weight: 600;
+}
+.hero-goal-item .assist-name {
+  color: var(--chalk-dim);
+  font-size: 0.82em;
+  font-weight: 400;
 }
 .hero-goal-item .time {
   font-family: var(--font-mono);
