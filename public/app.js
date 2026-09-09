@@ -547,17 +547,25 @@ const NotificationManager = {
 
   async isSubscribed() {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    return !!sub;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      return !!sub;
+    } catch {
+      return false;
+    }
   },
 
   async updateBellUI() {
-    const active = await this.isSubscribed();
+    const isSub = await this.isSubscribed();
+    const isExplicitlyDisabled = localStorage.getItem("ap_alerts_disabled") === "true";
+    const active = isSub && !isExplicitlyDisabled;
     const dot = document.getElementById("bell-active-dot");
     const masterToggle = document.getElementById("toggle-notif-master");
     if (dot) dot.hidden = !active;
-    if (masterToggle) masterToggle.checked = active;
+    if (masterToggle) {
+      masterToggle.checked = active || (!isExplicitlyDisabled && ("Notification" in window && Notification.permission === "granted"));
+    }
   },
 
   async subscribe() {
@@ -566,33 +574,73 @@ const NotificationManager = {
       return false;
     }
 
-    const perm = await Notification.requestPermission();
-    if (perm !== "granted") {
-      toast("Permissão de notificação negada no navegador.");
+    if (!("Notification" in window)) {
+      toast("Seu navegador não suporta a API de Notificações.");
       return false;
     }
 
-    const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-
-    if (!sub) {
-      const convertedVapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedVapidKey
-      });
+    let perm = Notification.permission;
+    if (perm !== "granted") {
+      try {
+        perm = await Notification.requestPermission();
+      } catch (err) {
+        console.warn("Erro ao pedir permissão:", err);
+      }
     }
 
-    const subJson = sub.toJSON();
-    await this.saveToSupabase(subJson.endpoint, subJson.keys.p256dh, subJson.keys.auth);
-    this.updateBellUI();
-    toast("🔔 Notificações ativadas com sucesso no celular!", false);
-    return true;
+    if (perm === "denied") {
+      toast("Notificações bloqueadas no Chrome. Clique no ícone de cadeado/ajustes ao lado da URL para permitir.");
+      return false;
+    }
+
+    if (perm !== "granted") {
+      toast("Permissão de notificação não foi concedida.");
+      return false;
+    }
+
+    try {
+      let reg;
+      if (navigator.serviceWorker.controller) {
+        reg = await navigator.serviceWorker.ready;
+      } else {
+        await navigator.serviceWorker.register('/sw.js');
+        reg = await navigator.serviceWorker.ready;
+      }
+
+      let sub = await reg.pushManager.getSubscription();
+
+      if (!sub) {
+        const convertedVapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey
+        });
+      }
+
+      const subJson = sub.toJSON ? sub.toJSON() : {};
+      const rawP256dh = sub.getKey ? sub.getKey("p256dh") : null;
+      const rawAuth = sub.getKey ? sub.getKey("auth") : null;
+      const p256dh = subJson.keys?.p256dh || (rawP256dh ? btoa(String.fromCharCode(...new Uint8Array(rawP256dh))) : "");
+      const auth = subJson.keys?.auth || (rawAuth ? btoa(String.fromCharCode(...new Uint8Array(rawAuth))) : "");
+      const endpoint = sub.endpoint || subJson.endpoint;
+
+      if (!endpoint || !p256dh || !auth) {
+        throw new Error("Não foi possível extrair as chaves Push do navegador.");
+      }
+
+      localStorage.removeItem("ap_alerts_disabled");
+      await this.saveToSupabase(endpoint, p256dh, auth);
+      await this.updateBellUI();
+      return true;
+    } catch (err) {
+      console.error("Erro ao assinar notificações Push:", err);
+      toast("Erro ao ativar notificações: " + (err.message || err));
+      return false;
+    }
   },
 
-
-
   async saveToSupabase(endpoint, p256dh, auth, isTest = false) {
+    if (!endpoint || !p256dh || !auth) return;
     const existingSentEvents = JSON.parse(localStorage.getItem("ap_sent_events") || "[]");
     const payload = {
       endpoint,
@@ -608,17 +656,20 @@ const NotificationManager = {
       updated_at: new Date().toISOString()
     };
 
-    // A. Envia para o endpoint backend próprio (/api/subscribe)
+    // Envia para o endpoint backend próprio (/api/subscribe)
     try {
-      await fetch("/api/subscribe", {
+      const res = await fetch("/api/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.warn("Aviso ao salvar via /api/subscribe:", res.status, errData);
+      }
     } catch (err) {
       console.warn("Aviso ao salvar via /api/subscribe:", err);
     }
-
   },
 
   async unsubscribe() {
@@ -626,13 +677,15 @@ const NotificationManager = {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
-        const subJson = sub.toJSON();
+        const subJson = sub.toJSON ? sub.toJSON() : {};
+        const rawAuth = sub.getKey ? sub.getKey("auth") : null;
+        const auth = subJson.keys?.auth || (rawAuth ? btoa(String.fromCharCode(...new Uint8Array(rawAuth))) : undefined);
         fetch("/api/subscribe", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            endpoint: subJson.endpoint,
-            auth: subJson.keys ? subJson.keys.auth : undefined
+            endpoint: sub.endpoint || subJson.endpoint,
+            auth
           })
         }).catch(() => {});
 
@@ -641,7 +694,7 @@ const NotificationManager = {
     } catch (err) {
       console.warn("Erro ao cancelar inscrição:", err);
     }
-    this.updateBellUI();
+    await this.updateBellUI();
     toast("Notificações desativadas.");
   },
 
@@ -727,9 +780,10 @@ const NotificationManager = {
           const tag = `goal-${fixtureId}-${homeGoals}-${awayGoals}`;
           if (!sentEvents.includes(tag)) {
             sentEvents.push(tag);
+            const matchTimeStr = formatLiveMatchTime(fx.fixture?.status) || (elapsed ? `${elapsed}'` : "");
             this.dispatchLocalAlert({
               title: `⚽ GOL NA PARTIDA!`,
-              body: `Placar atualizado: ${homeName} ${homeGoals} × ${awayGoals} ${awayName} (${elapsed}')`,
+              body: `Placar atualizado: ${homeName} ${homeGoals} × ${awayGoals} ${awayName}${matchTimeStr ? ` (${matchTimeStr})` : ''}`,
               icon: teamLogo,
               tag,
               url: `/#/jogo/${fixtureId}`
@@ -786,11 +840,22 @@ const NotificationManager = {
     localStorage.setItem("ap_notif_prefs", JSON.stringify(state.notificationPrefs));
 
     if (await this.isSubscribed()) {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        const subJson = sub.toJSON();
-        await this.saveToSupabase(subJson.endpoint, subJson.keys.p256dh, subJson.keys.auth);
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          const subJson = sub.toJSON ? sub.toJSON() : {};
+          const rawP256dh = sub.getKey ? sub.getKey("p256dh") : null;
+          const rawAuth = sub.getKey ? sub.getKey("auth") : null;
+          const p256dh = subJson.keys?.p256dh || (rawP256dh ? btoa(String.fromCharCode(...new Uint8Array(rawP256dh))) : "");
+          const auth = subJson.keys?.auth || (rawAuth ? btoa(String.fromCharCode(...new Uint8Array(rawAuth))) : "");
+          const endpoint = sub.endpoint || subJson.endpoint;
+          if (endpoint && p256dh && auth) {
+            await this.saveToSupabase(endpoint, p256dh, auth);
+          }
+        }
+      } catch (err) {
+        console.warn("Erro ao sincronizar preferências com Supabase:", err);
       }
     }
     this.renderFavoriteTeamsList();
@@ -818,10 +883,10 @@ const NotificationManager = {
     `).join("");
 
     container.querySelectorAll(".btn-remove-fixture-fav").forEach(btn => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const fid = Number(btn.dataset.fixtureId);
         state.favoriteFixtures = state.favoriteFixtures.filter(f => f.id !== fid);
-        this.syncPreferences();
+        await this.syncPreferences();
       });
     });
   },
@@ -844,10 +909,10 @@ const NotificationManager = {
     `).join("");
 
     container.querySelectorAll(".btn-remove-fav").forEach(btn => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const tid = Number(btn.dataset.teamId);
         state.favoriteTeams = state.favoriteTeams.filter(t => t.id !== tid);
-        this.syncPreferences();
+        await this.syncPreferences();
       });
     });
   },
@@ -863,13 +928,13 @@ const NotificationManager = {
     const searchInput = document.getElementById("notif-team-search");
     const searchResults = document.getElementById("notif-team-results");
 
-    const openModal = () => {
+    const openModal = async () => {
       if (!modal) return;
       modal.hidden = false;
       modal.style.display = "flex";
       this.renderFavoriteTeamsList();
       this.renderFavoriteFixturesList();
-      this.updateBellUI();
+      await this.updateBellUI();
 
       // Sincroniza estado das checkboxes
       const prefGoals = document.getElementById("pref-goals");
@@ -905,10 +970,16 @@ const NotificationManager = {
     if (masterToggle) {
       masterToggle.addEventListener("change", async (e) => {
         if (e.target.checked) {
-          await this.subscribe();
+          localStorage.removeItem("ap_alerts_disabled");
+          const ok = await this.subscribe();
+          if (!ok) {
+            e.target.checked = false;
+          }
         } else {
+          localStorage.setItem("ap_alerts_disabled", "true");
           await this.unsubscribe();
         }
+        await this.updateBellUI();
       });
     }
 
@@ -928,6 +999,11 @@ const NotificationManager = {
         }
 
         try {
+          const isSub = await this.isSubscribed();
+          if (!isSub) {
+            await this.subscribe();
+          }
+
           const reg = await navigator.serviceWorker.ready;
           await reg.showNotification("📋 ESCALAÇÕES CONFIRMADAS!", {
             body: "As escalações oficiais da sua partida já estão divulgadas!",
@@ -940,14 +1016,20 @@ const NotificationManager = {
 
           const sub = await reg.pushManager.getSubscription();
           if (sub) {
-            const subJson = sub.toJSON();
+            const subJson = sub.toJSON ? sub.toJSON() : {};
+            const rawP256dh = sub.getKey ? sub.getKey("p256dh") : null;
+            const rawAuth = sub.getKey ? sub.getKey("auth") : null;
+            const p256dh = subJson.keys?.p256dh || (rawP256dh ? btoa(String.fromCharCode(...new Uint8Array(rawP256dh))) : "");
+            const auth = subJson.keys?.auth || (rawAuth ? btoa(String.fromCharCode(...new Uint8Array(rawAuth))) : "");
+            const endpoint = sub.endpoint || subJson.endpoint;
+
             fetch("/api/subscribe", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                endpoint: subJson.endpoint,
-                p256dh: subJson.keys?.p256dh,
-                auth: subJson.keys?.auth,
+                endpoint,
+                p256dh,
+                auth,
                 favorite_teams: state.favoriteTeams,
                 preferences: state.notificationPrefs,
                 test: true
@@ -964,18 +1046,57 @@ const NotificationManager = {
     }
 
     if (saveBtn) {
-      saveBtn.addEventListener("click", () => {
-        state.notificationPrefs = {
-          goals: document.getElementById("pref-goals")?.checked ?? true,
-          lineups: document.getElementById("pref-lineups")?.checked ?? true,
-          kickoff: document.getElementById("pref-kickoff")?.checked ?? true,
-          halftime: document.getElementById("pref-halftime")?.checked ?? true,
-          fulltime: document.getElementById("pref-fulltime")?.checked ?? true,
-          redcards: document.getElementById("pref-redcards")?.checked ?? true,
-        };
-        this.syncPreferences();
-        closeModal();
-        toast("Preferências salvas com sucesso!", false);
+      saveBtn.addEventListener("click", async () => {
+        saveBtn.disabled = true;
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = "Salvando...";
+
+        try {
+          state.notificationPrefs = {
+            goals: document.getElementById("pref-goals")?.checked ?? true,
+            lineups: document.getElementById("pref-lineups")?.checked ?? true,
+            kickoff: document.getElementById("pref-kickoff")?.checked ?? true,
+            halftime: document.getElementById("pref-halftime")?.checked ?? true,
+            fulltime: document.getElementById("pref-fulltime")?.checked ?? true,
+            redcards: document.getElementById("pref-redcards")?.checked ?? true,
+          };
+          localStorage.setItem("ap_notif_prefs", JSON.stringify(state.notificationPrefs));
+
+          const masterToggle = document.getElementById("toggle-notif-master");
+          const wantsActive = masterToggle ? masterToggle.checked : true;
+
+          if (wantsActive) {
+            localStorage.removeItem("ap_alerts_disabled");
+            const isSub = await this.isSubscribed();
+            if (!isSub) {
+              const ok = await this.subscribe();
+              if (!ok) {
+                if (masterToggle) masterToggle.checked = false;
+                return;
+              }
+            } else {
+              await this.syncPreferences();
+            }
+          } else {
+            localStorage.setItem("ap_alerts_disabled", "true");
+            const isSub = await this.isSubscribed();
+            if (isSub) {
+              await this.unsubscribe();
+            } else {
+              await this.syncPreferences();
+            }
+          }
+
+          await this.updateBellUI();
+          closeModal();
+          toast("🔔 Preferências de alertas salvas com sucesso!", false);
+        } catch (err) {
+          console.error("Erro ao salvar ajustes:", err);
+          toast("Erro ao salvar ajustes: " + (err.message || err));
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = originalText;
+        }
       });
     }
 
@@ -1003,11 +1124,11 @@ const NotificationManager = {
             `).join("");
 
             searchResults.querySelectorAll(".notif-team-res-item").forEach(item => {
-              item.addEventListener("click", () => {
+              item.addEventListener("click", async () => {
                 const teamObj = { id: Number(item.dataset.id), name: item.dataset.name, logo: item.dataset.logo };
                 if (!state.favoriteTeams.some(t => t.id === teamObj.id)) {
                   state.favoriteTeams.push(teamObj);
-                  this.syncPreferences();
+                  await this.syncPreferences();
                   toast(`${teamObj.name} adicionado aos favoritos!`, false);
                 }
                 searchInput.value = "";
@@ -1022,6 +1143,94 @@ const NotificationManager = {
     }
   }
 };
+
+// ============================================================
+// Formatador de Tempo de Jogo ao Vivo (com Acréscimos)
+// ============================================================
+function formatLiveMatchTime(status, events = null) {
+  if (!status) return "";
+  const short = String(status.short || "").toUpperCase();
+  const elapsed = status.elapsed;
+  const extra = status.extra != null ? Number(status.extra) : null;
+
+  // Status sem minutos decorridos
+  if (short === "HT") return "INT";
+  if (short === "BT") return "PROR";
+  if (short === "P") return "PÊN";
+  if (["FT", "AET", "PEN", "PST", "CANC", "ABD", "AWD", "WO"].includes(short)) return "FIM";
+
+  if (elapsed === null || elapsed === undefined) {
+    return short || "";
+  }
+
+  // 1. Primeiro Tempo (1H)
+  if (short === "1H") {
+    if (extra && extra > 0) {
+      return `45+${extra}'`;
+    }
+    if (elapsed > 45) {
+      return `45+${elapsed - 45}'`;
+    }
+    if (elapsed === 45 && Array.isArray(events) && events.length) {
+      const extraFromEvents = Math.max(
+        0,
+        ...events
+          .filter(e => (e.time?.elapsed === 45 || (e.time?.elapsed > 45 && e.time?.elapsed < 50)) && e.time?.extra)
+          .map(e => Number(e.time.extra) || 0)
+      );
+      if (extraFromEvents > 0) return `45+${extraFromEvents}'`;
+    }
+    return `${elapsed}'`;
+  }
+
+  // 2. Segundo Tempo (2H)
+  if (short === "2H") {
+    if (extra && extra > 0) {
+      return `90+${extra}'`;
+    }
+    if (elapsed > 90) {
+      return `90+${elapsed - 90}'`;
+    }
+    if (elapsed === 90 && Array.isArray(events) && events.length) {
+      const extraFromEvents = Math.max(
+        0,
+        ...events
+          .filter(e => e.time?.elapsed >= 90 && e.time?.extra)
+          .map(e => Number(e.time.extra) || 0)
+      );
+      if (extraFromEvents > 0) return `90+${extraFromEvents}'`;
+    }
+    return `${elapsed}'`;
+  }
+
+  // 3. Prorrogação (ET)
+  if (short === "ET") {
+    if (elapsed > 120) {
+      return `120+${extra || (elapsed - 120)}'`;
+    }
+    if (elapsed === 120 && extra && extra > 0) {
+      return `120+${extra}'`;
+    }
+    if (elapsed > 105) {
+      return `105+${extra || (elapsed - 105)}'`;
+    }
+    if (elapsed === 105 && extra && extra > 0) {
+      return `105+${extra}'`;
+    }
+    return `${elapsed}'`;
+  }
+
+  // 4. Fallback genérico ao vivo
+  if (extra && extra > 0) {
+    if (elapsed >= 90) return `90+${extra}'`;
+    if (elapsed >= 45) return `45+${extra}'`;
+    return `${elapsed}+${extra}'`;
+  }
+  if (elapsed > 90) return `90+${elapsed - 90}'`;
+  if (elapsed > 45 && short !== "2H") return `45+${elapsed - 45}'`;
+
+  return `${elapsed}'`;
+}
 
 // ============================================================
 // ============================================================
@@ -2608,14 +2817,16 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                     }
                   }
 
-                  const date = new Date(f.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-                  const time = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-                  const played = f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD";
+                  const isMatchLive = ["1H", "2H", "HT", "ET", "P", "BT", "LIVE"].includes(f.fixture.status?.short);
+                  const played = isMatchLive || (f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD");
+                  const dateDisplay = isMatchLive
+                    ? `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${formatLiveMatchTime(f.fixture.status)}</span>`
+                    : `<span class="fixture-date">${date}<br>${time}</span>`;
 
                   return `
                     <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para ver estatísticas da partida">
                       <div class="fixture-date-col">
-                        <span class="fixture-date">${date}<br>${time}</span>
+                        ${dateDisplay}
                         ${legBadge}
                       </div>
 
@@ -4328,7 +4539,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
 
                 let statusBadge = `<span class="fixture-date">${timeStr}</span>`;
                 if (isLive) {
-                  statusBadge = `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${f.fixture.status.elapsed}'</span>`;
+                  statusBadge = `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${formatLiveMatchTime(f.fixture.status)}</span>`;
                 } else if (isFinished) {
                   statusBadge = `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;">${f.fixture.status.short}</span>`;
                 }
@@ -4420,7 +4631,7 @@ async function fetchLiveMatches(isForced = false) {
             const league = LEAGUES.find(l => l.id === f.league.id);
             return `
               <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
-                <span class="fixture-date" style="color:var(--gold);font-weight:700;">${f.fixture.status.elapsed}'<br><small style="color:var(--chalk-dim);">${escapeHtml(league?.name || "")}</small></span>
+                <span class="fixture-date" style="color:var(--gold);font-weight:700;">${formatLiveMatchTime(f.fixture.status)}<br><small style="color:var(--chalk-dim);">${escapeHtml(league?.name || "")}</small></span>
                 <div class="fixture-team-item right">
                   <span>${escapeHtml(f.teams.home.name)}</span>
                   <img src="${f.teams.home.logo}" alt="">
@@ -4530,8 +4741,9 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       String(fx.fixture.status.long || "").toLowerCase().includes("encerrado") ||
       String(fx.fixture.status.long || "").toLowerCase().includes("final");
 
+    const liveTimeFormatted = formatLiveMatchTime(fx.fixture.status, events);
     const statusText = isLive 
-      ? `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${fx.fixture.status.elapsed ?? ""}' (${fx.fixture.status.long})</span>` 
+      ? `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${liveTimeFormatted} (${escapeHtml(fx.fixture.status.long || "")})</span>` 
       : escapeHtml(fx.fixture.status.long);
 
     const homeGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.home.id);
@@ -4691,9 +4903,11 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         if (isFav) {
           state.favoriteFixtures = state.favoriteFixtures.filter(f => f.id !== fixtureId);
           await NotificationManager.syncPreferences();
+          await NotificationManager.updateBellUI();
           toast(`Você deixou de seguir os alertas de ${fx.teams.home.name} x ${fx.teams.away.name}.`, false);
         } else {
-          if (Notification.permission !== "granted") {
+          const isSub = await NotificationManager.isSubscribed();
+          if (!isSub) {
             await NotificationManager.subscribe();
           }
           state.favoriteFixtures.push({
@@ -4704,6 +4918,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
             date: fx.fixture.date
           });
           await NotificationManager.syncPreferences();
+          await NotificationManager.updateBellUI();
           toast(`🔔 Alertas ativados para ${fx.teams.home.name} x ${fx.teams.away.name}! Você receberá avisos de Escalações, Gols e Lances.`, false);
         }
         renderFixture(fixtureId, true);

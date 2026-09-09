@@ -286,11 +286,12 @@ module.exports = async (req, res) => {
               const finalAwayGoals = Math.max(realAwayGoals, fx.goals?.away ?? 0, (ev.team?.id === awayId ? 1 : 0));
               const dynamicScore = `${finalHomeGoals} x ${finalAwayGoals}`;
 
+              const minuteStr = `${ev.time.elapsed}'${ev.time.extra ? `+${ev.time.extra}` : ''}`;
               let playerPhrase = "";
               if (rawPlayer && rawPlayer.trim() && rawPlayer.toLowerCase() !== "jogador") {
-                playerPhrase = `${rawPlayer}${isPen ? ' (pênalti)' : isOwnGoal ? ' (contra)' : ''} marca aos ${ev.time.elapsed}'!`;
+                playerPhrase = `${rawPlayer}${isPen ? ' (pênalti)' : isOwnGoal ? ' (contra)' : ''} marca aos ${minuteStr}!`;
               } else {
-                playerPhrase = `Gol ${isOwnGoal ? 'contra ' : ''}do ${teamName} aos ${ev.time.elapsed}'!`;
+                playerPhrase = `Gol ${isOwnGoal ? 'contra ' : ''}do ${teamName} aos ${minuteStr}!`;
               }
 
               for (const sub of matchingSubs) {
@@ -302,7 +303,7 @@ module.exports = async (req, res) => {
                   body: `⚽ ${playerPhrase} ${fx.teams.home.name} ${dynamicScore} ${fx.teams.away.name}`,
                   icon: ev.team?.logo || fx.teams.home.logo,
                   badge: "https://futebol-analise.vercel.app/badge-96.png",
-                  tag: `goal-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ev.team?.id || ''}`,
+                  tag: `goal-${fixtureId}-${ev.time.elapsed}-${ev.time.extra || 0}-${ev.player?.id || ev.team?.id || ''}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
               }
@@ -310,6 +311,7 @@ module.exports = async (req, res) => {
             // CARTÃO VERMELHO
             else if (ev.type === "Card" && (ev.detail === "Red Card" || ev.detail === "Yellow Red")) {
               const playerName = (rawPlayer && rawPlayer.trim() && rawPlayer.toLowerCase() !== "jogador") ? rawPlayer : teamName;
+              const minuteStr = `${ev.time.elapsed}'${ev.time.extra ? `+${ev.time.extra}` : ''}`;
               
               for (const sub of matchingSubs) {
                 const prefs = sub.preferences || {};
@@ -317,10 +319,10 @@ module.exports = async (req, res) => {
 
                 await dispatchPushOnce(sub, {
                   title: `🟥 CARTÃO VERMELHO!`, 
-                  body: `🟥 ${playerName} (${teamName}) foi expulso aos ${ev.time.elapsed}'!`,
+                  body: `🟥 ${playerName} (${teamName}) foi expulso aos ${minuteStr}!`,
                   icon: ev.team?.logo || fx.teams.home.logo,
                   badge: "https://futebol-analise.vercel.app/badge-96.png",
-                  tag: `redcard-${fixtureId}-${ev.time.elapsed}-${ev.player?.id || ''}`,
+                  tag: `redcard-${fixtureId}-${ev.time.elapsed}-${ev.time.extra || 0}-${ev.player?.id || ''}`,
                   data: { url: `/#/jogo/${fixtureId}` }
                 });
               }
