@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FutStats — Demonstração Campo 3D Unificado</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-app: #060E18;
+      --pitch-card: rgba(13, 27, 42, 0.45);
+      --pitch-card-elevated: rgba(19, 34, 56, 0.55);
+      --pitch-border: rgba(255, 255, 255, 0.15);
+      --chalk: #F0F4F8;
+      --chalk-dim: #94A3B8;
+      --gold: #38BDF8;
+      --gold-soft: rgba(56, 189, 248, 0.18);
+      --radius: 16px;
+      --radius-sm: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: 
+        linear-gradient(180deg, rgba(6, 14, 24, 0.72) 0%, rgba(4, 9, 17, 0.82) 100%),
+        url('/fundo.jpeg') center center / cover no-repeat fixed;
+      color: var(--chalk);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .demo-container {
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    /* Topbar */
+    .demo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--pitch-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--pitch-border);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand-title {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .view-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .view-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--pitch-border);
+      color: var(--chalk-dim);
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .view-btn:hover { color: var(--chalk); border-color: var(--gold); }
+    .view-btn.active {
+      background: var(--gold);
+      color: #06111E;
+      border-color: var(--gold);
+      font-weight: 700;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+    }
+
+    /* Card Principal do Campo */
+    .pitch-card-wrapper {
+      background: var(--pitch-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--pitch-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+
+    /* Header das Equipes no Topo do Campo */
+    .teams-matchup-bar {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 20px;
+    }
+
+    .team-badge-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .team-badge-group.right {
+      justify-content: flex-end;
+      text-align: right;
+    }
+    .team-badge-group img {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+    }
+    .team-info-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--chalk);
+    }
+    .team-info-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--chalk-dim);
+    }
+
+    .matchup-vs-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--gold);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--gold-soft);
+    }
+
+    /* 3D STAGE & PITCH CONTAINER */
+    .pitch-3d-viewport {
+      perspective: 1200px;
+      perspective-origin: 50% 50%;
+      width: 100%;
+      min-height: 720px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 10px;
+      overflow: visible;
+    }
+
+    .pitch-3d-plane {
+      width: 100%;
+      max-width: 600px;
+      height: 840px;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+      position: relative;
+    }
+
+    /* Ângulos de Câmera */
+    .view-tactical .pitch-3d-plane {
+      transform: rotateX(46deg) scale(0.96);
+    }
+    .view-isometric .pitch-3d-plane {
+      transform: rotateX(50deg) rotateZ(-22deg) scale(0.90);
+    }
+    .view-flat .pitch-3d-plane {
+      transform: rotateX(0deg) scale(1);
+    }
+
+    /* O Gramado */
+    .pitch-turf {
+      position: absolute;
+      inset: 0;
+      background: 
+        repeating-linear-gradient(
+          0deg,
+          #0A2A1A 0px,
+          #0A2A1A 40px,
+          #0D3521 40px,
+          #0D3521 80px
+        );
+      border-radius: 14px;
+      border: 4px solid #10B981;
+      box-shadow: 
+        0 0 30px rgba(16, 185, 129, 0.25),
+        0 25px 50px rgba(0, 0, 0, 0.7),
+        inset 0 0 60px rgba(0, 0, 0, 0.6);
+      transform-style: preserve-3d;
+    }
+
+    /* Linhas Táticas */
+    .pitch-lines-overlay {
+      position: absolute;
+      inset: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      pointer-events: none;
+    }
+
+    .pitch-mid-line {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.6);
+      transform: translateY(-50%);
+    }
+
+    .pitch-mid-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 140px;
+      height: 140px;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .pitch-mid-spot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      background: #FFFFFF;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Grandes Áreas */
+    .pitch-penalty-box.top {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 280px;
+      height: 130px;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-top: none;
+    }
+    .pitch-goal-box.top {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140px;
+      height: 50px;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-top: none;
+    }
+
+    .pitch-penalty-box.bottom {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 280px;
+      height: 130px;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-bottom: none;
+    }
+    .pitch-goal-box.bottom {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140px;
+      height: 50px;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-bottom: none;
+    }
+
+    .pitch-goal-post.top {
+      position: absolute;
+      top: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      border-bottom: none;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .pitch-goal-post.bottom {
+      position: absolute;
+      bottom: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      border-top: none;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* CAMADA DOS JOGADORES */
+    .pitch-players-3d-layer {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+    }
+
+    .player-3d-pin {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      margin-left: -30px;
+      margin-top: -30px;
+      transform-style: preserve-3d;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .player-turf-shadow {
+      position: absolute;
+      bottom: -4px;
+      width: 32px;
+      height: 12px;
+      background: rgba(0, 0, 0, 0.55);
+      border-radius: 50%;
+      filter: blur(2px);
+      transform: translateZ(1px);
+    }
+
+    .player-billboard-card {
+      transform-style: preserve-3d;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: transform 0.25s ease;
+    }
+
+    .view-tactical .player-billboard-card {
+      transform: rotateX(-46deg) translateZ(18px);
+    }
+    .view-isometric .player-billboard-card {
+      transform: rotateZ(22deg) rotateX(-50deg) translateZ(20px);
+    }
+    .view-flat .player-billboard-card {
+      transform: rotateX(0deg) translateZ(0px);
+    }
+
+    .player-3d-pin:hover .player-billboard-card {
+      transform: rotateX(-46deg) translateZ(32px) scale(1.18);
+    }
+    .view-isometric .player-3d-pin:hover .player-billboard-card {
+      transform: rotateZ(22deg) rotateX(-50deg) translateZ(34px) scale(1.18);
+    }
+    .view-flat .player-3d-pin:hover .player-billboard-card {
+      transform: scale(1.18);
+    }
+
+    .player-avatar-wrap {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #0D1B2A;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .player-avatar-wrap.home {
+      border: 2.5px solid #EF4444;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    }
+    .player-avatar-wrap.away {
+      border: 2.5px solid #38BDF8;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    }
+
+    .player-avatar-wrap img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .player-num-tag {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFF;
+    }
+    .player-num-tag.home { background: #EF4444; }
+    .player-num-tag.away { background: #0284C7; }
+
+    .player-name-pill {
+      background: rgba(6, 14, 24, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #FFF;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
+
+    /* Bancos de Reservas */
+    .reserves-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    @media (max-width: 768px) {
+      .reserves-section { grid-template-columns: 1fr; }
+    }
+
+    .reserves-card {
+      background: var(--pitch-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--pitch-border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .reserves-title {
+      font-size: 0.85rem;
+      color: var(--chalk-dim);
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .reserves-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px;
+    }
+
+    .reserve-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+    }
+    .reserve-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #fff;
+    }
+    .reserve-num.home { background: #EF4444; }
+    .reserve-num.away { background: #0284C7; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(10px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      padding: 16px;
+    }
+    .modal-card {
+      background: #091420;
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      max-width: 380px;
+      width: 100%;
+      padding: 20px;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: transparent;
+      border: none;
+      color: var(--chalk-dim);
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div class="demo-container">
+  <div class="demo-header">
+    <div class="brand-title">
+      <span>⚽</span>
+      <span>FutStats 3D Pitch</span>
+      <span style="font-size:0.75rem;background:rgba(56,189,248,0.18);color:#38BDF8;padding:3px 8px;border-radius:999px;border:1px solid #38BDF8;">PROTÓTIPO DEMO</span>
+    </div>
+    <div class="view-controls">
+      <button class="view-btn active" data-view="view-tactical">🏟️ 3D Tático</button>
+      <button class="view-btn" data-view="view-isometric">📐 3D Isométrico</button>
+      <button class="view-btn" data-view="view-flat">👁️ 2D Superior</button>
+    </div>
+  </div>
+
+  <div class="pitch-card-wrapper">
+    <div class="teams-matchup-bar">
+      <div class="team-badge-group">
+        <img src="https://media.api-sports.io/football/teams/119.png" alt="Internacional">
+        <div>
+          <div class="team-info-name">Internacional</div>
+          <div class="team-info-sub">4-2-3-1 · Téc. Paulo Pezzolano</div>
+        </div>
+      </div>
+      <div class="matchup-vs-badge">CONFRONTO DIRETO</div>
+      <div class="team-badge-group right">
+        <div>
+          <div class="team-info-name">Grêmio</div>
+          <div class="team-info-sub">4-1-4-1 · Téc. Luis Castro</div>
+        </div>
+        <img src="https://media.api-sports.io/football/teams/130.png" alt="Grêmio">
+      </div>
+    </div>
+
+    <div class="pitch-3d-viewport view-tactical" id="pitch-viewport">
+      <div class="pitch-3d-plane">
+        <div class="pitch-turf">
+          <div class="pitch-lines-overlay">
+            <div class="pitch-mid-line"></div>
+            <div class="pitch-mid-circle"><div class="pitch-mid-spot"></div></div>
+            <div class="pitch-penalty-box top"></div>
+            <div class="pitch-goal-box top"></div>
+            <div class="pitch-goal-post top"></div>
+            <div class="pitch-penalty-box bottom"></div>
+            <div class="pitch-goal-box bottom"></div>
+            <div class="pitch-goal-post bottom"></div>
+          </div>
+          <div class="pitch-players-3d-layer" id="players-layer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reserves-section">
+    <div class="reserves-card">
+      <div class="reserves-title">
+        <img src="https://media.api-sports.io/football/teams/119.png" alt="" style="width:18px;height:18px;">
+        <span>Banco de Reservas — Internacional</span>
+      </div>
+      <div class="reserves-grid" id="inter-reserves"></div>
+    </div>
+    <div class="reserves-card">
+      <div class="reserves-title">
+        <img src="https://media.api-sports.io/football/teams/130.png" alt="" style="width:18px;height:18px;">
+        <span>Banco de Reservas — Grêmio</span>
+      </div>
+      <div class="reserves-grid" id="gremio-reserves"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="player-modal">
+  <div class="modal-card">
+    <button class="modal-close" id="btn-close-modal">✕</button>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+      <img src="" id="m-photo" alt="" style="width:54px;height:54px;border-radius:50%;border:2px solid var(--gold);object-fit:cover;">
+      <div>
+        <h3 id="m-name" style="margin:0;font-size:1.2rem;">Nome</h3>
+        <p id="m-team" style="margin:0;font-size:0.8rem;color:var(--chalk-dim);">Time · Camisa</p>
+      </div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid var(--pitch-border);padding:12px;border-radius:var(--radius-sm);margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:6px;">
+        <span style="color:var(--chalk-dim);">Posição:</span><strong id="m-pos">Meia</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:6px;">
+        <span style="color:var(--chalk-dim);">Status:</span><strong style="color:#10B981;">Titular Confirmado</strong>
+      </div>
+    </div>
+    <button class="view-btn" style="width:100%;justify-content:center;" onclick="document.getElementById('player-modal').style.display='none'">Fechar</button>
+  </div>
+</div>
+
+<script>
+const INTER_LINEUP = [
+  { name: "Cunha", num: 23, x: 50, y: 7, pos: "Goleiro", photo: "https://media.api-sports.io/football/players/10238.png" },
+  { name: "Gomes", num: 15, x: 16, y: 19, pos: "Lateral Direito", photo: "https://media.api-sports.io/football/players/10239.png" },
+  { name: "Mercado", num: 25, x: 38, y: 18, pos: "Zagueiro", photo: "https://media.api-sports.io/football/players/2479.png" },
+  { name: "Maripán", num: 3, x: 62, y: 18, pos: "Zagueiro", photo: "https://media.api-sports.io/football/players/1353.png" },
+  { name: "Bahia", num: 6, x: 84, y: 19, pos: "Lateral Esquerdo", photo: "https://media.api-sports.io/football/players/10240.png" },
+  { name: "Villagra", num: 5, x: 32, y: 30, pos: "Volante", photo: "https://media.api-sports.io/football/players/10241.png" },
+  { name: "Paula", num: 27, x: 68, y: 30, pos: "Volante", photo: "https://media.api-sports.io/football/players/10242.png" },
+  { name: "Gonçalves", num: 39, x: 20, y: 40, pos: "Ponta Direita", photo: "https://media.api-sports.io/football/players/10243.png" },
+  { name: "Bernabei", num: 26, x: 50, y: 38, pos: "Meia Central", photo: "https://media.api-sports.io/football/players/6105.png" },
+  { name: "Carbonero", num: 7, x: 80, y: 40, pos: "Ponta Esquerda", photo: "https://media.api-sports.io/football/players/10244.png" },
+  { name: "Vitinho", num: 28, x: 50, y: 46, pos: "Centroavante", photo: "https://media.api-sports.io/football/players/2485.png" }
+];
+
+const GREMIO_LINEUP = [
+  { name: "Vinícius", num: 95, x: 50, y: 54, pos: "Centroavante", photo: "https://media.api-sports.io/football/players/10245.png" },
+  { name: "Pavón", num: 7, x: 16, y: 62, pos: "Ponta Direita", photo: "https://media.api-sports.io/football/players/2489.png" },
+  { name: "Villasanti", num: 20, x: 38, y: 62, pos: "Meio-Campo", photo: "https://media.api-sports.io/football/players/10246.png" },
+  { name: "Krovinović", num: 18, x: 62, y: 62, pos: "Meio-Campo", photo: "https://media.api-sports.io/football/players/10247.png" },
+  { name: "Cabral", num: 77, x: 84, y: 62, pos: "Ponta Esquerda", photo: "https://media.api-sports.io/football/players/10248.png" },
+  { name: "Noriega", num: 8, x: 50, y: 70, pos: "Volante", photo: "https://media.api-sports.io/football/players/10249.png" },
+  { name: "Caito", num: 27, x: 16, y: 81, pos: "Lateral Direito", photo: "https://media.api-sports.io/football/players/10250.png" },
+  { name: "Wallace", num: 82, x: 38, y: 82, pos: "Zagueiro", photo: "https://media.api-sports.io/football/players/10251.png" },
+  { name: "Kannemann", num: 4, x: 62, y: 82, pos: "Zagueiro", photo: "https://media.api-sports.io/football/players/2493.png" },
+  { name: "Marlon", num: 23, x: 84, y: 81, pos: "Lateral Esquerdo", photo: "https://media.api-sports.io/football/players/10252.png" },
+  { name: "Weverton", num: 1, x: 50, y: 93, pos: "Goleiro", photo: "https://media.api-sports.io/football/players/2495.png" }
+];
+
+const INTER_RESERVES = [
+  { name: "Anthoni", num: 12 },
+  { name: "Félix Torres", num: 4 },
+  { name: "Braian Aguirre", num: 35 },
+  { name: "Jose Juninho", num: 18 },
+  { name: "Bruno Henrique", num: 8 },
+  { name: "Alan Patrick", num: 10 }
+];
+
+const GREMIO_RESERVES = [
+  { name: "Gabriel Grando", num: 12 },
+  { name: "Marcos Rocha", num: 14 },
+  { name: "Gustavo Martins", num: 6 },
+  { name: "Wagner Leonardo", num: 3 },
+  { name: "Caio Paulista", num: 38 },
+  { name: "Francis Amuzu", num: 9 }
+];
+
+const layer = document.getElementById("players-layer");
+
+function renderTeamPins(lineup, isHome, teamName) {
+  lineup.forEach(p => {
+    const pin = document.createElement("div");
+    pin.className = "player-3d-pin";
+    pin.style.left = p.x + "%";
+    pin.style.top = p.y + "%";
+    pin.innerHTML = `
+      <div class="player-turf-shadow"></div>
+      <div class="player-billboard-card">
+        <div class="player-avatar-wrap ${isHome ? 'home' : 'away'}">
+          <img src="${p.photo}" alt="" onerror="this.src='https://media.api-sports.io/football/players/placeholder.png'">
+          <span class="player-num-tag ${isHome ? 'home' : 'away'}">${p.num}</span>
+        </div>
+        <span class="player-name-pill">${p.name}</span>
+      </div>
+    `;
+    pin.addEventListener("click", () => openPlayerModal(p, teamName));
+    layer.appendChild(pin);
+  });
+}
+
+renderTeamPins(INTER_LINEUP, true, "Internacional");
+renderTeamPins(GREMIO_LINEUP, false, "Grêmio");
+
+document.getElementById("inter-reserves").innerHTML = INTER_RESERVES.map(r => `
+  <div class="reserve-item">
+    <span class="reserve-num home">${r.num}</span>
+    <span>${r.name}</span>
+  </div>
+`).join("");
+
+document.getElementById("gremio-reserves").innerHTML = GREMIO_RESERVES.map(r => `
+  <div class="reserve-item">
+    <span class="reserve-num away">${r.num}</span>
+    <span>${r.name}</span>
+  </div>
+`).join("");
+
+function openPlayerModal(p, team) {
+  document.getElementById("m-name").textContent = p.name;
+  document.getElementById("m-team").textContent = team + " · Camisa #" + p.num;
+  document.getElementById("m-pos").textContent = p.pos;
+  document.getElementById("m-photo").src = p.photo;
+  document.getElementById("player-modal").style.display = "flex";
+}
+
+document.getElementById("btn-close-modal").addEventListener("click", () => {
+  document.getElementById("player-modal").style.display = "none";
+});
+
+const viewport = document.getElementById("pitch-viewport");
+document.querySelectorAll(".view-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".view-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    viewport.className = "pitch-3d-viewport " + btn.dataset.view;
+  });
+});
+</script>
+</body>
+</html>

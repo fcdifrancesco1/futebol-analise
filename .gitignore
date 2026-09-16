@@ -1,6 +1,11 @@
 # Dependências
 node_modules/
 
+# Backups locais contêm o estado anterior e podem conter credenciais
+backups/
+dist/
+.artifacts/
+
 # Vercel & Deploy
 .vercel/
 
@@ -15,6 +20,7 @@ node_modules/
 .env.production.local
 .env*.local
 .env*
+!.env.example
 *.env
 *.pem
 *.key

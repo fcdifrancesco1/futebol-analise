@@ -1,87 +1,72 @@
-// api/news.js
-// Agregador Serverless de Manchetes e Notícias Esportivas em Tempo Real
-// Consulta o feed RSS do Google Notícias com queries contextuais exclusivas para clubes de futebol,
-// eliminando notícias de cidades (ex: São Paulo cidade), palavras comuns (ex: Vitória conquista)
-// e termos genéricos (ex: Futebol internacional). Retorna as 6 notícias mais recentes.
+const { enforceRateLimit, configuredLimit } = require('../lib/request-security');
+const { fetchBounded, requireGet } = require('../lib/http');
 
-const CLUB_QUERY_MAP = {
-  "sao paulo": '("São Paulo FC" OR "SPFC" OR "São Paulo Futebol Clube" OR "Tricolor Paulista" OR ("São Paulo" ("Zubeldía" OR "Luciano" OR "Calleri" OR "Lucas Moura" OR "Arboleda" OR "Casares" OR "CT da Barra Funda" OR "elenco tricolor" OR "Copa do Brasil")))',
-  "spfc": '("São Paulo FC" OR "SPFC" OR "São Paulo Futebol Clube" OR "Tricolor Paulista")',
-  "internacional": '("Sport Club Internacional" OR "SC Internacional" OR "Inter de Porto Alegre" OR ("Internacional" ("Beira-Rio" OR "Gre-Nal" OR "GreNal" OR "Colorado gaúcho" OR "Roger Machado" OR "Borré" OR "Alan Patrick")))',
-  "inter de porto alegre": '("Sport Club Internacional" OR "SC Internacional" OR "Inter de Porto Alegre" OR "Colorado")',
-  "vitoria": '("Esporte Clube Vitória" OR "EC Vitória" OR "Vitória-BA" OR "Leão da Barra" OR ("Vitória" ("Barradão" OR "Ba-Vi" OR "BaVi" OR "Rubro-Negro baiano" OR "Thiago Carpini" OR "Alerrando" OR "Fábio Mota")))',
-  "ec vitoria": '("Esporte Clube Vitória" OR "EC Vitória" OR "Vitória-BA" OR "Leão da Barra")',
-  "sport": '("Sport Club do Recife" OR "Sport Recife" OR ("Sport" ("Ilha do Retiro" OR "Leão da Ilha" OR "Pepa" OR "Rubro-Negro pernambucano")))',
-  "sport recife": '("Sport Club do Recife" OR "Sport Recife" OR "Leão da Ilha")',
-  "santos": '("Santos FC" OR "Santos Futebol Clube" OR ("Santos" ("Vila Belmiro" OR "Alvinegro Praiano" OR "Carille" OR "Guilherme" OR "Otero" OR "Marcelo Teixeira")))',
-  "santos fc": '("Santos FC" OR "Santos Futebol Clube" OR "Alvinegro Praiano" OR "Vila Belmiro")',
-  "fortaleza": '("Fortaleza EC" OR "Fortaleza Esporte Clube" OR "Leão do Pici" OR ("Fortaleza" ("Castelão" OR "Vojvoda" OR "Tricolor do Pici" OR "Marcelo Paz")))',
-  "bahia": '("EC Bahia" OR "Esporte Clube Bahia" OR "Tricolor de Aço" OR ("Bahia" ("Fonte Nova" OR "Rogério Ceni" OR "Grupo City" OR "Everton Ribeiro" OR "Cauly")))',
-  "cruzeiro": '("Cruzeiro EC" OR "Cruzeiro Esporte Clube" OR "Raposa" OR ("Cruzeiro" ("Mineirão" OR "Fernando Diniz" OR "Toca da Raposa" OR "Matheus Pereira" OR "Pedrinho BH")))',
-  "vasco da gama": '("Vasco da Gama" ("São Januário" OR "Gigante da Colina" OR "Cruzmaltino" OR "Pedrinho" OR "Coutinho" OR "Vegetti" OR "Rafael Paiva" OR "Brasileirão" OR "Copa do Brasil") OR "CR Vasco da Gama")',
-  "vasco": '("Vasco da Gama" ("São Januário" OR "Gigante da Colina" OR "Cruzmaltino" OR "Pedrinho" OR "Coutinho" OR "Vegetti" OR "Rafael Paiva" OR "Brasileirão" OR "Copa do Brasil") OR "CR Vasco da Gama")',
-  "flamengo": '("Flamengo" ("Maracanã" OR "Mengão" OR "Rubro-Negro carioca" OR "Tite" OR "Arrascaeta" OR "Pedro" OR "Gabigol" OR "Ninho do Urubu" OR "Landim"))',
-  "fluminense": '("Fluminense" ("Maracanã" OR "Tricolor das Laranjeiras" OR "Mano Menezes" OR "Thiago Silva" OR "Ganso" OR "Arias" OR "Mário Bittencourt"))',
-  "palmeiras": '("Palmeiras" ("Allianz Parque" OR "Verdão" OR "Alviverde" OR "Abel Ferreira" OR "Estêvão" OR "Veiga" OR "Leila Pereira" OR "Academia de Futebol"))',
-  "corinthians": '("Corinthians" ("Neo Química Arena" OR "Timão" OR "Alvinegro paulista" OR "Ramón Díaz" OR "Depay" OR "Garro" OR "Yuri Alberto" OR "Augusto Melo"))',
-  "gremio": '("Grêmio" ("Arena do Grêmio" OR "Tricolor Gaúcho" OR "Renato Portaluppi" OR "Renato Gaúcho" OR "Braithwaite" OR "Soteldo" OR "Guerra"))',
-  "atletico mineiro": '("Atlético-MG" OR "Atlético Mineiro" OR ("Atlético" ("Arena MRV" OR "Galo da Massa" OR "Milito" OR "Hulk" OR "Paulinho" OR "Sérgio Coelho")))',
-  "atletico-mg": '("Atlético-MG" OR "Atlético Mineiro" OR ("Atlético" ("Arena MRV" OR "Galo da Massa" OR "Milito" OR "Hulk" OR "Paulinho" OR "Sérgio Coelho")))',
-  "athletico": '("Athletico-PR" OR "Athletico Paranaense" OR ("Athletico" ("Ligga Arena" OR "Furacão" OR "Lucho González" OR "Petraglia")))',
-  "athletico paranaense": '("Athletico-PR" OR "Athletico Paranaense" OR ("Athletico" ("Ligga Arena" OR "Furacão" OR "Lucho González" OR "Petraglia")))',
-  "atletico goianiense": '("Atlético-GO" OR "Atlético Goianiense" OR "Dragão de Campinas")',
-  "atletico-go": '("Atlético-GO" OR "Atlético Goianiense" OR "Dragão de Campinas")',
-  "america mineiro": '("América-MG" OR "América Mineiro" OR "Coelho")',
-  "america-mg": '("América-MG" OR "América Mineiro" OR "Coelho")',
-  "botafogo": '("Botafogo" ("Nilton Santos" OR "Engenhão" OR "Glorioso" OR "Fogão" OR "Artur Jorge" OR "John Textor" OR "Luiz Henrique" OR "Igor Jesus" OR "Alvinegro carioca"))',
-  "juventude": '("EC Juventude" OR "Juventude" (futebol OR "Alfredo Jaconi" OR "Papo" OR "Jair Ventura"))',
-  "cuiaba": '("Cuiabá EC" OR "Cuiabá Esporte Clube" OR "Dourado" (futebol OR "Arena Pantanal"))',
-  "ceara": '("Ceará SC" OR "Ceará Sporting Club" OR "Vovô" (futebol OR "Castelão"))',
-  "goias": '("Goiás EC" OR "Goiás Esporte Clube" OR "Esmeraldino" (futebol OR "Serrinha"))',
-  "coritiba": '("Coritiba FC" OR "Coritiba Foot Ball Club" OR "Coxa" (futebol OR "Couto Pereira"))',
-  "avai": '("Avaí FC" OR "Avaí Futebol Clube" OR "Leão da Ilha" (futebol OR "Ressacada"))',
-  "chapecoense": '("Chapecoense" OR "Chape" (futebol OR "Arena Condá"))',
-  "crb": '("CRB" futebol OR "Clube de Regatas Brasil" OR "Galo de Alagoas")',
-  "csa": '("CSA" futebol OR "Centro Sportivo Alagoano" OR "Azulão do Mutange")',
-  "ponte preta": '("Ponte Preta" OR "Macaca" (futebol OR "Moisés Lucarelli"))',
-  "guarani": '("Guarani FC" OR "Guarani de Campinas" OR "Bugre" (futebol OR "Brinco de Ouro"))',
-  "paysandu": '("Paysandu" OR "Papão da Curuzu" (futebol OR "Curuzu"))',
-  "remo": '("Clube do Remo" OR "Leão Azul" (futebol OR "Baenão"))',
-  "nautico": '("Náutico" (futebol OR "Aflitos" OR "Timbu" OR "Clube Náutico Capibaribe"))',
-  "santa cruz": '("Santa Cruz FC" OR "Santa Cruz" (futebol OR "Arruda" OR "Coral"))',
-  "operario": '("Operário-PR" OR "Operário Ferroviário" (futebol OR "Germano Krüger"))',
-  "novorizontino": '("Novorizontino" OR "Grêmio Novorizontino" (futebol OR "Jorjão"))',
-  "mirassol": '("Mirassol FC" OR "Mirassol Futebol Clube" (futebol OR "Maião"))',
-  "brusque": '("Brusque FC" OR "Brusque Futebol Clube" (futebol OR "Augusto Bauer"))',
-  "amazonas": '("Amazonas FC" OR "Onça-Pintada" (futebol OR "Carlos Zamith"))',
-  "ituano": '("Ituano FC" OR "Galo de Itu" (futebol OR "Novelli Júnior"))',
-  "londrina": '("Londrina EC" OR "Tubarão" (futebol OR "Estádio do Café"))',
-  "figueirense": '("Figueirense FC" OR "Figueira" (futebol OR "Orlando Scarpelli"))',
-  "parana": '("Paraná Clube" OR "Tricolor da Vila" (futebol OR "Vila Capanema"))',
-  "portuguesa": '("Portuguesa de Desportos" OR "Lusa" (futebol OR "Canindé"))',
-  "real madrid": '("Real Madrid" (futebol OR "Bernabéu" OR "Ancelotti" OR "Vini Jr" OR "Mbappé"))',
-  "barcelona": '("FC Barcelona" OR "Barcelona" (futebol OR "La Liga" OR "Camp Nou" OR "Flick" OR "Lamine Yamal"))',
-  "manchester city": '("Manchester City" OR "Man City" (futebol OR "Guardiola" OR "Haaland"))',
-  "manchester united": '("Manchester United" OR "Man United" (futebol OR "Old Trafford" OR "Amorim"))',
-  "liverpool": '("Liverpool FC" OR "Liverpool" (futebol OR "Premier League" OR "Anfield" OR "Salah"))',
-  "chelsea": '("Chelsea FC" OR "Chelsea" (futebol OR "Premier League" OR "Stamford Bridge"))',
-  "arsenal": '("Arsenal FC" OR "Arsenal" (futebol OR "Premier League" OR "Arteta" OR "Emirates"))',
-  "bayern munich": '("Bayern de Munique" OR "Bayern München" OR "Bayern Munich")',
-  "bayern munchen": '("Bayern de Munique" OR "Bayern München" OR "Bayern Munich")',
-  "borussia dortmund": '("Borussia Dortmund" OR "BVB")',
-  "paris saint germain": '("Paris Saint-Germain" OR "PSG" (futebol OR "Parc des Princes"))',
-  "psg": '("Paris Saint-Germain" OR "PSG" futebol)',
-  "juventus": '("Juventus" (futebol OR "Serie A" OR "Juve" OR "Turim"))',
-  "milan": '("AC Milan" OR "Milan" (futebol OR "Serie A" OR "San Siro" OR "Rossonero"))',
-  "inter": '("Inter de Milão" OR "Internazionale" OR "Inter Milan")',
-  "internazionale": '("Inter de Milão" OR "Internazionale" OR "Inter Milan")',
-  "benfica": '("SL Benfica" OR "Benfica" (futebol OR "Encarnados" OR "Estádio da Luz"))',
-  "sporting": '("Sporting CP" OR "Sporting de Portugal" (futebol OR "Alvalade"))',
-  "porto": '("FC Porto" OR "Porto" (futebol OR "Dragão"))',
-  "boca juniors": '("Boca Juniors" (futebol OR "Bombonera" OR "Xeneize"))',
-  "river plate": '("River Plate" (futebol OR "Monumental" OR "Gallardo"))'
-};
-
+// Stable club identities only. Exact normalized aliases avoid confusing Inter
+// Miami with Internacional, Sporting with Sport, or a short substring with a city.
+const CLUBS = [
+  [['sao paulo','spfc'],['São Paulo FC','SPFC','São Paulo Futebol Clube','Tricolor Paulista']],
+  [['internacional','inter de porto alegre'],['Sport Club Internacional','SC Internacional','Inter de Porto Alegre']],
+  [['vitoria','ec vitoria'],['Esporte Clube Vitória','EC Vitória','Vitória-BA','Leão da Barra']],
+  [['sport','sport recife'],['Sport Club do Recife','Sport Recife','Leão da Ilha']],
+  [['santos','santos fc'],['Santos FC','Santos Futebol Clube','Alvinegro Praiano']],
+  [['fortaleza'],['Fortaleza EC','Fortaleza Esporte Clube','Leão do Pici']],
+  [['bahia'],['EC Bahia','Esporte Clube Bahia','Tricolor de Aço']],
+  [['cruzeiro'],['Cruzeiro EC','Cruzeiro Esporte Clube']],
+  [['vasco','vasco da gama'],['CR Vasco da Gama','Vasco da Gama futebol','Gigante da Colina']],
+  [['flamengo'],['CR Flamengo','Clube de Regatas do Flamengo','Flamengo futebol']],
+  [['fluminense'],['Fluminense FC','Fluminense Football Club','Tricolor das Laranjeiras']],
+  [['palmeiras'],['Sociedade Esportiva Palmeiras','Palmeiras futebol']],
+  [['corinthians'],['Sport Club Corinthians Paulista','Corinthians futebol']],
+  [['gremio'],['Grêmio Foot-Ball Porto Alegrense','Grêmio futebol','Tricolor Gaúcho']],
+  [['atletico mineiro','atletico-mg'],['Atlético-MG','Atlético Mineiro']],
+  [['athletico','athletico paranaense','athletico-pr'],['Athletico-PR','Athletico Paranaense']],
+  [['atletico goianiense','atletico-go'],['Atlético-GO','Atlético Goianiense']],
+  [['america mineiro','america-mg'],['América-MG','América Mineiro']],
+  [['botafogo'],['Botafogo FR','Botafogo de Futebol e Regatas','Botafogo futebol']],
+  [['juventude'],['EC Juventude','Esporte Clube Juventude']],
+  [['cuiaba'],['Cuiabá EC','Cuiabá Esporte Clube']],
+  [['ceara'],['Ceará SC','Ceará Sporting Club']],
+  [['goias'],['Goiás EC','Goiás Esporte Clube']],
+  [['coritiba'],['Coritiba FC','Coritiba Foot Ball Club']],
+  [['avai'],['Avaí FC','Avaí Futebol Clube']],
+  [['chapecoense'],['Associação Chapecoense de Futebol','Chapecoense']],
+  [['crb'],['Clube de Regatas Brasil','CRB futebol']],
+  [['csa'],['Centro Sportivo Alagoano','CSA futebol']],
+  [['ponte preta'],['Associação Atlética Ponte Preta','Ponte Preta futebol']],
+  [['guarani'],['Guarani FC','Guarani de Campinas']],
+  [['paysandu'],['Paysandu Sport Club','Paysandu futebol']],
+  [['remo'],['Clube do Remo']],
+  [['nautico'],['Clube Náutico Capibaribe','Náutico futebol']],
+  [['santa cruz'],['Santa Cruz Futebol Clube','Santa Cruz FC']],
+  [['operario','operario-pr'],['Operário-PR','Operário Ferroviário']],
+  [['novorizontino'],['Grêmio Novorizontino','Novorizontino']],
+  [['mirassol'],['Mirassol FC','Mirassol Futebol Clube']],
+  [['brusque'],['Brusque FC','Brusque Futebol Clube']],
+  [['amazonas'],['Amazonas FC']],
+  [['ituano'],['Ituano FC','Ituano Futebol Clube']],
+  [['londrina'],['Londrina EC','Londrina Esporte Clube']],
+  [['figueirense'],['Figueirense FC','Figueirense Futebol Clube']],
+  [['parana'],['Paraná Clube']],
+  [['portuguesa'],['Portuguesa de Desportos']],
+  [['real madrid'],['Real Madrid futebol','Real Madrid CF']],
+  [['barcelona'],['FC Barcelona','Barcelona futebol']],
+  [['manchester city','man city','man. city'],['Manchester City','Man City']],
+  [['manchester united'],['Manchester United','Man United']],
+  [['liverpool'],['Liverpool FC','Liverpool futebol']],
+  [['chelsea'],['Chelsea FC','Chelsea futebol']],
+  [['arsenal'],['Arsenal FC','Arsenal futebol']],
+  [['bayern munich','bayern munchen'],['Bayern de Munique','Bayern München','Bayern Munich']],
+  [['borussia dortmund'],['Borussia Dortmund','BVB futebol']],
+  [['paris saint germain','psg'],['Paris Saint-Germain','PSG futebol']],
+  [['juventus'],['Juventus Turim','Juventus futebol']],
+  [['milan','ac milan'],['AC Milan']],
+  [['inter','internazionale','inter milan'],['Inter de Milão','Internazionale','Inter Milan']],
+  [['benfica'],['SL Benfica','Benfica futebol']],
+  [['sporting','sporting cp'],['Sporting CP','Sporting de Portugal']],
+  [['porto'],['FC Porto']],
+  [['boca juniors'],['Boca Juniors']],
+  [['river plate'],['River Plate futebol']]
+];
 const EXCLUSIONS = {
   "sao paulo": [
     "prefeitura", "governador", "tarcísio", "metrô", "trânsito", "rodovia",
@@ -123,153 +108,95 @@ const EXCLUSIONS = {
   ]
 };
 
-function normalizeName(str) {
-  return str.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .trim();
+
+function normalizeName(value) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 }
-
-module.exports = async (req, res) => {
-  const team = req.query.team;
-
-  if (!team || typeof team !== "string" || !team.trim()) {
-    res.status(400).json({ error: "Parâmetro 'team' é obrigatório." });
-    return;
-  }
-
-  let cleanTeam = team.trim()
-    .replace(/\bDA\b/gi, "da")
-    .replace(/\bDE\b/gi, "de")
-    .replace(/\bDO\b/gi, "do");
-
-  const normalized = normalizeName(cleanTeam);
-  let queryStr = CLUB_QUERY_MAP[normalized];
-
-  if (!queryStr) {
-    // Tenta encontrar por substring
-    const matchedKey = Object.keys(CLUB_QUERY_MAP).find(k => normalized.includes(k) || k.includes(normalized));
-    if (matchedKey) {
-      queryStr = CLUB_QUERY_MAP[matchedKey];
+function decodeXML(value) {
+  const named = { amp:'&', lt:'<', gt:'>', quot:'"', apos:"'" };
+  return value.replace(/&(#x[0-9a-f]+|#[0-9]+|amp|lt|gt|quot|apos);/gi, (_,entity) => {
+    if(entity[0]!=='#') return named[entity.toLowerCase()];
+    const code = entity[1].toLowerCase()==='x' ? parseInt(entity.slice(2),16) : Number(entity.slice(1));
+    return code > 0 && code <= 0x10ffff && !(code>=0xd800 && code<=0xdfff) ? String.fromCodePoint(code) : '\uFFFD';
+  });
+}
+// Bounded RSS tokenizer: handles CDATA, entities, attributes, comments and
+// namespace prefixes, validates nesting and never resolves DTD/external entities.
+function parseRSS(xml) {
+  if(/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error('DTD not permitted');
+  const tokens=/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\?[\s\S]*?\?>|<\/?[A-Za-z_][\w:.-]*(?:\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*'))*\s*\/?>|[^<]+/gy;
+  const stack=[], items=[]; let current=null, position=0, root=false, match;
+  const local = tag => tag.split(':').pop();
+  while((match=tokens.exec(xml))) {
+    if(match.index!==position) throw new Error('Malformed feed');
+    const token=match[0]; position=tokens.lastIndex;
+    if(token.startsWith('<!--') || token.startsWith('<?')) continue;
+    if(token.startsWith('<![CDATA[') || token[0]!=='<') {
+      if(!stack.length && token.trim()) throw new Error('Text outside root');
+      const field=local(stack.at(-1) || '');
+      if(current && ['title','link','pubDate','source'].includes(field)) {
+        current[field]=(current[field] || '')+(token.startsWith('<![CDATA[') ? token.slice(9,-3) : decodeXML(token));
+      }
+      continue;
+    }
+    const name=token.match(/^<\/?([\w:.-]+)/)[1];
+    if(token.startsWith('</')) {
+      if(stack.pop()!==name) throw new Error('Malformed nesting');
+      if(local(name)==='item' && current){items.push(current); current=null;}
     } else {
-      queryStr = cleanTeam.includes(" ") 
-        ? `"${cleanTeam}" futebol` 
-        : `"${cleanTeam}" (futebol OR "clube" OR "elenco" OR "jogo" OR "partida")`;
+      if(!stack.length){if(root || local(name)!=='rss') throw new Error('Expected RSS'); root=true;}
+      if(stack.length>32 || items.length>1000) throw new Error('Feed limits exceeded');
+      if(local(name)==='item'){
+        if(current || local(stack.at(-1)||'')!=='channel') throw new Error('Malformed item');
+        current={};
+      }
+      if(!token.endsWith('/>')) stack.push(name);
+      else if(local(name)==='item'){items.push(current);current=null;}
     }
   }
-
-  const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(queryStr)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
-
+  if(position!==xml.length || stack.length || !root) throw new Error('Incomplete feed');
+  return items;
+}
+function toNews(item, negatives) {
+  let title=(item.title || '').trim(), source=(item.source || '').trim();
+  if(source && title.endsWith(' - '+source)) title=title.slice(0,-source.length-3).trim();
+  else if(!source && title.includes(' - ')){const parts=title.split(' - ');source=parts.pop().trim();title=parts.join(' - ').trim();}
+  if(!title || negatives.some(n=>normalizeName(title).includes(normalizeName(n)))) return null;
+  let link;
   try {
-    const rssResp = await fetch(rssUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "application/rss+xml, application/xml, text/xml"
-      }
-    });
-
-    if (!rssResp.ok) {
-      res.status(rssResp.status).json({ error: "Falha ao buscar feed de notícias." });
-      return;
-    }
-
-    const xml = await rssResp.text();
-    const items = [];
-    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-    let match;
-
-    const matchedExclKey = Object.keys(EXCLUSIONS).find(k => normalized.includes(k) || k.includes(normalized));
-    const negativeList = matchedExclKey ? EXCLUSIONS[matchedExclKey] : [];
-
-    while ((match = itemRegex.exec(xml)) !== null) {
-      const itemContent = match[1];
-      const titleMatch = itemContent.match(/<title>([\s\S]*?)<\/title>/);
-      const linkMatch = itemContent.match(/<link>([\s\S]*?)<\/link>/);
-      const pubDateMatch = itemContent.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
-      const sourceMatch = itemContent.match(/<source[^>]*>([\s\S]*?)<\/source>/);
-
-      let rawTitle = titleMatch ? titleMatch[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, "$1").trim() : "";
-      let source = sourceMatch ? sourceMatch[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, "$1").trim() : "";
-
-      // No Google News RSS, o título geralmente termina com " - NomeDaFonte"
-      if (!source && rawTitle.includes(" - ")) {
-        const parts = rawTitle.split(" - ");
-        source = parts.pop().trim();
-        rawTitle = parts.join(" - ").trim();
-      } else if (source && rawTitle.endsWith(" - " + source)) {
-        rawTitle = rawTitle.slice(0, -(source.length + 3)).trim();
-      }
-
-      // Decodificar entidades HTML no título
-      rawTitle = rawTitle
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'")
-        .replace(/&#39;/g, "'")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">");
-
-      const lowerTitle = rawTitle.toLowerCase();
-
-      // Filtro de exclusão de homônimos / notícias de cidades / não relacionadas ao clube
-      if (negativeList.some(neg => lowerTitle.includes(neg))) {
-        continue;
-      }
-
-      const link = linkMatch ? linkMatch[1].trim() : "";
-      const pubDateStr = pubDateMatch ? pubDateMatch[1].trim() : "";
-      let timestamp = 0;
-      let timeAgo = "";
-
-      if (pubDateStr) {
-        try {
-          const pubDate = new Date(pubDateStr);
-          timestamp = pubDate.getTime();
-          const now = new Date();
-          const diffMs = now - pubDate;
-          const diffMins = Math.floor(diffMs / (1000 * 60));
-          const diffHours = Math.floor(diffMins / 60);
-          const diffDays = Math.floor(diffHours / 24);
-
-          if (diffMins < 60) {
-            timeAgo = diffMins <= 1 ? "Agora mesmo" : `Há ${diffMins} min`;
-          } else if (diffHours < 24) {
-            timeAgo = `Há ${diffHours}h`;
-          } else {
-            timeAgo = diffDays === 1 ? "Ontem" : `Há ${diffDays} dias`;
-          }
-        } catch {
-          timeAgo = "";
-        }
-      }
-
-      if (rawTitle && link) {
-        items.push({
-          title: rawTitle,
-          source: source || "Portal de Notícias",
-          link,
-          pubDate: pubDateStr,
-          timestamp,
-          timeAgo: timeAgo || "Recente"
-        });
-      }
-    }
-
-    // Ordenar estritamente da mais nova para a mais antiga
-    items.sort((a, b) => b.timestamp - a.timestamp);
-
-    // Limitar rigorosamente às 6 notícias mais recentes
-    const top6 = items.slice(0, 6);
-
-    res.setHeader("Cache-Control", "public, max-age=180, s-maxage=300");
-    res.status(200).json({
-      team: cleanTeam,
-      count: top6.length,
-      items: top6
-    });
-  } catch (err) {
-    res.status(502).json({
-      error: "Erro ao processar notícias esportivas.",
-      details: err.message
-    });
+    link=new URL((item.link || '').trim());
+    if(!['https:','http:'].includes(link.protocol) || link.username || link.password) return null;
+  } catch {return null;}
+  const pubDate=(item.pubDate || '').trim(), parsed=Date.parse(pubDate);
+  const timestamp=Number.isFinite(parsed) ? parsed : 0;
+  let timeAgo='Recente';
+  if(timestamp){
+    const minutes=Math.max(0,Math.floor((Date.now()-timestamp)/60000)), hours=Math.floor(minutes/60), days=Math.floor(hours/24);
+    timeAgo=minutes<=1?'Agora mesmo':minutes<60?'Há '+minutes+' min':hours<24?'Há '+hours+'h':days===1?'Ontem':'Há '+days+' dias';
   }
+  return {title,source:source||'Portal de Notícias',link:link.href,pubDate,timestamp,timeAgo};
+}
+module.exports = async (req,res) => {
+  if(!requireGet(req,res)) return;
+  const team=req.query?.team;
+  if(typeof team!=='string' || team.trim().length<2 || team.length>120 || !/^[\p{L}\p{N} .'-]+$/u.test(team) || Object.keys(req.query).some(k=>k!=='team')) {
+    return res.status(400).json({error:'Parâmetro team inválido.'});
+  }
+  let limit;
+  try {limit=configuredLimit('NEWS_RATE_LIMIT',30);} catch {return res.status(503).json({error:'Serviço temporariamente indisponível.'});}
+  if(!await enforceRateLimit(req,res,{scope:'news',limit,windowSeconds:60})) return;
+  const cleanTeam=team.trim(), normalized=normalizeName(cleanTeam);
+  const club=CLUBS.find(([aliases])=>aliases.includes(normalized));
+  const query=club ? '('+club[1].map(name=>'"'+name+'"').join(' OR ')+')' : '"'+cleanTeam+'" futebol';
+  const negatives=EXCLUSIONS[club ? club[0][0] : normalized] || [];
+  try {
+    const {body}=await fetchBounded('https://news.google.com/rss/search?q='+encodeURIComponent(query)+'&hl=pt-BR&gl=BR&ceid=BR:pt-419',
+      {headers:{Accept:'application/rss+xml, application/xml, text/xml'}},{timeoutMs:8000,maxBytes:1024*1024});
+    const seen=new Set();
+    const items=parseRSS(body.toString('utf8')).map(item=>toNews(item,negatives)).filter(item=>{
+      if(!item || seen.has(item.link)) return false; seen.add(item.link); return true;
+    }).sort((a,b)=>b.timestamp-a.timestamp).slice(0,6);
+    res.setHeader('Cache-Control','public, max-age=180, s-maxage=300');
+    return res.status(200).json({team:cleanTeam,count:items.length,items});
+  } catch { return res.status(502).json({error:'Erro ao processar notícias esportivas.'}); }
 };

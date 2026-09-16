@@ -1,0 +1,8 @@
+Bolao FutStats:
+- Botao para criaçao de liga
+- Botão que gera um link para amigos entrarem na liga
+- Só entra com o link de convite
+- O criador da liga escolhe as competiçoes que serao usadas na liga
+- Acertou o placar exato 3 pontos, acertou resultado 1 ponto (colocou 2x0 para o time A e ficou 1x0 para o time A, acertou o resultado, entao 1 ponto), errou tudo zero pontos
+- Pode colocar o palpite no bolão até 10min antes do começo da partida
+- Fazer para o visual web e visual mobile

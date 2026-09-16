@@ -1,0 +1,6 @@
+.data-disclaimer { color: var(--chalk-dim); font-size: 0.8rem; line-height: 1.5; margin: 10px 0; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+[role="button"] { cursor: pointer; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

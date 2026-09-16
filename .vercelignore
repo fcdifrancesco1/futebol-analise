@@ -1,0 +1,8 @@
+backups/
+docs/
+.artifacts/
+.env*
+.git/
+public/demo-*.html
+GUIA-PUBLICACAO-PLAYSTORE.pdf
+COMO-SUBIR-PRO-GITHUB.md

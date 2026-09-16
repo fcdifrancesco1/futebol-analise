@@ -1,0 +1,23 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+test('closing a country removes its leagues from keyboard interaction and accessibility, reopening restores them',()=>{
+  const context=vm.createContext({window:{}});
+  vm.runInContext(fs.readFileSync('public/js/leagues.js','utf8'),context);
+  const attributes=new Map();
+  const body={id:'country-body-brasil',inert:false,setAttribute:(key,value)=>attributes.set(key,value)};
+  let open=true;
+  const card={classList:{toggle:()=>open=!open},querySelector:selector=>selector==='.country-body'?body:null};
+  const headerAttributes=new Map();
+  const header={closest:()=>card,setAttribute:(key,value)=>headerAttributes.set(key,value)};
+  context.toggleCountryCard(header);
+  assert.equal(body.inert,true);
+  assert.equal(attributes.get('aria-hidden'),'true');
+  assert.equal(headerAttributes.get('aria-expanded'),'false');
+  assert.equal(headerAttributes.get('aria-controls'),'country-body-brasil');
+  context.toggleCountryCard(header);
+  assert.equal(body.inert,false);
+  assert.equal(attributes.get('aria-hidden'),'false');
+  assert.equal(headerAttributes.get('aria-expanded'),'true');
+});
