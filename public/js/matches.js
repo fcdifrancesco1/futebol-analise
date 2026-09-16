@@ -58,6 +58,9 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
         <button class="day-nav-btn" id="btn-next-day" data-date="${nextDate}">
           Próximo →
         </button>
+        <button class="day-nav-btn day-refresh-btn" id="btn-refresh-day" title="Atualizar resultados e placares agora">
+          <span class="refresh-spin-icon">🔄</span> Atualizar
+        </button>
       </div>
 
       <div class="day-current-display">
@@ -85,7 +88,37 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
     location.hash = `#/jogos-do-dia/${nextDate}`;
   });
   document.getElementById("btn-today-day").addEventListener("click", () => {
-    location.hash = `#/jogos-do-dia/${todayStr}`;
+    if (location.hash === `#/jogos-do-dia/${todayStr}` || location.hash === "#/jogos-do-dia" || location.hash === "#/") {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
+      footballClient.invalidate("fixtures", { date: todayStr, timezone: tz });
+      footballClient.invalidate("fixtures", { date: todayStr });
+      fetchAndRenderDayMatches(todayStr, "all", true);
+    } else {
+      location.hash = `#/jogos-do-dia/${todayStr}`;
+    }
+  });
+  document.getElementById("btn-refresh-day")?.addEventListener("click", async () => {
+    const btn = document.getElementById("btn-refresh-day");
+    if (btn) {
+      btn.classList.add("spinning");
+      btn.disabled = true;
+    }
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
+      footballClient.invalidate("fixtures", { date: currentDate, timezone: tz });
+      footballClient.invalidate("fixtures", { date: currentDate });
+      footballClient.invalidate("fixtures", { live: "all" });
+      const currentActiveFilter = document.querySelector(".matches-day-filter-btn.active")?.dataset?.filter || "all";
+      await fetchAndRenderDayMatches(currentDate, currentActiveFilter, true);
+      toast("Resultados e placares atualizados!", false);
+    } catch (e) {
+      toast("Erro ao atualizar: " + (e.message || "Tente novamente"), true);
+    } finally {
+      if (btn) {
+        btn.classList.remove("spinning");
+        btn.disabled = false;
+      }
+    }
   });
   document.getElementById("day-date-input").addEventListener("change", (e) => {
     if (e.target.value) {
@@ -105,7 +138,7 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
   await fetchAndRenderDayMatches(currentDate, statusFilter);
 }
 
-async function fetchAndRenderDayMatches(dateStr, filter = "all") {
+async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = false) {
   const view = captureView();
   const app = view.root;
   const document = view.document;
@@ -116,7 +149,11 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all") {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
 
   try {
-    const fixtures = await apiGet("fixtures", { date: dateStr, timezone: tz }, 3);
+    const ttl = isForced ? 0 : 3;
+    const fixtures = await apiGet("fixtures", { date: dateStr, timezone: tz }, ttl);
+    if (fixtures && Array.isArray(fixtures)) {
+      try { NotificationManager.checkLiveAlerts(fixtures); } catch { /* ignore notification errors */ }
+    }
     const relevant = (fixtures || []).filter(f => {
       if (!knownLeagueIds.has(f.league?.id)) return false;
       // Garante que o jogo pertence exatamente ao dia selecionado no fuso horário local
@@ -278,7 +315,17 @@ async function renderLive() {
     <div id="live-content">${skeletonTable()}</div>
   `;
 
-  document.getElementById("btn-force-refresh").addEventListener("click", () => fetchLiveMatches(true));
+  document.getElementById("btn-force-refresh").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-force-refresh");
+    if (btn) { btn.disabled = true; btn.textContent = "Atualizando..."; }
+    try {
+      footballClient.invalidate("fixtures", { live: "all" });
+      await fetchLiveMatches(true);
+      toast("Jogos ao vivo atualizados!", false);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Atualizar"; }
+    }
+  });
   await fetchLiveMatches();
   startLiveAutoRefresh(() => fetchLiveMatches(true));
 }
@@ -292,6 +339,9 @@ async function fetchLiveMatches(isForced = false) {
 
   const knownLeagueIds = new Set(LEAGUES.map(l => l.id));
   try {
+    if (isForced) {
+      footballClient.invalidate("fixtures", { live: "all" });
+    }
     const fixtures = await apiGet("fixtures", { live: "all" }, isForced ? 0 : 0.5);
     NotificationManager.checkLiveAlerts(fixtures);
     const relevant = (fixtures || []).filter(f => knownLeagueIds.has(f.league.id));
@@ -392,7 +442,9 @@ function startLiveAutoRefresh(refreshFn) {
     bar.style.width = `${(remaining / state.liveIntervalSeconds) * 100}%`;
     if (remaining <= 0) {
       remaining = state.liveIntervalSeconds;
-      // The global refresh scheduler performs the network refresh.
+      if (typeof refreshFn === 'function') {
+        try { refreshFn(); } catch (e) { console.warn("Erro no auto-refresh:", e); }
+      }
     }
   }, 1000);
 }

@@ -13,7 +13,7 @@ function cacheQuery(endpoint, params = {}) {
     .filter(([,v]) => v !== undefined && v !== null && v !== '')
     .sort(([a],[b]) => a.localeCompare(b))) }).toString();
 }
-function cacheKey(endpoint, params = {}) { return `ap_cache_v95_${cacheQuery(endpoint, params)}`; }
+function cacheKey(endpoint, params = {}) { return `ap_cache_v97_${cacheQuery(endpoint, params)}`; }
 
 function createApiClient({ fetch: fetcher, storage, now = Date.now, onUpdate = () => {} }) {
   const cache = new Map(), pending = new Map();
@@ -22,6 +22,19 @@ function createApiClient({ fetch: fetcher, storage, now = Date.now, onUpdate = (
     const key = cacheKey(endpoint, params);
     cache.delete(key);
     try { storage?.removeItem(key); } catch { /* unavailable storage */ }
+  }
+  function invalidateAll() {
+    cache.clear();
+    try {
+      if (storage && typeof storage.length === 'number') {
+        const toRemove = [];
+        for (let i = 0; i < storage.length; i++) {
+          const k = storage.key(i);
+          if (k && k.startsWith('ap_cache_')) toRemove.push(k);
+        }
+        toRemove.forEach(k => storage.removeItem(k));
+      }
+    } catch { /* storage cleanup */ }
   }
   async function get(endpoint, params = {}, ttlMinutes = 15, signal) {
     check(signal);
@@ -51,11 +64,10 @@ function createApiClient({ fetch: fetcher, storage, now = Date.now, onUpdate = (
             const err = new Error(String(Object.values(body.errors)[0])); err.retryable=false; throw err;
           }
           const data = body.response ?? [];
-          if (ttl > 0) {
-            const entry={data,timestamp:now()}; cache.set(key,entry);
-            try { storage?.setItem(key,JSON.stringify(entry)); } catch { /* quota */ }
-            if (cache.size > 200) cache.delete(cache.keys().next().value);
-          }
+          const entry = { data, timestamp: now() };
+          cache.set(key, entry);
+          try { storage?.setItem(key, JSON.stringify(entry)); } catch { /* quota */ }
+          if (cache.size > 200) cache.delete(cache.keys().next().value);
           onUpdate(false); return data;
         } catch (err) {
           check(signal);
@@ -66,6 +78,6 @@ function createApiClient({ fetch: fetcher, storage, now = Date.now, onUpdate = (
     pending.set(key,{promise,signal});
     try { return await promise; } finally { if (pending.get(key)?.promise === promise) pending.delete(key); }
   }
-  return {get,invalidate,cache};
+  return {get,invalidate,invalidateAll,cache};
 }
 if (typeof module !== 'undefined') module.exports={createApiClient,cacheKey,cacheQuery,safeReadStorage};

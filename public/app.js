@@ -109,11 +109,28 @@ function initApp() {
   document.querySelectorAll("[data-nav]").forEach(el => {
     el.addEventListener("click", () => {
       const nav = el.dataset.nav;
-      if (nav === "home") location.hash = "#/ligas";
-      if (nav === "today") location.hash = "#/jogos-do-dia";
-      if (nav === "myteam") location.hash = "#/meu-time";
-      if (nav === "live") location.hash = "#/aovivo";
-      if (nav === "mylineups") location.hash = "#/minha-escalacao";
+      const targetHash = nav === "home" ? "#/ligas"
+        : nav === "today" ? "#/jogos-do-dia"
+        : nav === "myteam" ? "#/meu-time"
+        : nav === "live" ? "#/aovivo"
+        : nav === "mylineups" ? "#/minha-escalacao" : "#/";
+      const currentHash = location.hash || "#/";
+      if (currentHash === targetHash || (nav === "today" && (currentHash === "#/" || currentHash.startsWith("#/jogos-do-dia")))) {
+        if (nav === "today") {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
+          const today = getLocalDateString(new Date());
+          footballClient.invalidate("fixtures", { date: today, timezone: tz });
+          footballClient.invalidate("fixtures", { date: today });
+          footballClient.invalidate("fixtures", { live: "all" });
+          const activeFilter = document.querySelector(".matches-day-filter-btn.active")?.dataset?.filter || "all";
+          fetchAndRenderDayMatches(today, activeFilter, true);
+        } else if (nav === "live") {
+          footballClient.invalidate("fixtures", { live: "all" });
+          fetchLiveMatches(true);
+        }
+      } else {
+        location.hash = targetHash;
+      }
     });
   });
 
@@ -160,7 +177,14 @@ function initApp() {
         const datePart = hash.startsWith("#/jogos-do-dia/") ? hash.split('/')[2] : '';
         const targetDate = datePart || getLocalDateString(new Date());
         const activeFilter = document.querySelector(".matches-day-filter-btn.active")?.dataset?.filter || "all";
-        await fetchAndRenderDayMatches(targetDate, activeFilter);
+        const todayStr = getLocalDateString(new Date());
+        const isToday = !datePart || datePart === todayStr;
+        if (isToday) {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
+          footballClient.invalidate("fixtures", { date: targetDate, timezone: tz });
+          footballClient.invalidate("fixtures", { date: targetDate });
+        }
+        await fetchAndRenderDayMatches(targetDate, activeFilter, isToday);
       } else if (hash === "#/meu-time") {
         await renderMyTeam();
       }
@@ -175,22 +199,24 @@ function initApp() {
 
   // Auto-refresh instantâneo ao retornar de segundo plano / focar janela
   let lastBackgroundTime = Date.now();
+  async function triggerVisibilityRefresh() {
+    const elapsedBg = Date.now() - lastBackgroundTime;
+    if (elapsedBg > 3000) {
+      lastBackgroundTime = Date.now();
+      await executeGlobal30sRefresh();
+    }
+  }
+
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
-      const elapsedBg = Date.now() - lastBackgroundTime;
-      if (elapsedBg > 5000) {
-        executeGlobal30sRefresh();
-      }
+      triggerVisibilityRefresh();
     } else {
       lastBackgroundTime = Date.now();
     }
   });
 
   window.addEventListener("focus", () => {
-    const elapsedBg = Date.now() - lastBackgroundTime;
-    if (elapsedBg > 5000) {
-      executeGlobal30sRefresh();
-    }
+    triggerVisibilityRefresh();
   });
 
   router();

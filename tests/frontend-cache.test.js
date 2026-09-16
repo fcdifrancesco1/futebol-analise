@@ -35,3 +35,35 @@ test('stored boolean preference preserves false and true without object coercion
   assert.equal(safeReadStorage({getItem:()=> 'false'},'disabled',false),false);
   assert.equal(safeReadStorage({getItem:()=> 'true'},'disabled',false),true);
 });
+test('forced refresh with ttl zero updates cache and storage with latest data', async () => {
+  let calls = 0;
+  const store = new Map();
+  const mockStorage = {
+    getItem: k => store.get(k) ?? null,
+    setItem: (k, v) => store.set(k, v),
+    removeItem: k => store.delete(k),
+    key: i => Array.from(store.keys())[i],
+    get length() { return store.size; }
+  };
+  const api = createApiClient({
+    fetch: async () => { calls++; return { ok: true, json: async () => ({ response: [{ callId: calls }] }) }; },
+    storage: mockStorage
+  });
+
+  const res1 = await api.get('fixtures', { live: 'all' }, 5);
+  assert.equal(res1[0].callId, 1);
+
+  // Forced refresh bypassing cache (ttl = 0)
+  const res2 = await api.get('fixtures', { live: 'all' }, 0);
+  assert.equal(calls, 2);
+  assert.equal(res2[0].callId, 2);
+
+  // Subsequent normal read within TTL receives the newly refreshed data without calling network again
+  const res3 = await api.get('fixtures', { live: 'all' }, 5);
+  assert.equal(calls, 2);
+  assert.equal(res3[0].callId, 2);
+
+  // Invalidate all clears storage keys
+  api.invalidateAll();
+  assert.equal(store.size, 0);
+});

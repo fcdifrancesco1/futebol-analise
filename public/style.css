@@ -1331,6 +1331,24 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   border-color: var(--gold);
   color: var(--gold);
 }
+.day-refresh-btn {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: var(--gold);
+}
+.day-refresh-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: var(--gold);
+  color: #fff;
+}
+.day-refresh-btn.spinning .refresh-spin-icon {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
 .day-current-display {
   display: flex;
