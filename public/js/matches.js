@@ -171,14 +171,13 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
       return;
     }
 
-    // Filtragem por status
-    const liveStatuses = ["1H", "2H", "HT", "ET", "P", "BT", "LIVE"];
-    const finishedStatuses = ["FT", "AET", "PEN"];
-    const scheduledStatuses = ["NS", "TBD"];
-
-    const liveCount = relevant.filter(f => liveStatuses.includes(f.fixture.status?.short)).length;
-    const finishedCount = relevant.filter(f => finishedStatuses.includes(f.fixture.status?.short)).length;
-    const scheduledCount = relevant.filter(f => scheduledStatuses.includes(f.fixture.status?.short)).length;
+    // Filtragem por status com detecção inteligente de feeds da API
+    const liveCount = relevant.filter(f => getMatchStatusCategory(f.fixture).isLive).length;
+    const finishedCount = relevant.filter(f => getMatchStatusCategory(f.fixture).isFinished).length;
+    const scheduledCount = relevant.filter(f => {
+      const cat = getMatchStatusCategory(f.fixture);
+      return cat.isScheduled || cat.isPostponed;
+    }).length;
 
     // Atualiza contadores dos botões de filtro se existirem
     const filterButtons = document.querySelectorAll(".matches-day-filter-btn");
@@ -191,11 +190,14 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
 
     let filtered = relevant;
     if (filter === "live") {
-      filtered = relevant.filter(f => liveStatuses.includes(f.fixture.status?.short));
+      filtered = relevant.filter(f => getMatchStatusCategory(f.fixture).isLive);
     } else if (filter === "finished") {
-      filtered = relevant.filter(f => finishedStatuses.includes(f.fixture.status?.short));
+      filtered = relevant.filter(f => getMatchStatusCategory(f.fixture).isFinished);
     } else if (filter === "scheduled") {
-      filtered = relevant.filter(f => scheduledStatuses.includes(f.fixture.status?.short));
+      filtered = relevant.filter(f => {
+        const cat = getMatchStatusCategory(f.fixture);
+        return cat.isScheduled || cat.isPostponed;
+      });
     }
 
     if (!filtered.length) {
@@ -241,16 +243,10 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
           <div class="card league-matches-body">
             <div class="fixture-list">
               ${matches.map(f => {
-                const isLive = liveStatuses.includes(f.fixture.status?.short);
-                const isFinished = finishedStatuses.includes(f.fixture.status?.short);
-                const timeStr = new Date(f.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-                let statusBadge = `<span class="fixture-date">${timeStr}</span>`;
-                if (isLive) {
-                  statusBadge = `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${formatLiveMatchTime(f.fixture.status)}</span>`;
-                } else if (isFinished) {
-                  statusBadge = `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;">${f.fixture.status.short}</span>`;
-                }
+                const statusInfo = getMatchStatusCategory(f.fixture);
+                const isLive = statusInfo.isLive;
+                const isFinished = statusInfo.isFinished;
+                const statusBadge = statusInfo.badgeHtml;
 
                 const scoreDisplay = (isFinished || isLive)
                   ? `<span class="fixture-score ${isLive ? 'live-score' : ''}">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>`
@@ -344,7 +340,11 @@ async function fetchLiveMatches(isForced = false) {
     }
     const fixtures = await apiGet("fixtures", { live: "all" }, isForced ? 0 : 0.5);
     NotificationManager.checkLiveAlerts(fixtures);
-    const relevant = (fixtures || []).filter(f => knownLeagueIds.has(f.league.id));
+    const relevant = (fixtures || []).filter(f => {
+      if (!knownLeagueIds.has(f.league?.id)) return false;
+      const statusInfo = getMatchStatusCategory(f.fixture);
+      return statusInfo.isLive;
+    });
 
     if (!relevant.length) {
       content.innerHTML = `<div class="card" style="text-align:center;padding:40px 20px;color:var(--chalk-dim);">Nenhum jogo ao vivo acontecendo nas ligas cobertas no momento.</div>`;
@@ -386,7 +386,8 @@ async function fetchLiveMatches(isForced = false) {
           <div class="card league-matches-body">
             <div class="fixture-list">
               ${matches.map(f => {
-                const timeDisplay = formatLiveMatchTime(f.fixture.status);
+                const statusInfo = getMatchStatusCategory(f.fixture);
+                const timeDisplay = statusInfo.label;
 
                 return `
                   <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">

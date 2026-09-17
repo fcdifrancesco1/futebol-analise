@@ -53,16 +53,19 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     const date = new Date(fx.fixture.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
     const time = new Date(fx.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     
-    const isLive = ["1H", "2H", "HT", "ET", "P", "LIVE"].includes(fx.fixture.status.short);
-    const isFinished = ["FT", "AET", "PEN", "PST", "CANC", "ABD", "AWD", "WO"].includes(fx.fixture.status.short) || 
-      String(fx.fixture.status.long || "").toLowerCase().includes("finish") || 
-      String(fx.fixture.status.long || "").toLowerCase().includes("encerrado") ||
-      String(fx.fixture.status.long || "").toLowerCase().includes("final");
+    const statusInfo = getMatchStatusCategory(fx.fixture);
+    const isLive = statusInfo.isLive;
+    const isFinished = statusInfo.isFinished;
 
     const liveTimeFormatted = formatLiveMatchTime(fx.fixture.status, events);
-    const statusText = isLive 
-      ? `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${liveTimeFormatted} (${escapeHtml(fx.fixture.status.long || "")})</span>` 
-      : escapeHtml(fx.fixture.status.long);
+    let statusText = escapeHtml(fx.fixture.status.long || "");
+    if (isLive) {
+      statusText = `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${liveTimeFormatted} (${escapeHtml(fx.fixture.status.long || "")})</span>`;
+    } else if (statusInfo.isStaleLive) {
+      statusText = `<span style="color:var(--chalk-dim);font-weight:600;">Partida Encerrada (${fx.fixture.status.elapsed}')</span>`;
+    } else if (statusInfo.isPostponed) {
+      statusText = `<span style="color:#F59E0B;font-weight:700;">● ${statusInfo.label}</span>`;
+    }
 
     const homeGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.home.id);
     const awayGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.away.id);

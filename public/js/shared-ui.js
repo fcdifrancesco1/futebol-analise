@@ -83,6 +83,124 @@ function formatLiveMatchTime(status, events = null) {
   return `${elapsed}'`;
 }
 
+function getMatchStatusCategory(fixture) {
+  if (!fixture) return { isLive: false, isFinished: false, isScheduled: true, isPostponed: false, isStaleLive: false, label: "NS", short: "NS", badgeHtml: `<span class="fixture-date">--:--</span>` };
+  const status = fixture.status || {};
+  const short = String(status.short || "").toUpperCase();
+  const kickoff = fixture.date ? new Date(fixture.date).getTime() : 0;
+  const minutesSinceKickoff = kickoff > 0 ? (Date.now() - kickoff) / 60000 : 0;
+
+  // 1. Partidas ao vivo (1H, 2H, HT, ET, P, BT, LIVE)
+  const liveShorts = ["1H", "2H", "HT", "ET", "P", "BT", "LIVE"];
+  if (liveShorts.includes(short)) {
+    // PROTEÇÃO CONTRA JOGOS CONGELADOS NO FEED DA API:
+    // Se a partida começou há mais de 160 minutos (2h40m) e o provedor ainda marca como 1H ou 2H,
+    // o jogo na vida real já acabou e o feed da API-Sports travou sem emitir o status FT.
+    if (minutesSinceKickoff > 160) {
+      return {
+        isLive: false,
+        isFinished: true,
+        isScheduled: false,
+        isPostponed: false,
+        isStaleLive: true,
+        label: "Encerrado",
+        short: "FT",
+        badgeHtml: `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;" title="Partida encerrada (feed da transmissão finalizado em ${status.elapsed || 90}')">Encerrado</span>`
+      };
+    }
+    const timeDisplay = formatLiveMatchTime(status);
+    return {
+      isLive: true,
+      isFinished: false,
+      isScheduled: false,
+      isPostponed: false,
+      isStaleLive: false,
+      label: timeDisplay,
+      short,
+      badgeHtml: `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${timeDisplay}</span>`
+    };
+  }
+
+  // 2. Partidas Finalizadas
+  const finishedShorts = ["FT", "AET", "PEN", "AWD", "WO"];
+  const isFinishedText = String(status.long || "").toLowerCase().includes("finish") || 
+                         String(status.long || "").toLowerCase().includes("encerrado") ||
+                         String(status.long || "").toLowerCase().includes("final");
+  if (finishedShorts.includes(short) || isFinishedText) {
+    return {
+      isLive: false,
+      isFinished: true,
+      isScheduled: false,
+      isPostponed: false,
+      isStaleLive: false,
+      label: short || "FT",
+      short: short || "FT",
+      badgeHtml: `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;">${short || "FT"}</span>`
+    };
+  }
+
+  // 3. Partidas Adiadas, Canceladas, Suspensas ou Interrompidas
+  if (["PST", "CANC", "ABD", "SUSP", "INT"].includes(short)) {
+    let label = "Adiado";
+    let color = "#F59E0B";
+    if (short === "CANC") { label = "Cancelado"; color = "#EF4444"; }
+    else if (short === "ABD") { label = "Abandonado"; color = "#EF4444"; }
+    else if (short === "SUSP") { label = "Suspenso"; color = "#F59E0B"; }
+    else if (short === "INT") { label = "Interrompido"; color = "#F59E0B"; }
+
+    return {
+      isLive: false,
+      isFinished: false,
+      isScheduled: false,
+      isPostponed: true,
+      isStaleLive: false,
+      label,
+      short,
+      badgeHtml: `<span class="fixture-date" style="color:${color};font-weight:600;">${label}</span>`
+    };
+  }
+
+  // 4. Partidas Agendadas / Não Iniciadas (NS, TBD)
+  const timeStr = fixture.date ? new Date(fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "--:--";
+  if (short === "NS" || short === "TBD") {
+    // Se o horário programado era há mais de 120 minutos e a API ainda está como NS
+    if (short === "NS" && minutesSinceKickoff > 120) {
+      return {
+        isLive: false,
+        isFinished: false,
+        isScheduled: true,
+        isPostponed: false,
+        isStaleLive: false,
+        label: "Aguardando",
+        short: "NS",
+        badgeHtml: `<span class="fixture-date" style="color:var(--gold);font-weight:600;" title="Início previsto para ${timeStr}, aguardando sinal da transmissão">${timeStr} (Aguardando)</span>`
+      };
+    }
+    return {
+      isLive: false,
+      isFinished: false,
+      isScheduled: true,
+      isPostponed: false,
+      isStaleLive: false,
+      label: timeStr,
+      short: short || "NS",
+      badgeHtml: `<span class="fixture-date">${timeStr}</span>`
+    };
+  }
+
+  // Fallback padrão
+  return {
+    isLive: false,
+    isFinished: false,
+    isScheduled: true,
+    isPostponed: false,
+    isStaleLive: false,
+    label: short || timeStr,
+    short: short || "NS",
+    badgeHtml: `<span class="fixture-date">${short || timeStr}</span>`
+  };
+}
+
 // ============================================================
 // ============================================================
 // Formatador Rigoroso de Rodadas e Copas

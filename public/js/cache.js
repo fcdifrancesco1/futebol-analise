@@ -13,7 +13,7 @@ function cacheQuery(endpoint, params = {}) {
     .filter(([,v]) => v !== undefined && v !== null && v !== '')
     .sort(([a],[b]) => a.localeCompare(b))) }).toString();
 }
-function cacheKey(endpoint, params = {}) { return `ap_cache_v97_${cacheQuery(endpoint, params)}`; }
+function cacheKey(endpoint, params = {}) { return `ap_cache_v98_${cacheQuery(endpoint, params)}`; }
 
 function createApiClient({ fetch: fetcher, storage, now = Date.now, onUpdate = () => {} }) {
   const cache = new Map(), pending = new Map();

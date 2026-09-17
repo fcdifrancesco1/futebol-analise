@@ -836,11 +836,16 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                     }
                   }
 
-                  const isMatchLive = ["1H", "2H", "HT", "ET", "P", "BT", "LIVE"].includes(f.fixture.status?.short);
-                  const played = isMatchLive || (f.fixture.status.short !== "NS" && f.fixture.status.short !== "TBD");
+                  const statusInfo = getMatchStatusCategory(f.fixture);
+                  const isMatchLive = statusInfo.isLive;
+                  const played = isMatchLive || statusInfo.isFinished;
                   const dateDisplay = isMatchLive
-                    ? `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${formatLiveMatchTime(f.fixture.status)}</span>`
-                    : `<span class="fixture-date">${date}<br>${time}</span>`;
+                    ? `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${statusInfo.label}</span>`
+                    : (statusInfo.isPostponed
+                        ? `<span class="fixture-date" style="color:#F59E0B;font-weight:600;">${statusInfo.label}</span>`
+                        : (statusInfo.isFinished
+                            ? `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;">${statusInfo.short}</span>`
+                            : `<span class="fixture-date">${date}<br>${time}</span>`));
 
                   return `
                     <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para ver estatísticas da partida">
