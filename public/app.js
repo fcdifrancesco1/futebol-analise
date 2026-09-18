@@ -77,6 +77,17 @@ async function router() {
     } else if (parts[0] === "ligas") {
       setActiveTab("home");
       renderHome();
+    } else if (parts[0] === "bolao") {
+      setActiveTab("bolao");
+      if (parts[1] === "criar") {
+        await renderBolaoCreate();
+      } else if (parts[1] === "convite" && parts[2]) {
+        await renderBolaoInvite(parts[2]);
+      } else if (parts[1] === "liga" && parts[2]) {
+        await renderBolaoLeague(parts[2], parts[3]);
+      } else {
+        await renderBolaoHome();
+      }
     } else {
       // Página padrão ao abrir o site e app: Jogos do Dia
       setActiveTab("today");
@@ -113,7 +124,8 @@ function initApp() {
         : nav === "today" ? "#/jogos-do-dia"
         : nav === "myteam" ? "#/meu-time"
         : nav === "live" ? "#/aovivo"
-        : nav === "mylineups" ? "#/minha-escalacao" : "#/";
+        : nav === "mylineups" ? "#/minha-escalacao"
+        : nav === "bolao" ? "#/bolao" : "#/";
       const currentHash = location.hash || "#/";
       if (currentHash === targetHash || (nav === "today" && (currentHash === "#/" || currentHash.startsWith("#/jogos-do-dia")))) {
         if (nav === "today") {
@@ -127,6 +139,8 @@ function initApp() {
         } else if (nav === "live") {
           footballClient.invalidate("fixtures", { live: "all" });
           fetchLiveMatches(true);
+        } else if (nav === "bolao") {
+          renderBolaoHome();
         }
       } else {
         location.hash = targetHash;
