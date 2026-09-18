@@ -249,3 +249,89 @@ test('Bolão API action=prediction: enforces 10-minute deadline and saves valid 
   assert.equal(resOk.body.success, true);
   assert.equal(rpcCalled, true);
 });
+
+test('Bolão API action=create: falls back to direct table inserts when RPC is not in schema cache', async () => {
+  const bolao = handler();
+
+  let tableLeagueInserted = false;
+  let tableParticipantInserted = false;
+
+  global.fetch = async (url, opts) => {
+    const urlStr = String(url);
+    if (urlStr.includes('/rpc/consume_request_limit')) {
+      return json({ allowed: true, retry_after: 1 });
+    }
+    if (urlStr.includes('/rpc/create_bolao_league')) {
+      // Simula PostgREST schema cache miss (PGRST202)
+      return new Response(JSON.stringify({
+        code: 'PGRST202',
+        message: 'Could not find the function public.create_bolao_league in the schema cache'
+      }), { status: 404, headers: { 'content-type': 'application/json' } });
+    }
+    if (urlStr.includes('/rest/v1/bolao_leagues') && opts?.method === 'POST') {
+      tableLeagueInserted = true;
+      const body = JSON.parse(opts.body);
+      return json([{
+        id: '33333333-3333-4000-8000-333333333333',
+        name: body.name,
+        invite_code: body.invite_code,
+        competitions: body.competitions
+      }]);
+    }
+    if (urlStr.includes('/rest/v1/bolao_participants') && opts?.method === 'POST') {
+      tableParticipantInserted = true;
+      return json([{ id: 'mock-p-id' }]);
+    }
+    return json([]);
+  };
+
+  const validBody = {
+    name: 'Liga Fallback',
+    creator_name: 'Felipe',
+    creator_id: '11111111-1111-4000-8000-111111111111',
+    creator_token: 'valid_secret_token_123',
+    competitions: [71]
+  };
+
+  const res = response();
+  await bolao(request({ action: 'create' }, 'POST', validBody), res);
+
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.league.name, 'Liga Fallback');
+  assert.equal(tableLeagueInserted, true);
+  assert.equal(tableParticipantInserted, true);
+});
+
+test('Bolão API: informs user clearly about supabase/bolao_schema.sql when tables do not exist', async () => {
+  const bolao = handler();
+
+  global.fetch = async (url) => {
+    const urlStr = String(url);
+    if (urlStr.includes('/rpc/consume_request_limit')) {
+      return json({ allowed: true, retry_after: 1 });
+    }
+    // Simula 404 / 42P01 do PostgREST quando a tabela não existe
+    return new Response(JSON.stringify({
+      code: '42P01',
+      message: 'relation "public.bolao_leagues" does not exist'
+    }), { status: 404, headers: { 'content-type': 'application/json' } });
+  };
+
+  const validBody = {
+    name: 'Liga Teste',
+    creator_name: 'Felipe',
+    creator_id: '11111111-1111-4000-8000-111111111111',
+    creator_token: 'valid_secret_token_123',
+    competitions: [71]
+  };
+
+  const res = response();
+  await bolao(request({ action: 'create' }, 'POST', validBody), res);
+
+  assert.equal(res.statusCode, 500);
+  assert.match(res.body.error, /supabase\/bolao_schema\.sql/);
+  // Não deve conter a mensagem opaca "Upstream HTTP error"
+  assert.doesNotMatch(res.body.error, /Upstream HTTP error/);
+});
+

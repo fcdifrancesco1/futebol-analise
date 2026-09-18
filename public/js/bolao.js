@@ -5,11 +5,32 @@
 // Acesso: Exclusivo por link de convite
 // ============================================================
 
+function generateUUIDv4() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    try { return crypto.randomUUID(); } catch {}
+  }
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    try {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+    } catch {}
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 const BolaoUser = {
   getId() {
     let id = localStorage.getItem("bolao_user_id");
-    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
-      id = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : "usr_" + Math.random().toString(36).substring(2, 15);
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      id = generateUUIDv4();
       localStorage.setItem("bolao_user_id", id);
     }
     return id;
@@ -18,9 +39,7 @@ const BolaoUser = {
   getToken() {
     let token = localStorage.getItem("bolao_user_token");
     if (!token || token.length < 16) {
-      token = (typeof crypto !== "undefined" && crypto.randomUUID)
-        ? crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "")
-        : "tok_" + Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+      token = generateUUIDv4().replace(/-/g, "") + generateUUIDv4().replace(/-/g, "");
       localStorage.setItem("bolao_user_token", token);
     }
     return token;
@@ -461,6 +480,8 @@ async function renderBolaoCreate() {
         </div>
       </div>
 
+      <div id="bolao-create-error" style="display:none;background:rgba(239,68,68,0.12);border:1px solid var(--terracotta);color:#fca5a5;padding:14px 18px;border-radius:10px;margin-bottom:20px;font-size:0.92rem;line-height:1.5;"></div>
+
       <div class="bolao-form-actions">
         <a class="btn ghost" href="#/bolao">Cancelar</a>
         <button type="submit" class="btn primary" id="btn-submit-create-bolao">
@@ -474,12 +495,18 @@ async function renderBolaoCreate() {
   const btnSelectAll = document.getElementById("btn-select-all-leagues");
   const btnClearAll = document.getElementById("btn-clear-all-leagues");
   const checkboxes = form.querySelectorAll("input[name='bolao_competition']");
+  const errorBox = document.getElementById("bolao-create-error");
 
   btnSelectAll?.addEventListener("click", () => checkboxes.forEach(cb => cb.checked = true));
   btnClearAll?.addEventListener("click", () => checkboxes.forEach(cb => cb.checked = false));
 
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (errorBox) {
+      errorBox.style.display = "none";
+      errorBox.textContent = "";
+    }
+
     const nameInput = document.getElementById("bolao-league-name");
     const creatorInput = document.getElementById("bolao-creator-name");
     const submitBtn = document.getElementById("btn-submit-create-bolao");
@@ -523,6 +550,11 @@ async function renderBolaoCreate() {
       }
     } catch (err) {
       toast(err.message || "Erro ao criar liga. Tente novamente.");
+      if (errorBox) {
+        errorBox.textContent = err.message || "Erro ao criar liga. Tente novamente.";
+        errorBox.style.display = "block";
+        errorBox.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
       submitBtn.disabled = false;
       submitBtn.textContent = "Criar Liga & Gerar Convite 🚀";
     }

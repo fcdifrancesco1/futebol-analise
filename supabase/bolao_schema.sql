@@ -70,7 +70,7 @@ CREATE OR REPLACE FUNCTION public.create_bolao_league(
   p_creator_name text,
   p_invite_code text
 )
-RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $$
 DECLARE
   v_league_id uuid;
   v_trimmed_name text;
@@ -114,7 +114,7 @@ CREATE OR REPLACE FUNCTION public.join_bolao_league(
   p_participant_token text,
   p_participant_name text
 )
-RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $$
 DECLARE
   v_league record;
   v_trimmed_name text;
@@ -157,7 +157,7 @@ CREATE OR REPLACE FUNCTION public.save_bolao_prediction(
   p_home_score smallint,
   p_away_score smallint
 )
-RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $$
 DECLARE
   v_authorized boolean;
 BEGIN
@@ -205,7 +205,7 @@ CREATE OR REPLACE FUNCTION public.evaluate_bolao_fixture(
   p_actual_home smallint,
   p_actual_away smallint
 )
-RETURNS integer LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $$
 DECLARE
   v_updated integer;
 BEGIN
@@ -243,7 +243,7 @@ RETURNS TABLE (
   result_count integer,
   wrong_count integer,
   total_predictions integer
-) LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+) LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $$
 BEGIN
   RETURN QUERY
   SELECT
@@ -264,5 +264,13 @@ BEGIN
   GROUP BY p.participant_id, p.participant_name, p.joined_at
   ORDER BY total_points DESC, exact_count DESC, result_count DESC, p.joined_at ASC;
 END $$;
+
+GRANT EXECUTE ON FUNCTION public.create_bolao_league(text, jsonb, uuid, text, text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.join_bolao_league(text, uuid, text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.save_bolao_prediction(uuid, uuid, text, bigint, timestamptz, smallint, smallint) TO service_role;
+GRANT EXECUTE ON FUNCTION public.evaluate_bolao_fixture(bigint, smallint, smallint) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_bolao_ranking(uuid) TO service_role;
+
+NOTIFY pgrst, 'reload schema';
 
 COMMIT;

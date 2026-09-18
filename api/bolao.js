@@ -66,15 +66,57 @@ module.exports = async (req, res) => {
       if (!creatorToken) return res.status(400).json({ error: 'Token de segurança inválido.' });
 
       const inviteCode = generateInviteCode();
+      let created = null;
 
-      const created = await rpc('create_bolao_league', {
-        p_name: name,
-        p_competitions: competitions,
-        p_creator_id: creatorId,
-        p_creator_token: creatorToken,
-        p_creator_name: creatorName,
-        p_invite_code: inviteCode
-      });
+      try {
+        created = await rpc('create_bolao_league', {
+          p_name: name,
+          p_competitions: competitions,
+          p_creator_id: creatorId,
+          p_creator_token: creatorToken,
+          p_creator_name: creatorName,
+          p_invite_code: inviteCode
+        });
+      } catch (rpcErr) {
+        // Se a RPC falhar por cache do PostgREST mas as tabelas existirem, executa inserção direta
+        if (rpcErr.message && (rpcErr.message.includes('não foram criadas') || rpcErr.message.includes('schema cache') || rpcErr.message.includes('PGRST202') || rpcErr.message.includes('Could not find'))) {
+          try {
+            const leagues = await database('bolao_leagues', {
+              method: 'POST',
+              body: JSON.stringify({
+                name,
+                invite_code: inviteCode,
+                competitions,
+                created_by: creatorId
+              })
+            });
+            const leagueObj = Array.isArray(leagues) ? leagues[0] : leagues;
+            if (leagueObj && leagueObj.id) {
+              await database('bolao_participants', {
+                method: 'POST',
+                body: JSON.stringify({
+                  league_id: leagueObj.id,
+                  participant_id: creatorId,
+                  participant_token: creatorToken,
+                  participant_name: creatorName
+                })
+              });
+              created = {
+                league_id: leagueObj.id,
+                name: leagueObj.name,
+                invite_code: leagueObj.invite_code,
+                competitions: leagueObj.competitions
+              };
+            } else {
+              throw rpcErr;
+            }
+          } catch {
+            throw rpcErr;
+          }
+        } else {
+          throw rpcErr;
+        }
+      }
 
       return res.status(201).json({ success: true, league: created });
     }
@@ -94,12 +136,44 @@ module.exports = async (req, res) => {
       if (!isValidUUID(participantId)) return res.status(400).json({ error: 'Identificador de participante inválido.' });
       if (!participantToken) return res.status(400).json({ error: 'Token de segurança inválido.' });
 
-      const joined = await rpc('join_bolao_league', {
-        p_invite_code: inviteCode,
-        p_participant_id: participantId,
-        p_participant_token: participantToken,
-        p_participant_name: participantName
-      });
+      let joined = null;
+      try {
+        joined = await rpc('join_bolao_league', {
+          p_invite_code: inviteCode,
+          p_participant_id: participantId,
+          p_participant_token: participantToken,
+          p_participant_name: participantName
+        });
+      } catch (rpcErr) {
+        if (rpcErr.message && (rpcErr.message.includes('não foram criadas') || rpcErr.message.includes('schema cache') || rpcErr.message.includes('PGRST202') || rpcErr.message.includes('Could not find'))) {
+          try {
+            const rows = await database(`bolao_leagues?invite_code=eq.${encodeURIComponent(inviteCode)}&select=id,name,competitions`);
+            if (!Array.isArray(rows) || rows.length === 0) {
+              return res.status(404).json({ error: 'Liga não encontrada com este código de convite.' });
+            }
+            const leagueObj = rows[0];
+            await database('bolao_participants', {
+              method: 'POST',
+              headers: { Prefer: 'resolution=merge-duplicates' },
+              body: JSON.stringify({
+                league_id: leagueObj.id,
+                participant_id: participantId,
+                participant_token: participantToken,
+                participant_name: participantName
+              })
+            });
+            joined = {
+              league_id: leagueObj.id,
+              name: leagueObj.name,
+              competitions: leagueObj.competitions
+            };
+          } catch {
+            throw rpcErr;
+          }
+        } else {
+          throw rpcErr;
+        }
+      }
 
       return res.status(200).json({ success: true, league: joined });
     }
@@ -184,15 +258,48 @@ module.exports = async (req, res) => {
         });
       }
 
-      await rpc('save_bolao_prediction', {
-        p_league_id: leagueId,
-        p_participant_id: participantId,
-        p_participant_token: participantToken,
-        p_fixture_id: fixtureId,
-        p_fixture_date: fixtureDate,
-        p_home_score: homeScore,
-        p_away_score: awayScore
-      });
+      try {
+        await rpc('save_bolao_prediction', {
+          p_league_id: leagueId,
+          p_participant_id: participantId,
+          p_participant_token: participantToken,
+          p_fixture_id: fixtureId,
+          p_fixture_date: fixtureDate,
+          p_home_score: homeScore,
+          p_away_score: awayScore
+        });
+      } catch (rpcErr) {
+        if (rpcErr.message && (rpcErr.message.includes('não foram criadas') || rpcErr.message.includes('schema cache') || rpcErr.message.includes('PGRST202') || rpcErr.message.includes('Could not find'))) {
+          try {
+            const partRows = await database(
+              `bolao_participants?league_id=eq.${leagueId}&participant_id=eq.${participantId}&participant_token=eq.${encodeURIComponent(participantToken)}&select=participant_id`
+            );
+            if (!Array.isArray(partRows) || partRows.length === 0) {
+              return res.status(403).json({ error: 'Participante ou token inválido para esta liga.' });
+            }
+
+            await database('bolao_predictions', {
+              method: 'POST',
+              headers: { Prefer: 'resolution=merge-duplicates' },
+              body: JSON.stringify({
+                league_id: leagueId,
+                participant_id: participantId,
+                fixture_id: fixtureId,
+                fixture_date: fixtureDate,
+                home_score: homeScore,
+                away_score: awayScore,
+                points: null,
+                status: 'pending',
+                updated_at: new Date().toISOString()
+              })
+            });
+          } catch {
+            throw rpcErr;
+          }
+        } else {
+          throw rpcErr;
+        }
+      }
 
       return res.status(200).json({ success: true });
     }
@@ -248,7 +355,34 @@ module.exports = async (req, res) => {
             });
             evaluatedTotal += Number(count) || 0;
           } catch (e) {
-            // Se falhar para um jogo individual, prossegue com os demais
+            // Fallback direto nas tabelas caso a RPC não esteja em cache
+            if (e.message && (e.message.includes('não foram criadas') || e.message.includes('schema cache') || e.message.includes('PGRST202') || e.message.includes('Could not find'))) {
+              try {
+                const pendings = await database(`bolao_predictions?fixture_id=eq.${fId}&status=eq.pending&select=id,home_score,away_score`);
+                if (Array.isArray(pendings)) {
+                  for (const pred of pendings) {
+                    let pts = 0;
+                    let st = 'wrong';
+                    if (pred.home_score === home && pred.away_score === away) {
+                      pts = 3;
+                      st = 'exact';
+                    } else if (
+                      (pred.home_score > pred.away_score && home > away) ||
+                      (pred.home_score < pred.away_score && home < away) ||
+                      (pred.home_score === pred.away_score && home === away)
+                    ) {
+                      pts = 1;
+                      st = 'result';
+                    }
+                    await database(`bolao_predictions?id=eq.${pred.id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ points: pts, status: st, updated_at: new Date().toISOString() })
+                    });
+                    evaluatedTotal += 1;
+                  }
+                }
+              } catch {}
+            }
           }
         }
       }
@@ -263,7 +397,66 @@ module.exports = async (req, res) => {
 
       if (!await enforceRateLimit(req, res, { scope: 'bolao-read', limit: 120, windowSeconds: 60 })) return;
 
-      const ranking = await rpc('get_bolao_ranking', { p_league_id: leagueId });
+      let ranking = [];
+      try {
+        ranking = await rpc('get_bolao_ranking', { p_league_id: leagueId });
+      } catch (rpcErr) {
+        if (rpcErr.message && (rpcErr.message.includes('não foram criadas') || rpcErr.message.includes('schema cache') || rpcErr.message.includes('PGRST202') || rpcErr.message.includes('Could not find'))) {
+          try {
+            const participants = await database(
+              `bolao_participants?league_id=eq.${leagueId}&select=participant_id,participant_name,joined_at&order=joined_at.asc`
+            );
+            if (Array.isArray(participants)) {
+              const predictions = await database(
+                `bolao_predictions?league_id=eq.${leagueId}&points=not.is.null&select=participant_id,points`
+              );
+              const predList = Array.isArray(predictions) ? predictions : [];
+
+              const statsMap = new Map();
+              for (const p of participants) {
+                statsMap.set(p.participant_id, {
+                  participant_id: p.participant_id,
+                  participant_name: p.participant_name,
+                  total_points: 0,
+                  exact_count: 0,
+                  result_count: 0,
+                  wrong_count: 0,
+                  total_predictions: 0,
+                  joined_at: p.joined_at
+                });
+              }
+
+              for (const pr of predList) {
+                const stat = statsMap.get(pr.participant_id);
+                if (stat) {
+                  stat.total_predictions += 1;
+                  const pts = Number(pr.points);
+                  if (pts === 3) {
+                    stat.exact_count += 1;
+                    stat.total_points += 3;
+                  } else if (pts === 1) {
+                    stat.result_count += 1;
+                    stat.total_points += 1;
+                  } else if (pts === 0) {
+                    stat.wrong_count += 1;
+                  }
+                }
+              }
+
+              ranking = Array.from(statsMap.values()).sort((a, b) => {
+                if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+                if (b.exact_count !== a.exact_count) return b.exact_count - a.exact_count;
+                if (b.result_count !== a.result_count) return b.result_count - a.result_count;
+                return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime();
+              });
+            }
+          } catch {
+            throw rpcErr;
+          }
+        } else {
+          throw rpcErr;
+        }
+      }
 
       return res.status(200).json({
         ranking: Array.isArray(ranking) ? ranking : []
