@@ -364,7 +364,7 @@ async function renderBolaoHome() {
                        alt="${escapeHtml(c.name)}" 
                        title="${escapeHtml(c.name)}" 
                        class="bolao-comp-badge" 
-                       data-image-fallback="hide" />
+                       loading="lazy" />
                 `).join("")}
                 ${comps.length > 5 ? `<span class="bolao-comp-more">+${comps.length - 5}</span>` : ""}
               </div>
@@ -469,7 +469,7 @@ async function renderBolaoCreate() {
                   return `
                     <label class="bolao-comp-checkbox-item">
                       <input type="checkbox" name="bolao_competition" value="${l.id}" ${isDefaultChecked ? "checked" : ""} />
-                      <img src="https://media.api-sports.io/football/leagues/${l.id}.png" alt="" class="bolao-comp-item-logo" data-image-fallback="hide" />
+                      <img src="https://media.api-sports.io/football/leagues/${l.id}.png" alt="" class="bolao-comp-item-logo" loading="lazy" />
                       <span class="bolao-comp-item-name">${escapeHtml(l.name)}</span>
                     </label>
                   `;
@@ -613,7 +613,7 @@ async function renderBolaoInvite(inviteCode) {
             <div class="bolao-invite-comps-grid">
               ${comps.map(c => `
                 <div class="bolao-invite-comp-pill">
-                  <img src="https://media.api-sports.io/football/leagues/${c.id}.png" alt="" data-image-fallback="hide" />
+                  <img src="https://media.api-sports.io/football/leagues/${c.id}.png" alt="" loading="lazy" />
                   <span>${escapeHtml(c.name)}</span>
                 </div>
               `).join("")}
@@ -811,14 +811,14 @@ async function renderBolaoSubTab(tab, league, compObjects, participants, myPredi
 // ============================================================
 async function renderBolaoFixturesTab(container, league, compObjects, myPredictions, closedPredictions) {
   container.innerHTML = `
-    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div class="bolao-fixtures-filter-bar">
       <div class="bolao-fixture-filters">
         <button class="bolao-filter-chip active" data-filter="open">Abertos para Palpitar</button>
         <button class="bolao-filter-chip" data-filter="all">Todos os Jogos</button>
         <button class="bolao-filter-chip" data-filter="finished">Encerrados</button>
       </div>
 
-      <div style="font-size:0.8rem;color:var(--chalk-dim);display:flex;align-items:center;gap:6px;">
+      <div class="bolao-fixtures-lock-notice">
         <span>🔒 Bloqueio: 10 min antes do jogo</span>
       </div>
     </div>
@@ -950,8 +950,8 @@ async function renderBolaoFixturesTab(container, league, compObjects, myPredicti
           <div class="bolao-match-card ${deadlineInfo.isLocked ? 'locked' : ''}">
             <div class="bolao-match-header">
               <div class="bolao-match-comp">
-                <img src="https://media.api-sports.io/football/leagues/${f.league.id}.png" alt="" class="bolao-mini-comp-logo" data-image-fallback="hide" />
-                <span>${escapeHtml(f.league.name)} • ${escapeHtml(f.league.round || "")}</span>
+                <img src="${f.league.logo || `https://media.api-sports.io/football/leagues/${f.league.id}.png`}" alt="" class="bolao-mini-comp-logo" loading="lazy" />
+                <span title="${escapeHtml(f.league.name)} • ${escapeHtml(formatRoundName(f.league.round || ''))}">${escapeHtml(f.league.name)} • ${escapeHtml(formatRoundName(f.league.round || ''))}</span>
               </div>
               <div class="bolao-deadline-pill ${deadlineInfo.badgeClass}">
                 ${deadlineInfo.badgeText}
@@ -961,8 +961,8 @@ async function renderBolaoFixturesTab(container, league, compObjects, myPredicti
             <!-- Confronto e Data -->
             <div class="bolao-match-body">
               <div class="bolao-team-side home">
-                <span class="bolao-team-name">${escapeHtml(f.teams.home.name)}</span>
-                <img src="https://media.api-sports.io/football/teams/${f.teams.home.id}.png" alt="" class="bolao-team-logo" data-image-fallback="hide" />
+                <span class="bolao-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                <img src="${f.teams.home.logo || `https://media.api-sports.io/football/teams/${f.teams.home.id}.png`}" alt="${escapeHtml(formatTeamName(f.teams.home.name))}" class="bolao-team-logo" loading="lazy" />
               </div>
 
               <div class="bolao-match-center">
@@ -974,8 +974,8 @@ async function renderBolaoFixturesTab(container, league, compObjects, myPredicti
               </div>
 
               <div class="bolao-team-side away">
-                <img src="https://media.api-sports.io/football/teams/${f.teams.away.id}.png" alt="" class="bolao-team-logo" data-image-fallback="hide" />
-                <span class="bolao-team-name">${escapeHtml(f.teams.away.name)}</span>
+                <img src="${f.teams.away.logo || `https://media.api-sports.io/football/teams/${f.teams.away.id}.png`}" alt="${escapeHtml(formatTeamName(f.teams.away.name))}" class="bolao-team-logo" loading="lazy" />
+                <span class="bolao-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
               </div>
             </div>
 
@@ -1264,7 +1264,7 @@ function renderBolaoRegrasTab(container, league, compObjects) {
         <div class="bolao-valid-comps-grid">
           ${compObjects.map(c => `
             <div class="bolao-valid-comp-pill">
-              <img src="https://media.api-sports.io/football/leagues/${c.id}.png" alt="" data-image-fallback="hide" />
+              <img src="https://media.api-sports.io/football/leagues/${c.id}.png" alt="" loading="lazy" />
               <div>
                 <strong style="display:block;font-size:0.9rem;">${escapeHtml(c.name)}</strong>
                 <span style="font-size:0.75rem;color:var(--chalk-dim);">${escapeHtml(c.country)}</span>
