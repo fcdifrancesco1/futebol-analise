@@ -802,19 +802,19 @@ async function renderBolaoSubTab(tab, league, compObjects, participants, myPredi
   } else if (tab === "regras") {
     renderBolaoRegrasTab(container, league, compObjects);
   } else {
-    await renderBolaoFixturesTab(container, league, compObjects, myPredictions, closedPredictions);
+    await renderBolaoFixturesTab(container, league, compObjects, participants, myPredictions, closedPredictions);
   }
 }
 
 // ============================================================
 // Aba 1: Jogos & Palpites
 // ============================================================
-async function renderBolaoFixturesTab(container, league, compObjects, myPredictions, closedPredictions) {
+async function renderBolaoFixturesTab(container, league, compObjects, participants = [], myPredictions = [], closedPredictions = []) {
   container.innerHTML = `
     <div class="bolao-fixtures-filter-bar">
       <div class="bolao-fixture-filters">
-        <button class="bolao-filter-chip active" data-filter="open">Abertos para Palpitar</button>
-        <button class="bolao-filter-chip" data-filter="all">Todos os Jogos</button>
+        <button class="bolao-filter-chip active" data-filter="all">Todos os Jogos</button>
+        <button class="bolao-filter-chip" data-filter="open">Abertos para Palpitar</button>
         <button class="bolao-filter-chip" data-filter="finished">Encerrados</button>
       </div>
 
@@ -823,57 +823,68 @@ async function renderBolaoFixturesTab(container, league, compObjects, myPredicti
       </div>
     </div>
 
+    <div id="bolao-round-nav-card" class="bolao-round-nav-card" style="display:none;"></div>
+
     <div id="bolao-fixtures-list">${skeletonCards(3)}</div>
   `;
 
   const fixturesListEl = document.getElementById("bolao-fixtures-list");
+  const roundNavEl = document.getElementById("bolao-round-nav-card");
   if (!fixturesListEl) return;
 
   try {
-    // Busca próximos jogos das competições selecionadas
+    // Busca todos os jogos da temporada das competições selecionadas (reutiliza cache de 15min)
     const fixturePromises = compObjects.map(c => {
       const season = defaultSeasonFor(c);
-      // Busca próximos jogos e últimos jogos para apuração
-      return Promise.allSettled([
-        apiGet("fixtures", { league: c.id, season, next: 10 }, 15),
-        apiGet("fixtures", { league: c.id, season, last: 5 }, 15)
-      ]);
+      return apiGet("fixtures", { league: c.id, season }, 15);
     });
 
-    const results = await Promise.all(fixturePromises);
+    const results = await Promise.allSettled(fixturePromises);
 
-    let allUpcoming = [];
-    let allFinished = [];
-
-    results.forEach(res => {
-      const nextRes = res[0];
-      const lastRes = res[1];
-
-      if (nextRes.status === "fulfilled" && Array.isArray(nextRes.value)) {
-        allUpcoming.push(...nextRes.value);
-      }
-      if (lastRes.status === "fulfilled" && Array.isArray(lastRes.value)) {
-        allFinished.push(...lastRes.value);
-      }
-    });
-
-    // Remove duplicatas por fixture.id
     const seen = new Set();
     const uniqueFixtures = [];
-    [...allUpcoming, ...allFinished].forEach(f => {
-      const fid = f.fixture?.id;
-      if (fid && !seen.has(fid)) {
-        seen.add(fid);
-        uniqueFixtures.push(f);
+    results.forEach(res => {
+      if (res.status === "fulfilled" && Array.isArray(res.value)) {
+        res.value.forEach(f => {
+          const fid = f.fixture?.id;
+          if (fid && !seen.has(fid)) {
+            seen.add(fid);
+            uniqueFixtures.push(f);
+          }
+        });
       }
     });
+
+    if (uniqueFixtures.length === 0) {
+      fixturesListEl.innerHTML = `
+        <div class="bolao-empty-card" style="padding:32px 20px;">
+          <p style="color:var(--chalk-dim);margin:0;font-size:0.95rem;">
+            Nenhum jogo encontrado para as competições selecionadas nesta temporada.
+          </p>
+        </div>
+      `;
+      return;
+    }
 
     // Ordena cronologicamente
     uniqueFixtures.sort((a, b) => (a.fixture?.timestamp || 0) - (b.fixture?.timestamp || 0));
 
-    // Sincroniza partidas finalizadas para apurar pontuação no banco
+    // Sincroniza partidas finalizadas que possuem palpites na liga ou dos últimos 7 dias
+    const predictedFixtureIds = new Set([
+      ...myPredictions.map(p => Number(p.fixture_id)),
+      ...closedPredictions.map(p => Number(p.fixture_id))
+    ]);
+    const recentCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
     const finishedToSync = uniqueFixtures
-      .filter(f => ["FT", "AET", "PEN"].includes(f.fixture?.status?.short))
+      .filter(f => {
+        const isFin = ["FT", "AET", "PEN"].includes(f.fixture?.status?.short);
+        if (!isFin) return false;
+        const fId = Number(f.fixture?.id);
+        const fDate = new Date(f.fixture?.date).getTime();
+        return predictedFixtureIds.has(fId) || (fDate >= recentCutoff);
+      })
+      .slice(0, 30)
       .map(f => ({
         id: f.fixture.id,
         home_score: f.goals?.home,
@@ -889,145 +900,491 @@ async function renderBolaoFixturesTab(container, league, compObjects, myPredicti
     const myPredMap = new Map();
     myPredictions.forEach(p => myPredMap.set(Number(p.fixture_id), p));
 
-    // Função de renderização de acordo com o filtro
-    function renderFilteredFixtures(filter) {
-      const now = Date.now();
-      const filtered = uniqueFixtures.filter(f => {
+    // Agrupamento por rodada
+    const roundsMap = new Map();
+    uniqueFixtures.forEach(f => {
+      const rawRound = f.league?.round || "";
+      const roundTitle = formatRoundName(rawRound);
+      const roundKey = compObjects.length > 1 
+        ? `${f.league?.id || 'comp'}_${roundTitle}` 
+        : roundTitle;
+      const displayTitle = compObjects.length > 1 
+        ? `${roundTitle} • ${f.league?.name || ''}` 
+        : roundTitle;
+
+      if (!roundsMap.has(roundKey)) {
+        roundsMap.set(roundKey, {
+          roundKey,
+          roundTitle: displayTitle,
+          rawTitle: roundTitle,
+          leagueId: f.league?.id,
+          fixtures: [],
+          firstTimestamp: f.fixture?.timestamp || 0
+        });
+      }
+      roundsMap.get(roundKey).fixtures.push(f);
+    });
+
+    const allRounds = Array.from(roundsMap.values()).sort((a, b) => {
+      const numA = extractRoundNumber(a.rawTitle);
+      const numB = extractRoundNumber(b.rawTitle);
+      if (numA !== 999 && numB !== 999 && numA !== numB) {
+        return numA - numB;
+      }
+      return a.firstTimestamp - b.firstTimestamp;
+    });
+
+    // Detecta a rodada atual
+    const now = Date.now();
+    let currentRoundKey = null;
+
+    // 1. Prioriza rodada com jogos acontecendo hoje ou nas próximas 72h que ainda não terminaram
+    for (const r of allRounds) {
+      const hasUpcomingSoon = r.fixtures.some(f => {
         const kickoff = new Date(f.fixture?.date).getTime();
-        const isPast10Min = (kickoff - now) <= 10 * 60 * 1000;
-        const isFinished = ["FT", "AET", "PEN"].includes(f.fixture?.status?.short);
-
-        if (filter === "open") return !isPast10Min && !isFinished;
-        if (filter === "finished") return isFinished;
-        return true;
+        const isFin = ["FT", "AET", "PEN"].includes(f.fixture?.status?.short);
+        return !isFin && (kickoff - now <= 72 * 3600 * 1000);
       });
+      if (hasUpcomingSoon) {
+        currentRoundKey = r.roundKey;
+        break;
+      }
+    }
 
-      if (filtered.length === 0) {
-        fixturesListEl.innerHTML = `
-          <div class="bolao-empty-card" style="padding:32px 20px;">
-            <p style="color:var(--chalk-dim);margin:0;font-size:0.95rem;">
-              ${filter === 'open' 
-                ? 'Nenhum jogo aberto para palpites no momento. Os próximos jogos das competições aparecerão aqui assim que as rodadas forem agendadas.'
-                : 'Nenhum jogo encontrado neste filtro.'}
-            </p>
-          </div>
-        `;
+    // 2. Se não houver jogos nos próximos 3 dias, pega a primeira rodada com qualquer jogo não finalizado
+    if (!currentRoundKey) {
+      const firstUnfinished = allRounds.find(r => r.fixtures.some(f => !["FT", "AET", "PEN"].includes(f.fixture?.status?.short)));
+      if (firstUnfinished) {
+        currentRoundKey = firstUnfinished.roundKey;
+      }
+    }
+
+    // 3. Se todos os jogos do campeonato acabaram, pega a última rodada
+    if (!currentRoundKey && allRounds.length > 0) {
+      currentRoundKey = allRounds[allRounds.length - 1].roundKey;
+    }
+
+    let selectedRoundKey = currentRoundKey || (allRounds[0]?.roundKey || "ALL");
+    let selectedFilter = "all"; // 'all', 'open', 'finished'
+
+    // Renderiza o Navegador de Rodadas
+    function renderRoundNavigator() {
+      if (allRounds.length <= 1 || !roundNavEl) {
+        if (roundNavEl) roundNavEl.style.display = "none";
         return;
       }
+      roundNavEl.style.display = "block";
 
-      fixturesListEl.innerHTML = filtered.map(f => {
-        const fid = f.fixture.id;
-        const dateStr = f.fixture.date;
-        const deadlineInfo = getKickoffDeadlineInfo(dateStr);
-        const userPred = myPredMap.get(fid);
-        const isFinished = ["FT", "AET", "PEN"].includes(f.fixture?.status?.short);
-
-        const homeGoal = f.goals?.home;
-        const awayGoal = f.goals?.away;
-
-        // Formatação de data/hora
-        const matchDate = new Date(dateStr);
-        const formattedDate = matchDate.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
-        const formattedTime = matchDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-        // Cálculo de pontos se finalizado
-        let pointsBadge = "";
-        if (isFinished && userPred && homeGoal !== null && awayGoal !== null) {
-          const pts = calculatePredictionPoints(userPred.home_score, userPred.away_score, homeGoal, awayGoal);
-          if (pts === 3) {
-            pointsBadge = `<span class="bolao-points-badge exact">🎯 +3 PTS (Placar Exato)</span>`;
-          } else if (pts === 1) {
-            pointsBadge = `<span class="bolao-points-badge outcome">⚽ +1 PT (Acertou Resultado)</span>`;
-          } else {
-            pointsBadge = `<span class="bolao-points-badge wrong">❌ 0 PTS (Errou)</span>`;
-          }
-        }
-
-        // Palpites de outros amigos (para partidas com prazo encerrado)
-        const friendsBets = closedPredictions.filter(cp => Number(cp.fixture_id) === fid);
-
+      const roundOptions = allRounds.map(r => {
+        const isCurrent = r.roundKey === currentRoundKey;
         return `
-          <div class="bolao-match-card ${deadlineInfo.isLocked ? 'locked' : ''}">
-            <div class="bolao-match-header">
-              <div class="bolao-match-comp">
-                <img src="${f.league.logo || `https://media.api-sports.io/football/leagues/${f.league.id}.png`}" alt="" class="bolao-mini-comp-logo" loading="lazy" />
-                <span title="${escapeHtml(f.league.name)} • ${escapeHtml(formatRoundName(f.league.round || ''))}">${escapeHtml(f.league.name)} • ${escapeHtml(formatRoundName(f.league.round || ''))}</span>
-              </div>
-              <div class="bolao-deadline-pill ${deadlineInfo.badgeClass}">
-                ${deadlineInfo.badgeText}
-              </div>
-            </div>
-
-            <!-- Confronto e Data -->
-            <div class="bolao-match-body">
-              <div class="bolao-team-side home">
-                <span class="bolao-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
-                <img src="${f.teams.home.logo || `https://media.api-sports.io/football/teams/${f.teams.home.id}.png`}" alt="${escapeHtml(formatTeamName(f.teams.home.name))}" class="bolao-team-logo" loading="lazy" />
-              </div>
-
-              <div class="bolao-match-center">
-                <div class="bolao-match-time">${formattedDate} às ${formattedTime}</div>
-                ${isFinished 
-                  ? `<div class="bolao-official-score">${homeGoal} - ${awayGoal}</div><span class="bolao-status-tag">Encerrado</span>` 
-                  : `<div class="bolao-vs-tag">VS</div>`}
-                ${pointsBadge}
-              </div>
-
-              <div class="bolao-team-side away">
-                <img src="${f.teams.away.logo || `https://media.api-sports.io/football/teams/${f.teams.away.id}.png`}" alt="${escapeHtml(formatTeamName(f.teams.away.name))}" class="bolao-team-logo" loading="lazy" />
-                <span class="bolao-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
-              </div>
-            </div>
-
-            <!-- Seção do Palpite -->
-            <div class="bolao-prediction-section">
-              ${!deadlineInfo.isLocked ? `
-                <div class="bolao-pred-form" data-fixture-id="${fid}" data-fixture-date="${escapeHtml(dateStr)}">
-                  <span class="bolao-pred-label">Seu Palpite:</span>
-                  <div class="bolao-pred-inputs">
-                    <input type="number" min="0" max="99" class="bolao-score-input home" value="${userPred?.home_score ?? ''}" placeholder="0" />
-                    <span class="bolao-pred-x">x</span>
-                    <input type="number" min="0" max="99" class="bolao-score-input away" value="${userPred?.away_score ?? ''}" placeholder="0" />
-                    <button class="btn primary small btn-save-prediction">
-                      ${userPred ? "Atualizar" : "Salvar"}
-                    </button>
-                  </div>
-                </div>
-              ` : `
-                <div class="bolao-pred-locked-info">
-                  ${userPred 
-                    ? `<span class="bolao-locked-pred-val">Seu palpite: <strong>${userPred.home_score} x ${userPred.away_score}</strong></span>` 
-                    : `<span class="bolao-locked-no-pred">Você não palpitou nesta partida</span>`}
-                  ${friendsBets.length > 0 ? `
-                    <button class="btn-toggle-friends-bets" data-fixture-id="${fid}">
-                      Ver palpites da galera (${friendsBets.length}) ▾
-                    </button>
-                  ` : ''}
-                </div>
-
-                ${friendsBets.length > 0 ? `
-                  <div class="bolao-friends-bets-box" id="friends-bets-${fid}" hidden>
-                    <div class="bolao-friends-bets-grid">
-                      ${friendsBets.map(fb => {
-                        const member = participants.find(p => p.participant_id === fb.participant_id);
-                        const memberName = member?.participant_name || "Participante";
-                        const isMe = fb.participant_id === BolaoUser.getId();
-                        return `
-                          <div class="bolao-friend-bet-chip ${isMe ? 'is-me' : ''}">
-                            <span class="friend-name">${escapeHtml(memberName)} ${isMe ? '(Você)' : ''}:</span>
-                            <strong class="friend-score">${fb.home_score} x ${fb.away_score}</strong>
-                          </div>
-                        `;
-                      }).join("")}
-                    </div>
-                  </div>
-                ` : ''}
-              `}
-            </div>
-          </div>
+          <option value="${escapeHtml(r.roundKey)}" ${r.roundKey === selectedRoundKey ? 'selected' : ''}>
+            ${escapeHtml(r.roundTitle)} ${isCurrent ? '• (Atual)' : ''}
+          </option>
         `;
       }).join("");
 
+      roundNavEl.innerHTML = `
+        <div class="bolao-round-navigator">
+          <button class="bolao-round-nav-btn" id="bolao-round-prev" title="Rodada Anterior" aria-label="Rodada Anterior">
+            ◀
+          </button>
+          <div class="bolao-round-select-wrapper">
+            <select id="bolao-round-select" class="bolao-round-select" aria-label="Selecionar rodada">
+              <option value="ALL" ${selectedRoundKey === 'ALL' ? 'selected' : ''}>Todas as Rodadas</option>
+              ${roundOptions}
+            </select>
+          </div>
+          <button class="bolao-round-nav-btn" id="bolao-round-next" title="Próxima Rodada" aria-label="Próxima Rodada">
+            ▶
+          </button>
+        </div>
+      `;
+
+      updateNavButtonsState();
+
+      const selectEl = document.getElementById("bolao-round-select");
+      selectEl?.addEventListener("change", (e) => {
+        selectedRoundKey = e.target.value;
+        updateNavButtonsState();
+        renderView();
+      });
+
+      document.getElementById("bolao-round-prev")?.addEventListener("click", () => {
+        navigateRound(-1);
+      });
+
+      document.getElementById("bolao-round-next")?.addEventListener("click", () => {
+        navigateRound(1);
+      });
+    }
+
+    function updateNavButtonsState() {
+      const prevBtn = document.getElementById("bolao-round-prev");
+      const nextBtn = document.getElementById("bolao-round-next");
+      if (!prevBtn || !nextBtn) return;
+
+      if (selectedRoundKey === "ALL") {
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        return;
+      }
+
+      const idx = allRounds.findIndex(r => r.roundKey === selectedRoundKey);
+      prevBtn.disabled = idx <= 0;
+      nextBtn.disabled = idx >= allRounds.length - 1;
+    }
+
+    function navigateRound(direction) {
+      let idx = allRounds.findIndex(r => r.roundKey === selectedRoundKey);
+      if (idx === -1) {
+        idx = allRounds.findIndex(r => r.roundKey === currentRoundKey);
+        if (idx === -1) idx = 0;
+      } else {
+        idx += direction;
+      }
+
+      if (idx >= 0 && idx < allRounds.length) {
+        selectedRoundKey = allRounds[idx].roundKey;
+        const selectEl = document.getElementById("bolao-round-select");
+        if (selectEl) selectEl.value = selectedRoundKey;
+        updateNavButtonsState();
+        renderView();
+      }
+    }
+
+    // Renderiza um Card de Partida
+    function renderMatchCard(f) {
+      const fid = f.fixture.id;
+      const dateStr = f.fixture.date;
+      const deadlineInfo = getKickoffDeadlineInfo(dateStr);
+      const userPred = myPredMap.get(fid);
+      const isFinished = ["FT", "AET", "PEN"].includes(f.fixture?.status?.short);
+
+      const homeGoal = f.goals?.home;
+      const awayGoal = f.goals?.away;
+
+      // Formatação de data/hora
+      const matchDate = new Date(dateStr);
+      const formattedDate = matchDate.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
+      const formattedTime = matchDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+      // Cálculo de pontos para jogos finalizados
+      let pointsBadge = "";
+      let userPts = null;
+      if (isFinished) {
+        if (userPred && homeGoal !== null && awayGoal !== null && homeGoal !== undefined && awayGoal !== undefined) {
+          userPts = calculatePredictionPoints(userPred.home_score, userPred.away_score, homeGoal, awayGoal);
+          if (userPts === 3) {
+            pointsBadge = `<span class="bolao-points-badge exact">🎯 +3 PTS (Placar Exato!)</span>`;
+          } else if (userPts === 1) {
+            pointsBadge = `<span class="bolao-points-badge outcome">⚽ +1 PT (Acertou Resultado)</span>`;
+          } else {
+            pointsBadge = `<span class="bolao-points-badge wrong">❌ 0 PTS (Não Pontuou)</span>`;
+          }
+        } else {
+          pointsBadge = `<span class="bolao-points-badge no-pred">⚠️ Sem Palpite (0 PTS)</span>`;
+        }
+      }
+
+      // Palpites dos amigos
+      const friendsBets = (deadlineInfo.isLocked || isFinished)
+        ? closedPredictions.filter(cp => Number(cp.fixture_id) === fid)
+        : [];
+
+      return `
+        <div class="bolao-match-card ${deadlineInfo.isLocked || isFinished ? 'locked' : ''}">
+          <div class="bolao-match-header">
+            <div class="bolao-match-comp">
+              <img src="${f.league.logo || `https://media.api-sports.io/football/leagues/${f.league.id}.png`}" alt="" class="bolao-mini-comp-logo" loading="lazy" />
+              <span title="${escapeHtml(f.league.name)} • ${escapeHtml(formatRoundName(f.league.round || ''))}">${escapeHtml(f.league.name)} • ${escapeHtml(formatRoundName(f.league.round || ''))}</span>
+            </div>
+            <div class="bolao-deadline-pill ${isFinished ? 'badge-finished' : deadlineInfo.badgeClass}">
+              ${isFinished ? '🏁 Encerrado' : deadlineInfo.badgeText}
+            </div>
+          </div>
+
+          <!-- Confronto e Data -->
+          <div class="bolao-match-body">
+            <div class="bolao-team-side home">
+              <span class="bolao-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+              <img src="${f.teams.home.logo || `https://media.api-sports.io/football/teams/${f.teams.home.id}.png`}" alt="${escapeHtml(formatTeamName(f.teams.home.name))}" class="bolao-team-logo" loading="lazy" />
+            </div>
+
+            <div class="bolao-match-center">
+              <div class="bolao-match-time">${formattedDate} às ${formattedTime}</div>
+              ${isFinished 
+                ? `<div class="bolao-official-score">${homeGoal ?? 0} - ${awayGoal ?? 0}</div><span class="bolao-status-tag">Fim de Jogo</span>` 
+                : `<div class="bolao-vs-tag">VS</div>`}
+              ${pointsBadge}
+            </div>
+
+            <div class="bolao-team-side away">
+              <img src="${f.teams.away.logo || `https://media.api-sports.io/football/teams/${f.teams.away.id}.png`}" alt="${escapeHtml(formatTeamName(f.teams.away.name))}" class="bolao-team-logo" loading="lazy" />
+              <span class="bolao-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+            </div>
+          </div>
+
+          <!-- Seção do Palpite -->
+          <div class="bolao-prediction-section">
+            ${!deadlineInfo.isLocked && !isFinished ? `
+              <div class="bolao-pred-form" data-fixture-id="${fid}" data-fixture-date="${escapeHtml(dateStr)}">
+                <span class="bolao-pred-label">Seu Palpite:</span>
+                <div class="bolao-pred-inputs">
+                  <input type="number" min="0" max="99" class="bolao-score-input home" value="${userPred?.home_score ?? ''}" placeholder="0" />
+                  <span class="bolao-pred-x">x</span>
+                  <input type="number" min="0" max="99" class="bolao-score-input away" value="${userPred?.away_score ?? ''}" placeholder="0" />
+                  <button class="btn primary small btn-save-prediction">
+                    ${userPred ? "Atualizar" : "Salvar"}
+                  </button>
+                </div>
+              </div>
+            ` : `
+              <div class="bolao-pred-locked-info">
+                <div class="bolao-locked-pred-content">
+                  ${userPred ? `
+                    <span class="bolao-locked-pred-val">Seu palpite: <strong>${userPred.home_score} x ${userPred.away_score}</strong></span>
+                    ${isFinished ? `
+                      <span class="bolao-pred-outcome-badge ${userPts === 3 ? 'exact' : userPts === 1 ? 'outcome' : 'wrong'}">
+                        ${userPts === 3 ? '🎯 +3 PTS' : userPts === 1 ? '⚽ +1 PT' : '❌ 0 PTS'}
+                      </span>
+                    ` : ''}
+                  ` : `
+                    <span class="bolao-locked-no-pred">⚠️ Você não palpitou nesta partida</span>
+                  `}
+                </div>
+                ${friendsBets.length > 0 ? `
+                  <button class="btn-toggle-friends-bets" data-fixture-id="${fid}">
+                    Ver palpites da galera (${friendsBets.length}) ▾
+                  </button>
+                ` : ''}
+              </div>
+
+              ${friendsBets.length > 0 ? `
+                <div class="bolao-friends-bets-box" id="friends-bets-${fid}" hidden>
+                  <div class="bolao-friends-bets-grid">
+                    ${friendsBets.map(fb => {
+                      const member = participants.find(p => p.participant_id === fb.participant_id);
+                      const memberName = member?.participant_name || "Participante";
+                      const isMe = fb.participant_id === BolaoUser.getId();
+                      return `
+                        <div class="bolao-friend-bet-chip ${isMe ? 'is-me' : ''}">
+                          <span class="friend-name">${escapeHtml(memberName)} ${isMe ? '(Você)' : ''}:</span>
+                          <strong class="friend-score">${fb.home_score} x ${fb.away_score}</strong>
+                        </div>
+                      `;
+                    }).join("")}
+                  </div>
+                </div>
+              ` : ''}
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    // Renderiza uma lista de partidas agrupadas por data
+    function renderFixturesGroupedByDate(fixturesList) {
+      const dateGroups = {};
+      fixturesList.forEach(f => {
+        const d = new Date(f.fixture.date);
+        const dateKey = d.toLocaleDateString("pt-BR", {
+          weekday: "long",
+          day: "2-digit",
+          month: "long",
+          year: "numeric"
+        });
+        const formattedDateKey = dateKey.charAt(0).toUpperCase() + dateKey.slice(1);
+        if (!dateGroups[formattedDateKey]) dateGroups[formattedDateKey] = [];
+        dateGroups[formattedDateKey].push(f);
+      });
+
+      const sortedDates = Object.keys(dateGroups).sort((a, b) => {
+        const tA = dateGroups[a]?.[0]?.fixture?.timestamp || 0;
+        const tB = dateGroups[b]?.[0]?.fixture?.timestamp || 0;
+        return tA - tB;
+      });
+
+      return sortedDates.map((dateHeader, idx) => `
+        <div class="bolao-date-divider" style="${idx === 0 ? 'margin-top:2px;' : ''}">
+          <span class="date-icon">📅</span>
+          <span class="date-text">${escapeHtml(dateHeader)}</span>
+        </div>
+        ${dateGroups[dateHeader].map(renderMatchCard).join("")}
+      `).join("");
+    }
+
+    // Renderiza a visualização com base na rodada e filtro selecionados
+    function renderView() {
+      const currentTime = Date.now();
+
+      function matchesFilter(f) {
+        const kickoff = new Date(f.fixture?.date).getTime();
+        const isPast10Min = (kickoff - currentTime) <= 10 * 60 * 1000;
+        const isFinished = ["FT", "AET", "PEN"].includes(f.fixture?.status?.short);
+
+        if (selectedFilter === "open") return !isPast10Min && !isFinished;
+        if (selectedFilter === "finished") return isFinished;
+        return true;
+      }
+
+      if (selectedRoundKey === "ALL") {
+        // Todas as rodadas
+        let html = "";
+        let totalMatchesShown = 0;
+
+        allRounds.forEach(r => {
+          const filtered = r.fixtures.filter(matchesFilter);
+          if (filtered.length === 0) return;
+
+          totalMatchesShown += filtered.length;
+
+          // Estatísticas da rodada
+          let roundPoints = 0;
+          let betsCount = 0;
+          let finishedCount = 0;
+          r.fixtures.forEach(f => {
+            const fid = f.fixture.id;
+            const pred = myPredMap.get(fid);
+            const isFin = ["FT", "AET", "PEN"].includes(f.fixture?.status?.short);
+            if (pred) betsCount++;
+            if (isFin) {
+              finishedCount++;
+              if (pred && f.goals?.home !== null && f.goals?.away !== null && f.goals?.home !== undefined && f.goals?.away !== undefined) {
+                const pts = calculatePredictionPoints(pred.home_score, pred.away_score, f.goals.home, f.goals.away);
+                if (pts) roundPoints += pts;
+              }
+            }
+          });
+
+          const isCurrent = r.roundKey === currentRoundKey;
+
+          html += `
+            <div class="bolao-round-section" style="margin-bottom:24px;">
+              <div class="bolao-round-header-bar">
+                <div class="bolao-round-title-row">
+                  <span class="bolao-round-badge-icon">🏆</span>
+                  <span class="bolao-round-title-text">${escapeHtml(r.roundTitle)}</span>
+                  ${isCurrent ? `<span class="bolao-round-current-tag">Atual</span>` : ''}
+                </div>
+                <div class="bolao-round-stats-pills">
+                  <div class="bolao-round-stat-pill points" title="Pontos conquistados por você nesta rodada">
+                    <span class="bolao-stat-icon">⭐</span>
+                    <span class="bolao-stat-val">+${roundPoints} pts</span>
+                  </div>
+                  <div class="bolao-round-stat-pill bets" title="Seus palpites nesta rodada">
+                    <span class="bolao-stat-icon">🎯</span>
+                    <span class="bolao-stat-val">${betsCount}/${r.fixtures.length} palpites</span>
+                  </div>
+                  <div class="bolao-round-stat-pill finished" title="Partidas finalizadas na rodada">
+                    <span class="bolao-stat-icon">🏁</span>
+                    <span class="bolao-stat-val">${finishedCount}/${r.fixtures.length} encerrados</span>
+                  </div>
+                </div>
+              </div>
+              ${renderFixturesGroupedByDate(filtered)}
+            </div>
+          `;
+        });
+
+        if (totalMatchesShown === 0) {
+          fixturesListEl.innerHTML = `
+            <div class="bolao-empty-card" style="padding:32px 20px;">
+              <p style="color:var(--chalk-dim);margin:0;font-size:0.95rem;">
+                ${selectedFilter === 'open' 
+                  ? 'Nenhum jogo aberto para palpites no momento.' 
+                  : selectedFilter === 'finished' 
+                  ? 'Nenhum jogo encerrado encontrado.' 
+                  : 'Nenhum jogo encontrado.'}
+              </p>
+            </div>
+          `;
+        } else {
+          fixturesListEl.innerHTML = html;
+        }
+
+      } else {
+        // Rodada Específica
+        const activeRound = allRounds.find(r => r.roundKey === selectedRoundKey);
+        if (!activeRound) {
+          fixturesListEl.innerHTML = `
+            <div class="bolao-empty-card" style="padding:32px 20px;">
+              <p style="color:var(--chalk-dim);margin:0;">Rodada não encontrada.</p>
+            </div>
+          `;
+          return;
+        }
+
+        const filtered = activeRound.fixtures.filter(matchesFilter);
+
+        // Estatísticas da rodada ativa
+        let roundPoints = 0;
+        let betsCount = 0;
+        let finishedCount = 0;
+        activeRound.fixtures.forEach(f => {
+          const fid = f.fixture.id;
+          const pred = myPredMap.get(fid);
+          const isFin = ["FT", "AET", "PEN"].includes(f.fixture?.status?.short);
+          if (pred) betsCount++;
+          if (isFin) {
+            finishedCount++;
+            if (pred && f.goals?.home !== null && f.goals?.away !== null && f.goals?.home !== undefined && f.goals?.away !== undefined) {
+              const pts = calculatePredictionPoints(pred.home_score, pred.away_score, f.goals.home, f.goals.away);
+              if (pts) roundPoints += pts;
+            }
+          }
+        });
+
+        const isCurrent = activeRound.roundKey === currentRoundKey;
+
+        let html = `
+          <div class="bolao-round-header-bar">
+            <div class="bolao-round-title-row">
+              <span class="bolao-round-badge-icon">🏆</span>
+              <span class="bolao-round-title-text">${escapeHtml(activeRound.roundTitle)}</span>
+              ${isCurrent ? `<span class="bolao-round-current-tag">Atual</span>` : ''}
+            </div>
+            <div class="bolao-round-stats-pills">
+              <div class="bolao-round-stat-pill points" title="Pontos conquistados por você nesta rodada">
+                <span class="bolao-stat-icon">⭐</span>
+                <span class="bolao-stat-val">+${roundPoints} pts</span>
+              </div>
+              <div class="bolao-round-stat-pill bets" title="Seus palpites nesta rodada">
+                <span class="bolao-stat-icon">🎯</span>
+                <span class="bolao-stat-val">${betsCount}/${activeRound.fixtures.length} palpites</span>
+              </div>
+              <div class="bolao-round-stat-pill finished" title="Partidas finalizadas na rodada">
+                <span class="bolao-stat-icon">🏁</span>
+                <span class="bolao-stat-val">${finishedCount}/${activeRound.fixtures.length} encerrados</span>
+              </div>
+            </div>
+          </div>
+        `;
+
+        if (filtered.length === 0) {
+          html += `
+            <div class="bolao-empty-card" style="padding:32px 20px;">
+              <p style="color:var(--chalk-dim);margin:0;font-size:0.95rem;">
+                ${selectedFilter === 'open' 
+                  ? 'Nenhum jogo aberto para palpites nesta rodada.' 
+                  : selectedFilter === 'finished' 
+                  ? 'Nenhum jogo encerrado nesta rodada até o momento.' 
+                  : 'Nenhum jogo encontrado para esta rodada.'}
+              </p>
+            </div>
+          `;
+        } else {
+          html += renderFixturesGroupedByDate(filtered);
+        }
+
+        fixturesListEl.innerHTML = html;
+      }
+
+      // Conecta os eventos dos formulários de palpite
+      bindPredictionFormEvents();
+    }
+
+    function bindPredictionFormEvents() {
       // Vincula eventos aos formulários de palpite
       fixturesListEl.querySelectorAll(".bolao-pred-form").forEach(formEl => {
         const fid = Number(formEl.dataset.fixtureId);
@@ -1086,15 +1443,17 @@ async function renderBolaoFixturesTab(container, league, compObjects, myPredicti
       });
     }
 
-    // Inicializa com filtro 'open' (Abertos para palpitar)
-    renderFilteredFixtures("open");
+    // Inicializa o navegador e renderiza a view
+    renderRoundNavigator();
+    renderView();
 
     // Eventos dos chips de filtro
     container.querySelectorAll(".bolao-filter-chip").forEach(chip => {
       chip.addEventListener("click", () => {
         container.querySelectorAll(".bolao-filter-chip").forEach(c => c.classList.remove("active"));
         chip.classList.add("active");
-        renderFilteredFixtures(chip.dataset.filter);
+        selectedFilter = chip.dataset.filter;
+        renderView();
       });
     });
 
