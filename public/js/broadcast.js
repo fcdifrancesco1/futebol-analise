@@ -159,12 +159,22 @@ function getLeagueBroadcasters(leagueId, homeTeam, awayTeam, fx) {
     ];
   }
 
-  // 10. Ligue 1 (61) / Europa League (3) / Conference League (4)
-  if (leagueId === 61 || leagueId === 3 || leagueId === 4) {
+  // 10. Ligue 1 (61) / Europa League (3) / Conference League (848)
+  if (leagueId === 61 || leagueId === 3 || leagueId === 848) {
     return [
       { name: "CazéTV", tag: "Aba Ao Vivo no YouTube", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: cazeTvUrl },
       { name: "Band", tag: "TV Aberta", logo: "/broadcast-logos/band.svg", color: "#10B981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.4)", url: "https://www.band.uol.com.br/ao-vivo" },
       { name: "Prime Video", tag: "Streaming", logo: "/broadcast-logos/prime-video.svg", color: "#00A8E1", bg: "rgba(0, 168, 225, 0.15)", border: "rgba(0, 168, 225, 0.4)", url: "https://www.primevideo.com/" }
+    ];
+  }
+
+  // 11. Competições de Seleções: Amistosos (10), Copa do Mundo (1), Copa América (9), Eliminatórias (14), Eurocopa (4), Nations League (5)
+  if (leagueId === 10 || leagueId === 1 || leagueId === 9 || leagueId === 14 || leagueId === 4 || leagueId === 5) {
+    return [
+      { name: "TV Globo", tag: "TV Aberta", logo: "/broadcast-logos/globo.jpg", color: "#FF6600", bg: "rgba(255, 102, 0, 0.15)", border: "rgba(255, 102, 0, 0.4)", url: "https://globoplay.globo.com/" },
+      { name: "SporTV", tag: "TV Fechada", logo: "/broadcast-logos/sportv.jpg", color: "#00A650", bg: "rgba(0, 166, 80, 0.15)", border: "rgba(0, 166, 80, 0.4)", url: "https://globoplay.globo.com/sportv/" },
+      { name: "CazéTV", tag: "YouTube / Prime Video", logo: "/broadcast-logos/cazetv.png", color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", url: cazeTvUrl },
+      { name: "Disney+", tag: "Streaming", logo: "/broadcast-logos/disney-plus.webp", color: "#0063E5", bg: "rgba(0, 99, 229, 0.15)", border: "rgba(0, 99, 229, 0.4)", url: "https://www.disneyplus.com/" }
     ];
   }
 

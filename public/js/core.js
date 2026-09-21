@@ -15,8 +15,9 @@ const COUNTRIES = [
   { id: "holanda", name: "Holanda", flagImg: "/flags/nl.png", leagues: [88, 90] },
   { id: "turquia", name: "Turquia", flagImg: "/flags/tr.png", leagues: [203, 206] },
   { id: "arabia-saudita", name: "Arábia Saudita", flagImg: "/flags/sa.png", leagues: [307, 504] },
-  { id: "uefa", name: "UEFA (Europa)", flagImg: "/flags/eu.png", leagues: [2, 3, 4] },
+  { id: "uefa", name: "UEFA (Europa)", flagImg: "/flags/eu.png", leagues: [2, 3, 848] },
   { id: "conmebol", name: "América do Sul", flagImg: "/flags/conmebol.png", leagues: [13, 11] },
+  { id: "selecoes", name: "Seleções (Mundo & FIFA)", flagImg: "/flags/fifa.png", leagues: [10, 1, 14, 9, 4, 5] }
 ];
 
 const LEAGUES = [
@@ -33,12 +34,20 @@ const LEAGUES = [
   { id: 203, name: "Campeonato Turco", country: "Turquia", calendarYear: false, isCup: false },
   { id: 307, name: "Liga Profissional Saudita", country: "Arábia Saudita", calendarYear: false, isCup: false },
 
-  // Copas Continentais
+  // Copas Continentais de Clubes
   { id: 2, name: "Champions League", country: "UEFA", calendarYear: false, isCup: true },
   { id: 3, name: "Europa League", country: "UEFA", calendarYear: false, isCup: true },
-  { id: 4, name: "Conference League", country: "UEFA", calendarYear: false, isCup: true },
+  { id: 848, name: "Conference League", country: "UEFA", calendarYear: false, isCup: true },
   { id: 13, name: "Copa Libertadores", country: "América do Sul", calendarYear: true, isCup: true },
   { id: 11, name: "Copa Sul-Americana", country: "América do Sul", calendarYear: true, isCup: true },
+
+  // Competições e Amistosos de Seleções (Masculino)
+  { id: 10, name: "Amistosos Internacionais", country: "Mundo", calendarYear: true, isCup: true },
+  { id: 1, name: "Copa do Mundo FIFA", country: "Mundo", calendarYear: true, isCup: true },
+  { id: 14, name: "Eliminatórias da Copa - América do Sul", country: "América do Sul", calendarYear: true, isCup: true },
+  { id: 9, name: "Copa América", country: "América do Sul", calendarYear: true, isCup: true },
+  { id: 4, name: "Eurocopa", country: "UEFA", calendarYear: true, isCup: true },
+  { id: 5, name: "UEFA Nations League", country: "UEFA", calendarYear: false, isCup: true },
 
   // Copas Nacionais
   { id: 73, name: "Copa do Brasil", country: "Brasil", calendarYear: true, isCup: true },
@@ -67,7 +76,8 @@ const POPULAR_TEAMS = [
   { id: 541, name: "Real Madrid", logo: "https://media.api-sports.io/football/teams/541.png" },
   { id: 529, name: "Barcelona", logo: "https://media.api-sports.io/football/teams/529.png" },
   { id: 50, name: "Man. City", logo: "https://media.api-sports.io/football/teams/50.png" },
-  { id: 40, name: "Liverpool", logo: "https://media.api-sports.io/football/teams/40.png" }
+  { id: 40, name: "Liverpool", logo: "https://media.api-sports.io/football/teams/40.png" },
+  { id: 6, name: "Brasil (Seleção)", logo: "https://media.api-sports.io/football/teams/6.png" }
 ];
 
 function defaultSeasonFor(league) {

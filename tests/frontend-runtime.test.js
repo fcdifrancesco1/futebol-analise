@@ -28,3 +28,67 @@ test('rating with insufficient playing time is missing and extreme events stay b
   assert.equal(PlayerRatingEngine.calcularNota({games:{minutes:90,position:'F'},goals:{total:100}}).nota,10);
   assert.equal(PlayerRatingEngine.calcularNota({games:{minutes:90,position:'F'},cards:{red:100}}).nota,3);
 });
+
+test('national team competitions, friendlies and leagues are registered and consistent',()=>{
+  const window = { addEventListener() {}, localStorage: { getItem() { return 'null'; } }, sessionStorage: { getItem() { return '{}'; } } };
+  const document = { getElementById() { return {}; }, readyState: 'loading', addEventListener() {} };
+  const context = vm.createContext({ window, document, AbortController, URLSearchParams, fetch: () => {}, console });
+  
+  vm.runInContext(fs.readFileSync('public/js/cache.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('public/js/models.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('public/js/core.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('public/js/broadcast.js', 'utf8'), context);
+
+  const countries = vm.runInContext('COUNTRIES', context);
+  const leagues = vm.runInContext('LEAGUES', context);
+  const getLeagueBroadcasters = vm.runInContext('getLeagueBroadcasters', context);
+  const leagueIds = new Set(leagues.map(l => l.id));
+
+  // Todos os IDs de ligas em COUNTRIES devem existir em LEAGUES
+  for (const country of countries) {
+    for (const lid of country.leagues) {
+      assert.ok(leagueIds.has(lid), `Liga ID ${lid} do grupo ${country.id} não encontrada em LEAGUES`);
+    }
+  }
+
+  // Categoria de Seleções Masculinas
+  const selecoesGroup = countries.find(c => c.id === 'selecoes');
+  assert.ok(selecoesGroup, 'Grupo selecoes deve existir em COUNTRIES');
+  assert.equal(fs.existsSync('public' + selecoesGroup.flagImg), true, 'Bandeira de seleções deve existir em public/');
+  assert.deepEqual(Array.from(selecoesGroup.leagues), [10, 1, 14, 9, 4, 5]);
+
+  // Competições de Seleções Oficiais
+  const friendlies = leagues.find(l => l.id === 10);
+  assert.ok(friendlies && friendlies.isCup && friendlies.calendarYear);
+  assert.equal(friendlies.name, 'Amistosos Internacionais');
+
+  const worldCup = leagues.find(l => l.id === 1);
+  assert.ok(worldCup && worldCup.isCup && worldCup.calendarYear);
+  assert.equal(worldCup.name, 'Copa do Mundo FIFA');
+
+  const qualifiers = leagues.find(l => l.id === 14);
+  assert.ok(qualifiers && qualifiers.isCup && qualifiers.calendarYear);
+  assert.equal(qualifiers.name, 'Eliminatórias da Copa - América do Sul');
+
+  const copaAmerica = leagues.find(l => l.id === 9);
+  assert.ok(copaAmerica && copaAmerica.isCup && copaAmerica.calendarYear);
+  assert.equal(copaAmerica.name, 'Copa América');
+
+  const euro = leagues.find(l => l.id === 4);
+  assert.ok(euro && euro.isCup && euro.calendarYear);
+  assert.equal(euro.name, 'Eurocopa');
+
+  const nationsLeague = leagues.find(l => l.id === 5);
+  assert.ok(nationsLeague && nationsLeague.isCup && !nationsLeague.calendarYear);
+  assert.equal(nationsLeague.name, 'UEFA Nations League');
+
+  // Conference League corrigida para 848
+  const confLeague = leagues.find(l => l.id === 848);
+  assert.ok(confLeague && confLeague.name === 'Conference League');
+
+  // Guia de transmissão para seleções
+  const broadcast10 = getLeagueBroadcasters(10);
+  assert.ok(Array.isArray(broadcast10) && broadcast10.length > 0);
+  assert.ok(broadcast10.some(c => c.name === 'TV Globo'));
+});
+
