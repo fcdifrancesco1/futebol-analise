@@ -1311,6 +1311,13 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   flex-wrap: wrap;
 }
 
+.day-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .day-nav-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line-faint);
@@ -2544,4 +2551,102 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
     padding: 2px 4px;
     flex-shrink: 0;
   }
+}
+
+.fixture-score-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 54px;
+}
+
+@media (max-width: 600px) {
+  .topbar { padding-inline: 12px; }
+  .topbar-inner { height: 56px; }
+  .brand-name { font-size: 1.1rem; }
+  .quota-pill { display: none; }
+  .fav-team-header-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+  .fav-team-label { font-size: 0; }
+  .fav-team-label::before { content: "⭐"; font-size: 1rem; }
+  .day-selector-bar {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+  }
+  .day-current-display {
+    grid-row: 1;
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .day-date-title {
+    min-width: 0;
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+  .day-date-picker { min-width: 118px; }
+  .day-nav-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
+  }
+  .day-nav-btn {
+    justify-content: center;
+    min-height: 40px;
+    padding: 7px 6px;
+  }
+  .matches-day-filters {
+    margin-bottom: 14px;
+    scrollbar-width: none;
+  }
+  .matches-day-filters::-webkit-scrollbar { display: none; }
+  .matches-day-filter-btn { min-height: 40px; }
+  .league-matches-header {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .league-matches-header-left { min-width: 0; }
+  .league-matches-header-title { overflow-wrap: anywhere; }
+  .league-matches-body { padding: 6px; }
+  .match-fixture-row {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-areas: "status status status" "home score away";
+    gap: 8px 5px;
+    padding: 10px 8px;
+  }
+  .match-fixture-row .fixture-date-col {
+    grid-area: status;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--line-faint);
+  }
+  .match-fixture-row .fixture-team-item.right { grid-area: home; }
+  .match-fixture-row .fixture-team-item:not(.right) { grid-area: away; }
+  .match-fixture-row .fixture-score,
+  .match-fixture-row .fixture-score-col { grid-area: score; }
+  .match-fixture-row .fixture-team-item span {
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    line-height: 1.2;
+  }
+  .match-fixture-row .fixture-score-col { min-width: 46px; }
+  .match-fixture-row .btn-fixture-highlights-pill span:last-child { display: none; }
+}
+
+@media (max-width: 380px) {
+  .day-current-display { display: grid; }
+  .day-date-picker { width: 100%; box-sizing: border-box; }
+  .bottom-nav-label { font-size: 0.62rem; }
+  .bottom-nav-icon { font-size: 1.1rem; }
 }

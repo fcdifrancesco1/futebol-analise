@@ -847,7 +847,7 @@ async function renderBolaoFixturesTab(container, league, compObjects, participan
       if (res.status === "fulfilled" && Array.isArray(res.value)) {
         res.value.forEach(f => {
           const fid = f.fixture?.id;
-          if (fid && !seen.has(fid)) {
+          if (fid && !seen.has(fid) && isSeniorNationalFixture(f)) {
             seen.add(fid);
             uniqueFixtures.push(f);
           }

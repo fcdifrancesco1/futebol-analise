@@ -48,7 +48,7 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
 
     <!-- Barra de Navegação por Data -->
     <div class="day-selector-bar">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="day-nav-actions">
         <button class="day-nav-btn" id="btn-prev-day" data-date="${prevDate}">
           ← Anterior
         </button>
@@ -150,11 +150,9 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
 
   try {
     const ttl = isForced ? 0 : 3;
-    const fixtures = await apiGet("fixtures", { date: dateStr, timezone: tz }, ttl);
-    if (fixtures && Array.isArray(fixtures)) {
-      try { NotificationManager.checkLiveAlerts(fixtures); } catch { /* ignore notification errors */ }
-    }
-    const relevant = (fixtures || []).filter(f => {
+    const fixtures = filterSeniorNationalFixtures(await apiGet("fixtures", { date: dateStr, timezone: tz }, ttl));
+    try { NotificationManager.checkLiveAlerts(fixtures); } catch { /* ignore notification errors */ }
+    const relevant = fixtures.filter(f => {
       if (!knownLeagueIds.has(f.league?.id)) return false;
       // Garante que o jogo pertence exatamente ao dia selecionado no fuso horário local
       const fixtureDateLocal = getLocalDateString(new Date(f.fixture?.date));
@@ -253,7 +251,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                   : `<span class="fixture-score" style="color:var(--chalk-dim);font-size:0.85rem;">vs</span>`;
 
                 return `
-                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir estatísticas do confronto">
+                  <a class="fixture-row match-fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir estatísticas do confronto">
                     <div class="fixture-date-col">
                       ${statusBadge}
                     </div>
@@ -261,7 +259,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                       <span>${escapeHtml(f.teams.home.name)}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:54px;">
+                    <div class="fixture-score-col">
                       ${scoreDisplay}
                       ${isFinished ? `
                         <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}">
@@ -338,9 +336,9 @@ async function fetchLiveMatches(isForced = false) {
     if (isForced) {
       footballClient.invalidate("fixtures", { live: "all" });
     }
-    const fixtures = await apiGet("fixtures", { live: "all" }, isForced ? 0 : 0.5);
+    const fixtures = filterSeniorNationalFixtures(await apiGet("fixtures", { live: "all" }, isForced ? 0 : 0.5));
     NotificationManager.checkLiveAlerts(fixtures);
-    const relevant = (fixtures || []).filter(f => {
+    const relevant = fixtures.filter(f => {
       if (!knownLeagueIds.has(f.league?.id)) return false;
       const statusInfo = getMatchStatusCategory(f.fixture);
       return statusInfo.isLive;
@@ -390,7 +388,7 @@ async function fetchLiveMatches(isForced = false) {
                 const timeDisplay = statusInfo.label;
 
                 return `
-                  <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
+                  <a class="fixture-row match-fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
                     <div class="fixture-date-col">
                       <span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${timeDisplay}</span>
                     </div>
@@ -398,7 +396,7 @@ async function fetchLiveMatches(isForced = false) {
                       <span>${escapeHtml(f.teams.home.name)}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:54px;">
+                    <div class="fixture-score-col">
                       <span class="fixture-score live-score">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>
                     </div>
                     <div class="fixture-team-item">

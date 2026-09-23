@@ -63,6 +63,21 @@ const LEAGUES = [
   { id: 504, name: "Copa do Rei Saudita", country: "Arábia Saudita", calendarYear: false, isCup: true }
 ];
 
+const NATIONAL_TEAM_LEAGUE_IDS = new Set([10, 1, 14, 9, 4, 5]);
+
+function isSeniorNationalFixture(fixture) {
+  if (!NATIONAL_TEAM_LEAGUE_IDS.has(fixture?.league?.id)) return true;
+  const labels = [fixture?.teams?.home?.name, fixture?.teams?.away?.name, fixture?.league?.round];
+  return !labels.some(label => {
+    const name = String(label || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return /\b(?:u|sub|under)[\s.-]?\d{1,2}\b|\b(?:youth|juvenil|junior|olympic|olimpic[ao])\b|\s(?:b|ii)$/i.test(name);
+  });
+}
+
+function filterSeniorNationalFixtures(fixtures) {
+  return (Array.isArray(fixtures) ? fixtures : []).filter(isSeniorNationalFixture);
+}
+
 
 // ============================================================
 // SISTEMA AVANÇADO DE NOTAS DE JOGADOR (FutStats Rating Engine)

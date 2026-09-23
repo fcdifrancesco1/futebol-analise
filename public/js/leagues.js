@@ -363,12 +363,12 @@ async function renderStandingsFromCache(leagueId, season) {
     if (!officialStandings.length || !officialStandings[0]) {
       content.innerHTML = `<div class="card" style="text-align:center;color:var(--chalk-dim);padding:30px;">Sem tabela de pontos corridos nesta competição (formato mata-mata). Acesse a aba <strong>Jogos</strong> para ver os confrontos de Ida e Volta.</div>`;
       if (sidebar) {
-        sidebar.innerHTML = renderLeagueSidebar(leagueId, season, fixturesResp || [], scorersResp, assistsResp);
+        sidebar.innerHTML = renderLeagueSidebar(leagueId, season, filterSeniorNationalFixtures(fixturesResp), scorersResp, assistsResp);
       }
       return;
     }
 
-    const allFixtures = preprocessLeagueFixtures(Array.isArray(fixturesResp) ? fixturesResp : []);
+    const allFixtures = preprocessLeagueFixtures(filterSeniorNationalFixtures(fixturesResp));
     const finishedFixtures = allFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short));
 
     let tablesToRender = officialStandings;
@@ -691,7 +691,7 @@ async function renderLeagueFixtures(leagueId, season) {
   const content = document.getElementById("fx-content");
   try {
     const rawFixtures = await apiGet("fixtures", { league: leagueId, season }, 15);
-    const allFixtures = preprocessLeagueFixtures(rawFixtures);
+    const allFixtures = preprocessLeagueFixtures(filterSeniorNationalFixtures(rawFixtures));
 
     if (!allFixtures || !allFixtures.length) {
       content.innerHTML = `<div class="card"><p style="color:var(--chalk-dim);">Nenhum jogo cadastrado para esta temporada.</p></div>`;
@@ -848,7 +848,7 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                             : `<span class="fixture-date">${date}<br>${time}</span>`));
 
                   return `
-                    <a class="fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para ver estatísticas da partida">
+                    <a class="fixture-row match-fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para ver estatísticas da partida">
                       <div class="fixture-date-col">
                         ${dateDisplay}
                         ${legBadge}

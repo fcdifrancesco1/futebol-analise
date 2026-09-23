@@ -92,3 +92,23 @@ test('national team competitions, friendlies and leagues are registered and cons
   assert.ok(broadcast10.some(c => c.name === 'TV Globo'));
 });
 
+test('national team fixture lists contain senior selections only',()=>{
+  const window={addEventListener(){},localStorage:{getItem(){return 'null'}},sessionStorage:{getItem(){return '{}'}}};
+  const document={getElementById(){return {}},readyState:'loading',addEventListener(){}};
+  const context=vm.createContext({window,document,AbortController,URLSearchParams,fetch:()=>{},console});
+  for(const file of ['cache','models','core']) vm.runInContext(fs.readFileSync(`public/js/${file}.js`,'utf8'),context);
+  const fixtures=[
+    {fixture:{id:1},league:{id:10},teams:{home:{name:'Brazil'},away:{name:'Argentina'}}},
+    {fixture:{id:2},league:{id:10},teams:{home:{name:'Brazil U20'},away:{name:'Argentina'}}},
+    {fixture:{id:3},league:{id:10},teams:{home:{name:'Brasil Sub-17'},away:{name:'Chile'}}},
+    {fixture:{id:4},league:{id:1},teams:{home:{name:'France'},away:{name:'Spain U23'}}},
+    {fixture:{id:5},league:{id:10,round:'Under 19'},teams:{home:{name:'Brazil'},away:{name:'Chile'}}},
+    {fixture:{id:6},league:{id:5},teams:{home:{name:'France'},away:{name:'Italy'}}},
+    {fixture:{id:7},league:{id:39},teams:{home:{name:'Arsenal U21'},away:{name:'Chelsea U21'}}},
+    {fixture:{id:8},league:{id:10},teams:{home:{name:'Brazil Olympic'},away:{name:'Chile'}}}
+  ];
+  context.fixtures=fixtures;
+  const visible=vm.runInContext('filterSeniorNationalFixtures(fixtures)',context);
+  assert.deepEqual(Array.from(visible,f=>f.fixture.id),[1,6,7]);
+});
+
