@@ -839,6 +839,9 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                   const statusInfo = getMatchStatusCategory(f.fixture);
                   const isMatchLive = statusInfo.isLive;
                   const played = isMatchLive || statusInfo.isFinished;
+                  const kickoff = new Date(f.fixture.date);
+                  const date = kickoff.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+                  const time = kickoff.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
                   const dateDisplay = isMatchLive
                     ? `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${statusInfo.label}</span>`
                     : (statusInfo.isPostponed

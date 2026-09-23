@@ -112,3 +112,21 @@ test('national team fixture lists contain senior selections only',()=>{
   assert.deepEqual(Array.from(visible,f=>f.fixture.id),[1,6,7]);
 });
 
+test('scheduled league fixtures render their date and kickoff time',()=>{
+  const index=fs.readFileSync('public/index.html','utf8');
+  const entries=[...index.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m=>m[1].split('?')[0]);
+  const window={addEventListener(){},localStorage:{getItem(){return 'null'}},sessionStorage:{getItem(){return '{}'}}};
+  const document={getElementById(){return {}},readyState:'loading',addEventListener(){}};
+  const context=vm.createContext({window,document,AbortController,URLSearchParams,fetch:()=>{},console});
+  for(const entry of entries) vm.runInContext(fs.readFileSync('public/'+entry.replace(/^\//,''),'utf8'),context,{filename:entry});
+  context.fixtures=[{
+    fixture:{id:123,date:'2099-10-10T18:30:00',status:{short:'NS',long:'Not Started'}},
+    league:{round:'League Stage - 1'},
+    teams:{home:{id:1,name:'Portugal',logo:''},away:{id:2,name:'Espanha',logo:''}},
+    goals:{home:null,away:null}
+  }];
+  const html=vm.runInContext('renderGroupedFixtures(fixtures, false)',context);
+  assert.match(html,/href="#\/jogo\/123"/);
+  assert.match(html,/<span class="fixture-date">10\/10<br>18:30<\/span>/);
+});
+
