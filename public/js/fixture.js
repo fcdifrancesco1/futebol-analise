@@ -41,7 +41,22 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       return;
     }
 
-    const events = eventsRes.status === "fulfilled" ? (eventsRes.value || []) : [];
+    // Unifica eventos de fixtures/events e fx.events (da chamada fixtures?id=...), evitando perdas por delay de sincronização da API
+    const apiEvents = eventsRes.status === "fulfilled" && Array.isArray(eventsRes.value) ? eventsRes.value : [];
+    const fxEvents = Array.isArray(fx.events) ? fx.events : [];
+    const allRawEvents = [...apiEvents, ...fxEvents];
+    const seenEvents = new Set();
+    const events = [];
+    for (const e of allRawEvents) {
+      if (!e) continue;
+      const key = `${e.time?.elapsed || 0}_${e.time?.extra || 0}_${e.team?.id || e.team?.name || ''}_${e.player?.id || e.player?.name || ''}_${e.type || ''}_${e.detail || ''}`;
+      if (!seenEvents.has(key)) {
+        seenEvents.add(key);
+        events.push(e);
+      }
+    }
+    events.sort((a, b) => ((a.time?.elapsed || 0) + (a.time?.extra || 0) / 100) - ((b.time?.elapsed || 0) + (b.time?.extra || 0) / 100));
+
     const statsArr = statsRes.status === "fulfilled" ? (statsRes.value || []) : [];
     const lineupsArr = lineupsRes.status === "fulfilled" ? (lineupsRes.value || []) : [];
     const pred = predictionsRes.status === "fulfilled" ? predictionsRes.value?.[0] : null;
@@ -67,8 +82,76 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       statusText = `<span style="color:#F59E0B;font-weight:700;">● ${statusInfo.label}</span>`;
     }
 
-    const homeGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.home.id);
-    const awayGoals = events.filter(e => e.type === "Goal" && e.detail !== "Missed Penalty" && e.team?.id === fx.teams.away.id);
+    const isGoalForTeam = (e, targetTeam, otherTeam) => {
+      if (e.type !== "Goal" || e.detail === "Missed Penalty") return false;
+      const isOwnGoal = e.detail === "Own Goal" || (e.comments && /own goal/i.test(e.comments));
+      const targetId = targetTeam?.id != null ? String(targetTeam.id) : "";
+      const otherId = otherTeam?.id != null ? String(otherTeam.id) : "";
+      const eventTeamId = e.team?.id != null ? String(e.team.id) : "";
+      const eventTeamName = String(e.team?.name || "").toLowerCase().trim();
+      const targetName = String(targetTeam?.name || "").toLowerCase().trim();
+      const otherName = String(otherTeam?.name || "").toLowerCase().trim();
+
+      const isTargetTeam = (targetId && eventTeamId === targetId) || (targetName && eventTeamName === targetName);
+      const isOtherTeam = (otherId && eventTeamId === otherId) || (otherName && eventTeamName === otherName);
+
+      // Gol contra beneficia o time adversário no placar
+      if (isOwnGoal) return isOtherTeam;
+      return isTargetTeam;
+    };
+
+    let homeGoals = events.filter(e => isGoalForTeam(e, fx.teams.home, fx.teams.away));
+    let awayGoals = events.filter(e => isGoalForTeam(e, fx.teams.away, fx.teams.home));
+
+    // Se o placar da partida tiver mais gols que os eventos registrados (delay ou súmula pendente da API)
+    const recoverMissingGoals = (currentGoals, team, fixturePlayers, expectedGoals) => {
+      const needed = Number(expectedGoals || 0);
+      if (needed <= currentGoals.length) return currentGoals;
+      const teamId = team?.id != null ? String(team.id) : "";
+      const teamName = String(team?.name || "").toLowerCase().trim();
+
+      const teamBlock = (fixturePlayers || []).find(b => 
+        (teamId && String(b.team?.id || "") === teamId) || 
+        (teamName && String(b.team?.name || "").toLowerCase().trim() === teamName)
+      );
+
+      const existingNames = new Set(currentGoals.map(g => String(g.player?.name || "").toLowerCase().trim()));
+      const result = [...currentGoals];
+
+      if (teamBlock && Array.isArray(teamBlock.players)) {
+        for (const p of teamBlock.players) {
+          const stats = p.statistics?.[0] || {};
+          const goalsScored = Number(stats.goals?.total || 0);
+          const pName = p.player?.name || "";
+          if (goalsScored > 0 && pName && !existingNames.has(pName.toLowerCase().trim())) {
+            for (let i = 0; i < goalsScored && result.length < needed; i++) {
+              result.push({
+                type: "Goal",
+                detail: "Normal Goal",
+                player: { id: p.player?.id, name: pName },
+                time: { elapsed: "-" },
+                isRecovered: true
+              });
+            }
+          }
+        }
+      }
+
+      while (result.length < needed) {
+        result.push({
+          type: "Goal",
+          detail: "Normal Goal",
+          player: { name: "Gol (Aguardando súmula da API)" },
+          time: { elapsed: "-" },
+          isPendingSummary: true
+        });
+      }
+
+      return result;
+    };
+
+    homeGoals = recoverMissingGoals(homeGoals, fx.teams.home, fixturePlayersArr, fx.goals?.home);
+    awayGoals = recoverMissingGoals(awayGoals, fx.teams.away, fixturePlayersArr, fx.goals?.away);
 
     // Buscar estatísticas pré-jogo se a partida ainda não começou
     let preMatchSection = "";
@@ -97,6 +180,9 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
         <p class="page-eyebrow" style="margin:0;">${escapeHtml(fx.league.name)} · ${formatRoundName(fx.league.round)} · ${date} · ${time}${fx.fixture.venue?.name ? " · " + escapeHtml(fx.fixture.venue.name) : ""}</p>
         <div style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap;">
+          <button class="day-nav-btn day-refresh-btn" id="btn-refresh-fixture" title="Atualizar dados e eventos agora" style="padding:6px 12px;font-size:0.82rem;">
+            <span class="refresh-spin-icon">🔄</span> Atualizar
+          </button>
           <button class="btn ${isFavFixture ? 'active-fav' : 'ghost'} small" id="btn-toggle-fixture-fav" style="display:inline-flex;align-items:center;gap:6px;">
             ${isFavFixture ? '🔔 Alertas Ativados (Jogo)' : '🔔 Seguir Jogo (Gols & Escalações)'}
           </button>
@@ -153,12 +239,15 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
                 const rawAssist = g.assist?.name;
                 const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
                 const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : '';
+                const hasTime = g.time && g.time.elapsed != null && g.time.elapsed !== "-";
+                const timeStr = hasTime ? `${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ""}'` : "";
+                const tagStr = `${timeStr}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}`;
 
                 return `
                   <div class="hero-goal-item">
                     <span>⚽</span>
-                    <span class="player-name">${escapeHtml(playerName)}${assistHtml}</span>
-                    <span class="time">${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ''}'${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
+                    <span class="player-name"${g.isPendingSummary ? ' style="opacity:0.85;font-style:italic;"' : ''}>${escapeHtml(playerName)}${assistHtml}</span>
+                    ${tagStr ? `<span class="time">${escapeHtml(tagStr)}</span>` : ''}
                   </div>
                 `;
               }).join("")}
@@ -172,12 +261,15 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
                 const rawAssist = g.assist?.name;
                 const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
                 const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : '';
+                const hasTime = g.time && g.time.elapsed != null && g.time.elapsed !== "-";
+                const timeStr = hasTime ? `${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ""}'` : "";
+                const tagStr = `${timeStr}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}`;
 
                 return `
                   <div class="hero-goal-item">
                     <span>⚽</span>
-                    <span class="player-name">${escapeHtml(playerName)}${assistHtml}</span>
-                    <span class="time">${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ''}'${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}</span>
+                    <span class="player-name"${g.isPendingSummary ? ' style="opacity:0.85;font-style:italic;"' : ''}>${escapeHtml(playerName)}${assistHtml}</span>
+                    ${tagStr ? `<span class="time">${escapeHtml(tagStr)}</span>` : ''}
                   </div>
                 `;
               }).join("")}
@@ -222,6 +314,28 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         ${renderFixtureEvents(events, fx, isFinished)}
       </div>
     `;
+
+    const btnRefresh = document.getElementById("btn-refresh-fixture");
+    if (btnRefresh) {
+      btnRefresh.addEventListener("click", async () => {
+        btnRefresh.classList.add("spinning");
+        btnRefresh.disabled = true;
+        try {
+          footballClient.invalidate("fixtures", { id: fixtureId });
+          footballClient.invalidate("fixtures/events", { fixture: fixtureId });
+          footballClient.invalidate("fixtures/players", { fixture: fixtureId });
+          footballClient.invalidate("fixtures/statistics", { fixture: fixtureId });
+          footballClient.invalidate("fixtures/lineups", { fixture: fixtureId });
+          await renderFixture(fixtureId, true);
+          toast("Dados da partida atualizados com a API!", false);
+        } catch (err) {
+          toast("Erro ao atualizar: " + (err.message || "Tente novamente"), true);
+        } finally {
+          btnRefresh.classList.remove("spinning");
+          btnRefresh.disabled = false;
+        }
+      });
+    }
 
     const btnFav = document.getElementById("btn-toggle-fixture-fav");
     if (btnFav) {
@@ -953,9 +1067,10 @@ function renderFixtureEvents(events, fx, isFinished = false) {
           const hasAssist = isGoal && !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== pName.toLowerCase();
           const ytGoalUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`Gol ${pName} ${fx.teams.home.name} ${fx.teams.away.name}`)}`;
 
+          const timeElapsed = (e.time && e.time.elapsed != null && e.time.elapsed !== "-") ? `${e.time.elapsed}'${e.time.extra ? "+" + e.time.extra : ""}` : (e.time?.elapsed === "-" ? "-" : "");
           return `
             <div class="fixture-row" style="grid-template-columns:44px auto 1fr auto;">
-              <span class="fixture-date">${e.time.elapsed}'${e.time.extra ? "+" + e.time.extra : ""}</span>
+              <span class="fixture-date">${timeElapsed}</span>
               <span>${e.type === "Goal" ? "⚽" : e.type === "Card" ? (e.detail === "Red Card" ? "🟥" : "🟨") : "🔁"}</span>
               <div>
                 <strong>${escapeHtml(pName)}</strong>${hasAssist ? ` <span style="color:var(--chalk-dim);font-size:0.8rem;font-weight:400;">(${escapeHtml(String(rawAssist).trim())})</span>` : ''}

@@ -130,3 +130,62 @@ test('scheduled league fixtures render their date and kickoff time',()=>{
   assert.match(html,/<span class="fixture-date">10\/10<br>18:30<\/span>/);
 });
 
+test('fixture goal extraction handles own goals and recovers scorers from player statistics when events lag', () => {
+  const fixtureSrc = fs.readFileSync('public/js/fixture.js', 'utf8');
+  // Extrai a lógica das funções auxiliares de fixture.js
+  const isGoalForTeamStr = fixtureSrc.match(/const isGoalForTeam = \([\s\S]*?\n    \};/)[0];
+  const recoverMissingGoalsStr = fixtureSrc.match(/const recoverMissingGoals = \([\s\S]*?\n    \};/)[0];
+
+  const fnContext = vm.createContext({});
+  vm.runInContext(`${isGoalForTeamStr}\nthis.isGoalForTeam = isGoalForTeam;\n${recoverMissingGoalsStr}\nthis.recoverMissingGoals = recoverMissingGoals;`, fnContext);
+
+  const homeTeam = { id: 20, name: 'Australia' };
+  const awayTeam = { id: 6, name: 'Brazil' };
+
+  // 1. Gol normal de Irankunda para Austrália
+  const normalGoalAustralia = {
+    type: 'Goal',
+    detail: 'Normal Goal',
+    team: { id: 20, name: 'Australia' },
+    player: { id: 101, name: 'N. Irankunda' },
+    time: { elapsed: 68 }
+  };
+  assert.equal(fnContext.isGoalForTeam(normalGoalAustralia, homeTeam, awayTeam), true);
+  assert.equal(fnContext.isGoalForTeam(normalGoalAustralia, awayTeam, homeTeam), false);
+
+  // 2. Gol contra cometido por jogador da Austrália beneficia o Brasil (away)
+  const ownGoalAustralia = {
+    type: 'Goal',
+    detail: 'Own Goal',
+    team: { id: 20, name: 'Australia' },
+    player: { id: 102, name: 'Defensor Australiano' },
+    time: { elapsed: 80 }
+  };
+  assert.equal(fnContext.isGoalForTeam(ownGoalAustralia, awayTeam, homeTeam), true);
+  assert.equal(fnContext.isGoalForTeam(ownGoalAustralia, homeTeam, awayTeam), false);
+
+  // 3. Recuperação de gol de Rayan a partir de fixturePlayersArr quando o evento ainda não foi publicado na API
+  const currentAwayGoals = []; // API events ainda não trouxe o gol do Brasil
+  const fixturePlayersArr = [
+    {
+      team: { id: 6, name: 'Brazil' },
+      players: [
+        { player: { id: 202, name: 'Rayan' }, statistics: [{ goals: { total: 1 } }] },
+        { player: { id: 203, name: 'Vinicius Jr' }, statistics: [{ goals: { total: 0 } }] }
+      ]
+    }
+  ];
+
+  const recovered = fnContext.recoverMissingGoals(currentAwayGoals, awayTeam, fixturePlayersArr, 1);
+  assert.equal(recovered.length, 1);
+  assert.equal(recovered[0].player.name, 'Rayan');
+  assert.equal(recovered[0].isRecovered, true);
+
+  // 4. Se nem mesmo fixturePlayersArr tem o gol (delay total da súmula), provê placeholder informativo
+  const fallback = fnContext.recoverMissingGoals([], awayTeam, [], 1);
+  assert.equal(fallback.length, 1);
+  assert.equal(fallback[0].player.name, 'Gol (Aguardando súmula da API)');
+  assert.equal(fallback[0].isPendingSummary, true);
+});
+
+
