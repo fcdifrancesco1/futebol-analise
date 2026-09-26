@@ -165,10 +165,10 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
         <a class="day-side-link" href="#/aovivo">● <span>Ao Vivo</span></a>
         <a class="day-side-link" href="#/bolao">◎ <span>Meu Bolão</span></a>
         <p class="day-rail-label day-rail-space">Competições</p>
-        <a class="day-side-link" href="#/liga/71/${defaultSeasonFor(LEAGUES.find(l => l.id === 71))}">🇧🇷 <span>Brasileirão</span></a>
-        <a class="day-side-link" href="#/liga/2/${defaultSeasonFor(LEAGUES.find(l => l.id === 2))}">🏆 <span>Champions League</span></a>
-        <a class="day-side-link" href="#/liga/39/${defaultSeasonFor(LEAGUES.find(l => l.id === 39))}">🇬🇧 <span>Premier League</span></a>
-        <a class="day-side-link" href="#/ligas">＋ <span>Todas as ligas</span></a>
+        <a class="day-side-link" href="#/liga/71/${defaultSeasonFor(LEAGUES.find(l => l.id === 71))}"><img class="day-side-logo" src="https://media.api-sports.io/football/leagues/71.png" alt="" loading="lazy" data-image-fallback="hide"> <span>Brasileirão</span></a>
+        <a class="day-side-link" href="#/liga/2/${defaultSeasonFor(LEAGUES.find(l => l.id === 2))}"><img class="day-side-logo" src="https://media.api-sports.io/football/leagues/2.png" alt="" loading="lazy" data-image-fallback="hide"> <span>Champions League</span></a>
+        <a class="day-side-link" href="#/liga/39/${defaultSeasonFor(LEAGUES.find(l => l.id === 39))}"><img class="day-side-logo" src="https://media.api-sports.io/football/leagues/39.png" alt="" loading="lazy" data-image-fallback="hide"> <span>Premier League</span></a>
+        <a class="day-side-link" href="#/ligas"><span class="day-side-all-icon" aria-hidden="true">＋</span> <span>Todas as ligas</span></a>
         <div class="day-side-card"><strong>Seu bolão, sem confusão.</strong><p>Palpites e classificação no mesmo lugar.</p><a href="#/bolao">Acessar bolão ↗</a></div>
       </aside>
 
