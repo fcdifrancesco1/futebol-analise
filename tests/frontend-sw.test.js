@@ -29,3 +29,10 @@ test('offline uncached asset returns a response instead of undefined',async()=>{
   const response=await work;
   assert.ok(response instanceof Response); assert.equal(response.status,503);
 });
+test('new layout stylesheet is cached as an application asset',async()=>{
+  const {events,puts}=worker(); let work;
+  events.fetch({request:{url:'https://example.com/css/redesign.css?v=106',method:'GET',mode:'cors'},respondWith:p=>work=p});
+  assert.ok(work,'layout stylesheet must be handled by the service worker');
+  await work;
+  assert.equal(puts.length,1);
+});

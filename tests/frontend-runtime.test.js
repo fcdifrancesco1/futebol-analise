@@ -91,6 +91,16 @@ test('national team competitions, friendlies and leagues are registered and cons
   assert.ok(Array.isArray(broadcast10) && broadcast10.length > 0);
   assert.ok(broadcast10.some(c => c.name === 'TV Globo'));
 });
+test('More navigation indicates the active lineup or favorite-team page',()=>{
+  const menus=[{classList:{toggle(name,active){this[name]=active;}}},{classList:{toggle(name,active){this[name]=active;}}}];
+  const document={readyState:'loading',addEventListener(){},querySelectorAll(selector){return selector==='.desktop-more, .mobile-more' ? menus : [];}};
+  const context=vm.createContext({document,window:{addEventListener(){}}});
+  vm.runInContext(fs.readFileSync('public/app.js','utf8'),context);
+  vm.runInContext("setActiveTab('mylineups')",context);
+  assert.ok(menus.every(menu=>menu.classList.active));
+  vm.runInContext("setActiveTab('today')",context);
+  assert.ok(menus.every(menu=>!menu.classList.active));
+});
 
 test('national team fixture lists contain senior selections only',()=>{
   const window={addEventListener(){},localStorage:{getItem(){return 'null'}},sessionStorage:{getItem(){return '{}'}}};
@@ -128,6 +138,117 @@ test('scheduled league fixtures render their date and kickoff time',()=>{
   const html=vm.runInContext('renderGroupedFixtures(fixtures, false)',context);
   assert.match(html,/href="#\/jogo\/123"/);
   assert.match(html,/<span class="fixture-date">10\/10<br>18:30<\/span>/);
+});
+
+test('day spotlight uses a real fixture and does not invent match statistics',()=>{
+  const index=fs.readFileSync('public/index.html','utf8');
+  const entries=[...index.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m=>m[1].split('?')[0]);
+  const window={addEventListener(){},localStorage:{getItem(){return 'null'}},sessionStorage:{getItem(){return '{}'}}};
+  const document={getElementById(){return {}},readyState:'loading',addEventListener(){}};
+  const context=vm.createContext({window,document,AbortController,URLSearchParams,fetch:()=>{},console});
+  for(const entry of entries) vm.runInContext(fs.readFileSync('public/'+entry.replace(/^\//,''),'utf8'),context,{filename:entry});
+  context.fixtures=[{
+    fixture:{id:456,date:'2099-10-10T18:30:00',status:{short:'NS',long:'Not Started'}},
+    league:{id:71,name:'Brasileirão Série A',round:'Regular Season - 28'},
+    teams:{home:{id:1,name:'Cruzeiro',logo:'/home.png'},away:{id:2,name:'Palmeiras',logo:'/away.png'}},
+    goals:{home:null,away:null}
+  }];
+  const html=vm.runInContext('renderDaySpotlight(fixtures)',context);
+  assert.match(html,/Cruzeiro/);
+  assert.match(html,/Palmeiras/);
+  assert.match(html,/href="#\/jogo\/456"/);
+  assert.match(html,/18:30/);
+  assert.doesNotMatch(html,/finaliza[cç][oõ]es|posse/i);
+});
+
+test('day ticker links to real fixtures and is empty without fixtures',()=>{
+  const index=fs.readFileSync('public/index.html','utf8');
+  const entries=[...index.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m=>m[1].split('?')[0]);
+  const window={addEventListener(){},localStorage:{getItem(){return 'null'}},sessionStorage:{getItem(){return '{}'}}};
+  const document={getElementById(){return {}},readyState:'loading',addEventListener(){}};
+  const context=vm.createContext({window,document,AbortController,URLSearchParams,fetch:()=>{},console});
+  for(const entry of entries) vm.runInContext(fs.readFileSync('public/'+entry.replace(/^\//,''),'utf8'),context,{filename:entry});
+  context.fixtures=[{
+    fixture:{id:789,date:'2099-10-10T20:00:00',status:{short:'NS',long:'Not Started'}},
+    league:{id:71,name:'Brasileirão Série A'},
+    teams:{home:{id:1,name:'Cruzeiro',logo:'/home.png'},away:{id:2,name:'Palmeiras',logo:'/away.png'}},
+    goals:{home:null,away:null}
+  }];
+  const html=vm.runInContext('renderDayTicker(fixtures)',context);
+  assert.match(html,/href="#\/jogo\/789"/);
+  assert.match(html,/Cruzeiro/);
+  assert.match(html,/Palmeiras/);
+  assert.equal(vm.runInContext('renderDayTicker([])',context),'');
+});
+
+test('day ticker identifies postponed matches instead of showing kickoff time',()=>{
+  const index=fs.readFileSync('public/index.html','utf8');
+  const entries=[...index.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m=>m[1].split('?')[0]);
+  const window={addEventListener(){},localStorage:{getItem(){return 'null'}},sessionStorage:{getItem(){return '{}'}}};
+  const document={getElementById(){return {}},readyState:'loading',addEventListener(){}};
+  const context=vm.createContext({window,document,AbortController,URLSearchParams,fetch:()=>{},console});
+  for(const entry of entries) vm.runInContext(fs.readFileSync('public/'+entry.replace(/^\//,''),'utf8'),context,{filename:entry});
+  context.fixtures=[{
+    fixture:{id:790,date:'2099-10-10T20:00:00',status:{short:'PST',long:'Match Postponed'}},
+    league:{id:71,name:'Brasileirão Série A'},
+    teams:{home:{id:1,name:'Cruzeiro'},away:{id:2,name:'Palmeiras'}},
+    goals:{home:null,away:null}
+  }];
+  const html=vm.runInContext('renderDayTicker(fixtures)',context);
+  assert.match(html,/Adiado/i);
+  assert.doesNotMatch(html,/20:00/);
+});
+
+test('older day response cannot overwrite the latest day render',async()=>{
+  const pending=[];
+  const content={writes:0,_html:'',set innerHTML(value){this.writes++;this._html=value;},get innerHTML(){return this._html;}};
+  const elements={
+    'day-matches-content':content,
+    'day-ticker':{hidden:false,querySelector(){return {innerHTML:''};}},
+    'day-count':{},'day-summary':{},'day-next-card':{},'day-spotlight':{},'day-visible-count':{}
+  };
+  const root={};
+  const document={getElementById(id){return id==='route-view' ? root : elements[id];}};
+  const context=vm.createContext({
+    console,Intl,Date,
+    window:{document},
+    captureView:()=>({root,document}),
+    LEAGUES:[],
+    apiGet:()=>new Promise((resolve,reject)=>pending.push({resolve,reject})),
+    filterSeniorNationalFixtures:fixtures=>fixtures,
+    NotificationManager:{checkLiveAlerts(){}},
+    errorBox:message=>`error: ${message}`
+  });
+  vm.runInContext(fs.readFileSync('public/js/matches.js','utf8'),context);
+  const first=vm.runInContext("fetchAndRenderDayMatches('2099-10-10')",context);
+  const second=vm.runInContext("fetchAndRenderDayMatches('2099-10-10')",context);
+  pending[1].resolve([]);
+  await second;
+  const latest=content.innerHTML;
+  assert.match(latest,/Nenhum jogo programado/);
+  pending[0].resolve([]);
+  await first;
+  assert.equal(content.innerHTML,latest);
+  assert.equal(content.writes,1);
+});
+
+test('live spotlight and ticker do not invent scores when the provider omits goals',()=>{
+  const index=fs.readFileSync('public/index.html','utf8');
+  const entries=[...index.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m=>m[1].split('?')[0]);
+  const window={addEventListener(){},localStorage:{getItem(){return 'null'}},sessionStorage:{getItem(){return '{}'}}};
+  const document={getElementById(){return {}},readyState:'loading',addEventListener(){}};
+  const context=vm.createContext({window,document,AbortController,URLSearchParams,fetch:()=>{},console});
+  for(const entry of entries) vm.runInContext(fs.readFileSync('public/'+entry.replace(/^\//,''),'utf8'),context,{filename:entry});
+  context.fixtures=[{
+    fixture:{id:321,date:new Date().toISOString(),status:{short:'1H',long:'First Half',elapsed:12}},
+    league:{id:71,name:'Brasileirão Série A',round:'Regular Season - 28'},
+    teams:{home:{id:1,name:'Cruzeiro',logo:''},away:{id:2,name:'Palmeiras',logo:''}},
+    goals:{home:null,away:null}
+  }];
+  const spotlight=vm.runInContext('renderDaySpotlight(fixtures)',context);
+  assert.match(spotlight,/— : —/);
+  assert.doesNotMatch(spotlight,/<img src=""/);
+  assert.match(vm.runInContext('renderDayTicker(fixtures)',context),/—–—/);
 });
 
 test('fixture goal extraction handles own goals and recovers scorers from player statistics when events lag', () => {

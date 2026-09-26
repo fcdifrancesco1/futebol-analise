@@ -29,6 +29,39 @@ function formatDateDisplayBR(dateStr) {
   };
 }
 
+function renderDaySpotlight(fixtures) {
+  if (!fixtures.length) return '';
+  const featured = fixtures.find(f => getMatchStatusCategory(f.fixture).isLive)
+    || fixtures.find(f => getMatchStatusCategory(f.fixture).isScheduled)
+    || fixtures[0];
+  const status = getMatchStatusCategory(featured.fixture);
+  const hasScore = status.isLive || status.isFinished;
+  const kickoff = new Date(featured.fixture.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const score = hasScore ? `${featured.goals?.home ?? '—'} : ${featured.goals?.away ?? '—'}` : '×';
+  const statusText = status.isLive ? `● ${status.label} AO VIVO` : status.isFinished ? 'Encerrado' : status.isPostponed ? status.label : `${kickoff} · A começar`;
+  return `
+    <article class="day-spotlight" aria-label="Partida em destaque">
+      <div class="day-spotlight-head"><span>${escapeHtml(featured.league?.name || 'Partida')} · ${escapeHtml(formatRoundName(featured.league?.round || ''))}</span><span class="day-spotlight-status ${status.isLive ? 'is-live' : ''}">${escapeHtml(statusText)}</span></div>
+      <a class="day-spotlight-main" href="#/jogo/${featured.fixture.id}">
+        <div class="day-spotlight-team">${featured.teams.home.logo ? `<img src="${sanitizeUrl(featured.teams.home.logo)}" alt="" loading="lazy">` : ''}<strong>${escapeHtml(featured.teams.home.name)}</strong></div>
+        <div class="day-spotlight-score"><strong>${escapeHtml(score)}</strong><small>${hasScore ? escapeHtml(status.short) : kickoff}</small></div>
+        <div class="day-spotlight-team away">${featured.teams.away.logo ? `<img src="${sanitizeUrl(featured.teams.away.logo)}" alt="" loading="lazy">` : ''}<strong>${escapeHtml(featured.teams.away.name)}</strong></div>
+      </a>
+      <a class="day-spotlight-foot" href="#/jogo/${featured.fixture.id}">Ver detalhes da partida <span aria-hidden="true">↗</span></a>
+    </article>`;
+}
+
+function renderDayTicker(fixtures) {
+  if (!fixtures.length) return '';
+  const sorted = [...fixtures].sort((a, b) => Number(getMatchStatusCategory(b.fixture).isLive) - Number(getMatchStatusCategory(a.fixture).isLive) || new Date(a.fixture.date) - new Date(b.fixture.date));
+  return `<span class="day-ticker-label">PLACAR RÁPIDO</span>${sorted.slice(0, 6).map(f => {
+    const status = getMatchStatusCategory(f.fixture);
+    const score = status.isLive || status.isFinished ? `${f.goals?.home ?? '—'}–${f.goals?.away ?? '—'}` : '×';
+    const label = status.isLive ? `● ${status.label}` : status.isFinished ? 'ENC.' : status.isPostponed ? status.label : new Date(f.fixture.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return `<a class="day-ticker-game" href="#/jogo/${f.fixture.id}"><small>${escapeHtml(label)}</small><span>${escapeHtml(f.teams.home.name)}</span><strong>${escapeHtml(score)}</strong><span>${escapeHtml(f.teams.away.name)}</span></a>`;
+  }).join('')}`;
+}
+
 async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
   const view = captureView();
   const app = view.root;
@@ -40,44 +73,51 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
   const todayStr = getLocalDateString(new Date());
 
   app.innerHTML = `
-    <div class="page-head" style="margin-bottom:14px;">
-      <p class="page-eyebrow">Calendário Oficial</p>
-      <h1 class="page-title">Jogos do Dia</h1>
-      <p class="page-sub">Acompanhe todas as partidas das competições oficiais do FutStats em tempo real.</p>
+    <div class="day-layout">
+      <aside class="day-sidebar" aria-label="Atalhos e competições">
+        <p class="day-rail-label">Navegar</p>
+        <a class="day-side-link active" href="#/jogos-do-dia">▦ <span>Jogos do Dia</span></a>
+        <a class="day-side-link" href="#/aovivo">● <span>Ao Vivo</span></a>
+        <a class="day-side-link" href="#/bolao">◎ <span>Meu Bolão</span></a>
+        <p class="day-rail-label day-rail-space">Competições</p>
+        <a class="day-side-link" href="#/liga/71/${defaultSeasonFor(LEAGUES.find(l => l.id === 71))}">🇧🇷 <span>Brasileirão</span></a>
+        <a class="day-side-link" href="#/liga/2/${defaultSeasonFor(LEAGUES.find(l => l.id === 2))}">🏆 <span>Champions League</span></a>
+        <a class="day-side-link" href="#/liga/39/${defaultSeasonFor(LEAGUES.find(l => l.id === 39))}">🇬🇧 <span>Premier League</span></a>
+        <a class="day-side-link" href="#/ligas">＋ <span>Todas as ligas</span></a>
+        <div class="day-side-card"><strong>Seu bolão, sem confusão.</strong><p>Palpites e classificação no mesmo lugar.</p><a href="#/bolao">Acessar bolão ↗</a></div>
+      </aside>
+
+      <section class="day-main" aria-label="Jogos do dia">
+        <div class="day-intro"><div><p class="page-eyebrow">${escapeHtml(dateInfo.full)}</p><h1 class="page-title">${dateInfo.isToday ? 'Hoje em campo.' : 'Jogos em campo.'}</h1><p class="page-sub">Placar, horário e competição: o essencial primeiro.</p></div><span class="day-count" id="day-count" aria-live="polite"></span></div>
+        <div class="day-selector-bar">
+          <div class="day-nav-actions" role="group" aria-label="Selecionar data">
+            <button class="day-nav-btn" id="btn-prev-day" data-date="${prevDate}">Anterior <small>${prevDate.slice(8)}/${prevDate.slice(5, 7)}</small></button>
+            <button class="day-nav-btn ${dateInfo.isToday ? 'active' : ''}" id="btn-today-day" data-date="${todayStr}">Hoje <small>${todayStr.slice(8)}/${todayStr.slice(5, 7)}</small></button>
+            <button class="day-nav-btn" id="btn-next-day" data-date="${nextDate}">Próximo <small>${nextDate.slice(8)}/${nextDate.slice(5, 7)}</small></button>
+          </div>
+          <div class="day-current-display">
+            <label class="day-date-title" for="day-date-input">Escolher data</label>
+            <input type="date" class="day-date-picker" id="day-date-input" value="${currentDate}">
+            <button class="day-nav-btn day-refresh-btn" id="btn-refresh-day" title="Atualizar resultados e placares agora"><span class="refresh-spin-icon">↻</span><span>Atualizar</span></button>
+          </div>
+        </div>
+        <div class="day-filter-row"><div class="matches-day-filters" id="day-status-filters" role="group" aria-label="Filtrar partidas">
+          <button class="matches-day-filter-btn ${statusFilter === 'all' ? 'active' : ''}" data-filter="all">Todos</button>
+          <button class="matches-day-filter-btn ${statusFilter === 'live' ? 'active' : ''}" data-filter="live">● Ao Vivo</button>
+          <button class="matches-day-filter-btn ${statusFilter === 'scheduled' ? 'active' : ''}" data-filter="scheduled">Próximos</button>
+          <button class="matches-day-filter-btn ${statusFilter === 'finished' ? 'active' : ''}" data-filter="finished">Resultados</button>
+        </div><span class="day-timezone">HORÁRIOS LOCAIS</span></div>
+        <div id="day-spotlight"></div>
+        <div class="day-section-head"><h2>Partidas</h2><span id="day-visible-count" aria-live="polite"></span></div>
+        <div id="day-matches-content">${skeletonTable()}</div>
+      </section>
+
+      <aside class="day-right" aria-label="Resumo do dia">
+        <div class="day-rail-card"><span class="page-eyebrow">EM UM OLHAR</span><h2>Resumo do dia</h2><div id="day-summary">Carregando partidas…</div></div>
+        <div class="day-rail-card day-next-card" id="day-next-card" hidden></div>
+        <div class="day-rail-card"><span class="page-eyebrow">SEU ESPAÇO</span><h2>Acompanhe o que importa</h2><p>Abra uma partida para seguir o jogo e receber alertas.</p></div>
+      </aside>
     </div>
-
-    <!-- Barra de Navegação por Data -->
-    <div class="day-selector-bar">
-      <div class="day-nav-actions">
-        <button class="day-nav-btn" id="btn-prev-day" data-date="${prevDate}">
-          ← Anterior
-        </button>
-        <button class="day-nav-btn ${dateInfo.isToday ? 'active' : ''}" id="btn-today-day" data-date="${todayStr}">
-          Hoje
-        </button>
-        <button class="day-nav-btn" id="btn-next-day" data-date="${nextDate}">
-          Próximo →
-        </button>
-        <button class="day-nav-btn day-refresh-btn" id="btn-refresh-day" title="Atualizar resultados e placares agora">
-          <span class="refresh-spin-icon">🔄</span> Atualizar
-        </button>
-      </div>
-
-      <div class="day-current-display">
-        <span class="day-date-title">📅 ${dateInfo.full}</span>
-        <input type="date" class="day-date-picker" id="day-date-input" value="${currentDate}">
-      </div>
-    </div>
-
-    <!-- Filtros de Status (Todos, Ao Vivo, Finalizados, A Realizar) -->
-    <div class="matches-day-filters" id="day-status-filters">
-      <button class="matches-day-filter-btn ${statusFilter === 'all' ? 'active' : ''}" data-filter="all">Todos</button>
-      <button class="matches-day-filter-btn ${statusFilter === 'live' ? 'active' : ''}" data-filter="live">🔴 Ao Vivo</button>
-      <button class="matches-day-filter-btn ${statusFilter === 'finished' ? 'active' : ''}" data-filter="finished">✅ Finalizados</button>
-      <button class="matches-day-filter-btn ${statusFilter === 'scheduled' ? 'active' : ''}" data-filter="scheduled">⏳ A Realizar</button>
-    </div>
-
-    <div id="day-matches-content">${skeletonTable()}</div>
   `;
 
   // Listeners de data
@@ -138,7 +178,9 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
   await fetchAndRenderDayMatches(currentDate, statusFilter);
 }
 
+let dayMatchesRequestId = 0;
 async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = false) {
+  const requestId = ++dayMatchesRequestId;
   const view = captureView();
   const app = view.root;
   const document = view.document;
@@ -151,6 +193,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
   try {
     const ttl = isForced ? 0 : 3;
     const fixtures = filterSeniorNationalFixtures(await apiGet("fixtures", { date: dateStr, timezone: tz }, ttl));
+    if (requestId !== dayMatchesRequestId || app !== window.document.getElementById('route-view')) return;
     try { NotificationManager.checkLiveAlerts(fixtures); } catch { /* ignore notification errors */ }
     const relevant = fixtures.filter(f => {
       if (!knownLeagueIds.has(f.league?.id)) return false;
@@ -159,7 +202,31 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
       return fixtureDateLocal === dateStr;
     });
 
+    const liveCount = relevant.filter(f => getMatchStatusCategory(f.fixture).isLive).length;
+    const finishedCount = relevant.filter(f => getMatchStatusCategory(f.fixture).isFinished).length;
+    const scheduledCount = relevant.filter(f => {
+      const cat = getMatchStatusCategory(f.fixture);
+      return cat.isScheduled || cat.isPostponed;
+    }).length;
+    const ticker = window.document.getElementById('day-ticker');
+    if (ticker) {
+      ticker.hidden = relevant.length === 0;
+      ticker.querySelector('#day-ticker-inner').innerHTML = renderDayTicker(relevant);
+    }
+    document.getElementById('day-count').textContent = `${relevant.length} ${relevant.length === 1 ? 'PARTIDA' : 'PARTIDAS'}`;
+    document.getElementById('day-summary').innerHTML = `
+      <div class="day-metric"><span>Partidas</span><strong>${relevant.length}</strong></div>
+      <div class="day-metric"><span>Ao vivo</span><strong>${liveCount}</strong></div>
+      <div class="day-metric"><span>Competições</span><strong>${new Set(relevant.map(f => f.league?.id)).size}</strong></div>`;
+    const next = relevant.filter(f => getMatchStatusCategory(f.fixture).isScheduled && new Date(f.fixture.date) >= new Date())
+      .sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date))[0];
+    const nextCard = document.getElementById('day-next-card');
+    nextCard.hidden = !next;
+    if (next) nextCard.innerHTML = `<span class="page-eyebrow">PRÓXIMO DESTAQUE</span><strong>${escapeHtml(next.teams.home.name)} × ${escapeHtml(next.teams.away.name)}</strong><p>${new Date(next.fixture.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · ${escapeHtml(next.league?.name || '')}</p><a href="#/jogo/${next.fixture.id}">Ver partida ↗</a>`;
+
     if (!relevant.length) {
+      document.getElementById('day-spotlight').innerHTML = '';
+      document.getElementById('day-visible-count').textContent = '0 JOGOS';
       content.innerHTML = `
         <div class="card" style="text-align:center;padding:48px 20px;color:var(--chalk-dim);">
           <div style="font-size:2.4rem;margin-bottom:10px;">📅</div>
@@ -170,21 +237,11 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
     }
 
     // Filtragem por status com detecção inteligente de feeds da API
-    const liveCount = relevant.filter(f => getMatchStatusCategory(f.fixture).isLive).length;
-    const finishedCount = relevant.filter(f => getMatchStatusCategory(f.fixture).isFinished).length;
-    const scheduledCount = relevant.filter(f => {
-      const cat = getMatchStatusCategory(f.fixture);
-      return cat.isScheduled || cat.isPostponed;
-    }).length;
-
     // Atualiza contadores dos botões de filtro se existirem
-    const filterButtons = document.querySelectorAll(".matches-day-filter-btn");
-    if (filterButtons.length >= 4) {
-      filterButtons[0].textContent = `Todos (${relevant.length})`;
-      filterButtons[1].textContent = `🔴 Ao Vivo (${liveCount})`;
-      filterButtons[2].textContent = `✅ Finalizados (${finishedCount})`;
-      filterButtons[3].textContent = `⏳ A Realizar (${scheduledCount})`;
-    }
+    document.querySelector('[data-filter="all"]').textContent = `Todos (${relevant.length})`;
+    document.querySelector('[data-filter="live"]').textContent = `● Ao Vivo (${liveCount})`;
+    document.querySelector('[data-filter="scheduled"]').textContent = `Próximos (${scheduledCount})`;
+    document.querySelector('[data-filter="finished"]').textContent = `Resultados (${finishedCount})`;
 
     let filtered = relevant;
     if (filter === "live") {
@@ -197,6 +254,9 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
         return cat.isScheduled || cat.isPostponed;
       });
     }
+
+    document.getElementById('day-spotlight').innerHTML = renderDaySpotlight(filtered);
+    document.getElementById('day-visible-count').textContent = `${filtered.length} ${filtered.length === 1 ? 'JOGO' : 'JOGOS'}`;
 
     if (!filtered.length) {
       content.innerHTML = `
@@ -281,6 +341,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
 
     content.innerHTML = groupsHtml;
   } catch (err) {
+    if (requestId !== dayMatchesRequestId || app !== window.document.getElementById('route-view')) return;
     content.innerHTML = errorBox(err.message);
   }
 }
