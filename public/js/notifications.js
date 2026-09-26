@@ -132,7 +132,10 @@ const NotificationManager = {
       this._persisted = false;
       await this.updateBellUI();
       console.error("Erro ao assinar notificações Push:", err);
-      toast("Erro ao ativar notificações: " + (err.message || err));
+      const pushServiceError = /registration failed\s*[-–]\s*push service error/i.test(String(err.message || err));
+      toast(pushServiceError
+        ? "O navegador não conseguiu se registrar no serviço Push. Verifique a conexão e tente novamente. Se persistir, atualize o navegador ou teste sem VPN/bloqueador. Os alertas continuam desativados."
+        : "Erro ao ativar notificações: " + (err.message || err));
       return false;
     }
   },

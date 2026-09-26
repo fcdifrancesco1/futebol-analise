@@ -28,7 +28,7 @@
 }
 
 html { scroll-behavior: smooth; }
-body { background: var(--bg-app); padding-bottom: 0; }
+body { padding-bottom: 0; }
 .topbar { padding-inline: 24px; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .topbar-inner { max-width: 1460px; height: 76px; gap: clamp(12px, 2vw, 34px); }
 .brand { flex: none; gap: 10px; }

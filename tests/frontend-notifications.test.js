@@ -13,6 +13,23 @@ test('notification persistence propagates server and network failures',async()=>
   const offline=manager(async()=>{throw Error('offline')});
   await assert.rejects(offline.saveToSupabase('endpoint','key','auth'),/offline/);
 });
+test('browser push-service failure leaves alerts inactive and explains a retry to the user',async()=>{
+  const messages=[];
+  const registration={pushManager:{getSubscription:async()=>null,subscribe:async()=>{throw new Error('Registration failed - push service error');}}};
+  const localStorage={getItem:()=>null,removeItem(){}};
+  const instance=manager(async()=>({ok:true,json:async()=>({vapidPublicKey:'BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'})}),{
+    navigator:{serviceWorker:{controller:{},ready:Promise.resolve(registration)}},
+    window:{PushManager:{},Notification:{},atob},Notification:{permission:'granted'},
+    document:{getElementById:()=>null},localStorage,
+    browserStorage:()=>localStorage,safeReadStorage:()=>false,
+    toast:message=>messages.push(message),console:{error(){}}
+  });
+  assert.equal(await instance.subscribe(),false);
+  assert.equal(instance._persisted,false);
+  assert.match(messages.at(-1),/navegador.*serviço.*Push/i);
+  assert.match(messages.at(-1),/tente novamente/i);
+  assert.doesNotMatch(messages.at(-1),/Registration failed/i);
+});
 test('near-limit favorite collections send IDs within the backend body limit and keep local metadata',async()=>{
   const state={favoriteTeams:Array.from({length:50},(_,i)=>({id:i+1,name:'Club'.repeat(50),logo:'https://example.com/logo.png'})),favoriteFixtures:Array.from({length:100},(_,i)=>({id:i+1,home:{name:'Home'.repeat(50)},away:{name:'Away'.repeat(50)}})),notificationPrefs:{goals:true}};
   let body,bytes;
