@@ -346,12 +346,14 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         const isFav = state.favoriteFixtures.some(f => f.id === fixtureId);
         if (isFav) {
           state.favoriteFixtures = state.favoriteFixtures.filter(f => f.id !== fixtureId);
-          await NotificationManager.syncPreferences();
+          await NotificationManager.syncPreferences().catch(err => {
+            console.warn("Preferências locais salvas; falha na sincronização remota:", err);
+          });
           await NotificationManager.updateBellUI();
           toast(`Você deixou de seguir os alertas de ${fx.teams.home.name} x ${fx.teams.away.name}.`, false);
         } else {
           const isSub = await NotificationManager.isSubscribed();
-          if (!isSub && !await NotificationManager.subscribe()) return;
+          const pushOk = isSub ? true : await NotificationManager.subscribe({ silent: true });
           state.favoriteFixtures.push({
             id: fixtureId,
             home: { id: fx.teams.home.id, name: fx.teams.home.name, logo: fx.teams.home.logo },
@@ -359,9 +361,15 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
             league: { id: fx.league.id, name: fx.league.name },
             date: fx.fixture.date
           });
-          await NotificationManager.syncPreferences();
+          await NotificationManager.syncPreferences().catch(err => {
+            console.warn("Partida favoritada localmente; falha na sincronização remota:", err);
+          });
           await NotificationManager.updateBellUI();
-          toast(`🔔 Alertas ativados para ${fx.teams.home.name} x ${fx.teams.away.name}! Você receberá avisos de Escalações, Gols e Lances.`, false);
+          if (pushOk) {
+            toast(`🔔 Alertas ativados para ${fx.teams.home.name} x ${fx.teams.away.name}! Você receberá avisos de Escalações, Gols e Lances.`, false);
+          } else {
+            toast(`⭐ Partida adicionada aos seus jogos! Alertas Push do navegador indisponíveis no momento.`, false);
+          }
         }
         renderFixture(fixtureId, true);
         } catch (err) {

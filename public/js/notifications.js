@@ -57,14 +57,15 @@ const NotificationManager = {
     }
   },
 
-  async subscribe() {
+  async subscribe(options = {}) {
+    const silent = Boolean(options && options.silent);
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      toast("Seu navegador não suporta notificações Push.");
+      if (!silent) toast("Seu navegador não suporta notificações Push.");
       return false;
     }
 
     if (!("Notification" in window)) {
-      toast("Seu navegador não suporta a API de Notificações.");
+      if (!silent) toast("Seu navegador não suporta a API de Notificações.");
       return false;
     }
 
@@ -78,12 +79,12 @@ const NotificationManager = {
     }
 
     if (perm === "denied") {
-      toast("Notificações bloqueadas no Chrome. Clique no ícone de cadeado/ajustes ao lado da URL para permitir.");
+      if (!silent) toast("Notificações bloqueadas no Chrome. Clique no ícone de cadeado/ajustes ao lado da URL para permitir.");
       return false;
     }
 
     if (perm !== "granted") {
-      toast("Permissão de notificação não foi concedida.");
+      if (!silent) toast("Permissão de notificação não foi concedida.");
       return false;
     }
 
@@ -104,7 +105,8 @@ const NotificationManager = {
         if (!configRes.ok) throw new Error("Configuração Push indisponível.");
         const config = await configRes.json();
         if (!config.vapidPublicKey) throw new Error("Chave pública Push indisponível.");
-        const convertedVapidKey = urlBase64ToUint8Array(config.vapidPublicKey);
+        const cleanVapidKey = String(config.vapidPublicKey || "").replace(/^[\"']|[\"']$/g, "").trim();
+        const convertedVapidKey = urlBase64ToUint8Array(cleanVapidKey);
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: convertedVapidKey
@@ -133,9 +135,11 @@ const NotificationManager = {
       await this.updateBellUI();
       console.error("Erro ao assinar notificações Push:", err);
       const pushServiceError = /registration failed\s*[-–]\s*push service error/i.test(String(err.message || err));
-      toast(pushServiceError
-        ? "O navegador não conseguiu se registrar no serviço Push. Verifique a conexão e tente novamente. Se persistir, atualize o navegador ou teste sem VPN/bloqueador. Os alertas continuam desativados."
-        : "Erro ao ativar notificações: " + (err.message || err));
+      if (!silent) {
+        toast(pushServiceError
+          ? "O navegador não conseguiu se registrar no serviço Push. Verifique a conexão e tente novamente. Se persistir, atualize o navegador ou teste sem VPN/bloqueador. Os alertas continuam desativados."
+          : "Erro ao ativar notificações: " + (err.message || err));
+      }
       return false;
     }
   },

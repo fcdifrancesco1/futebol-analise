@@ -309,4 +309,9 @@ test('fixture goal extraction handles own goals and recovers scorers from player
   assert.equal(fallback[0].isPendingSummary, true);
 });
 
-
+test('following a fixture succeeds and persists even when push subscription fails', () => {
+  const fixtureSrc = fs.readFileSync('public/js/fixture.js', 'utf8');
+  assert.match(fixtureSrc, /subscribe\(\{\s*silent:\s*true\s*\}\)/);
+  assert.doesNotMatch(fixtureSrc, /if \(!isSub && !await NotificationManager\.subscribe\(\)\) return;/);
+  assert.match(fixtureSrc, /Partida adicionada aos seus jogos/);
+});

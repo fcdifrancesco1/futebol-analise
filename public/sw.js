@@ -1,5 +1,5 @@
 // Same-origin application shell only; API, user data and remote images never enter this cache.
-const CACHE_NAME = "futstats-cache-v107";
+const CACHE_NAME = "futstats-cache-v108";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
