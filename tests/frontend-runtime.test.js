@@ -315,3 +315,69 @@ test('following a fixture succeeds and persists even when push subscription fail
   assert.doesNotMatch(fixtureSrc, /if \(!isSub && !await NotificationManager\.subscribe\(\)\) return;/);
   assert.match(fixtureSrc, /Partida adicionada aos seus jogos/);
 });
+
+test('day user space renders empty guidance or followed fixtures with live status', () => {
+  const matchesSrc = fs.readFileSync('public/js/matches.js', 'utf8');
+  const context = vm.createContext({
+    state: { favoriteFixtures: [] },
+    escapeHtml: s => s,
+    sanitizeUrl: u => u,
+    formatRoundName: r => r,
+    getLocalDateString: () => '2026-09-26',
+    getMatchStatusCategory: f => ({
+      isLive: f.status.short === '1H',
+      isFinished: f.status.short === 'FT',
+      isScheduled: f.status.short === 'NS',
+      isPostponed: false,
+      label: f.status.long || f.status.short
+    })
+  });
+  vm.runInContext(matchesSrc, context);
+
+  // 1. Sem jogos favoritos
+  const emptyHtml = vm.runInContext('renderDayUserSpace([])', context);
+  assert.match(emptyHtml, /SEU ESPAÇO/);
+  assert.match(emptyHtml, /Acompanhe o que importa/);
+
+  // 2. Com jogos favoritos
+  context.state.favoriteFixtures = [
+    {
+      id: 991,
+      home: { id: 10, name: 'England', logo: 'https://example.com/england.png' },
+      away: { id: 9, name: 'Spain', logo: 'https://example.com/spain.png' },
+      league: { id: 5, name: 'UEFA Nations League' },
+      date: '2026-09-26T15:45:00+00:00'
+    },
+    {
+      id: 992,
+      home: { id: 20, name: 'Brazil', logo: 'https://example.com/brazil.png' },
+      away: { id: 21, name: 'Argentina', logo: 'https://example.com/arg.png' },
+      league: { id: 10, name: 'Amistosos' },
+      date: '2026-09-27T18:00:00+00:00'
+    }
+  ];
+
+  // Passando England x Spain como ao vivo
+  const fixtures = [
+    {
+      fixture: { id: 991, date: '2026-09-26T15:45:00+00:00', status: { short: '1H', long: '45\'' } },
+      teams: { home: { id: 10, name: 'England' }, away: { id: 9, name: 'Spain' } },
+      goals: { home: 1, away: 0 }
+    }
+  ];
+
+  context.fixtures = fixtures;
+  const populatedHtml = vm.runInContext('renderDayUserSpace(fixtures)', context);
+  assert.match(populatedHtml, /2 SEGUIDOS/);
+  assert.match(populatedHtml, /Jogos Seguidos/);
+  assert.match(populatedHtml, /England/);
+  assert.match(populatedHtml, /Spain/);
+  assert.match(populatedHtml, /UEFA Nations League/);
+  assert.match(populatedHtml, /1 : 0/);
+  assert.match(populatedHtml, /45'/);
+  assert.match(populatedHtml, /href="#\/jogo\/991"/);
+  assert.match(populatedHtml, /Brazil/);
+  assert.match(populatedHtml, /Argentina/);
+  assert.match(populatedHtml, /href="#\/jogo\/992"/);
+  assert.match(populatedHtml, /Gerenciar alertas/);
+});

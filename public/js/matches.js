@@ -62,6 +62,91 @@ function renderDayTicker(fixtures) {
   }).join('')}`;
 }
 
+function renderDayUserSpace(fixtures = []) {
+  const favorites = state.favoriteFixtures || [];
+  if (!favorites.length) {
+    return `
+      <span class="page-eyebrow">SEU ESPAÇO</span>
+      <h2>Acompanhe o que importa</h2>
+      <p>Abra uma partida e clique em <strong>Seguir Jogo</strong> para acompanhar seus jogos favoritos e placares em tempo real aqui.</p>
+    `;
+  }
+
+  const count = favorites.length;
+  const itemsHtml = favorites.map(fav => {
+    const liveMatch = fixtures?.find(f => f.fixture?.id === fav.id);
+    let statusBadge = '';
+    let scoreText = 'vs';
+
+    if (liveMatch) {
+      const statusCat = getMatchStatusCategory(liveMatch.fixture);
+      if (statusCat.isLive) {
+        statusBadge = `<span class="day-fav-status live">● ${escapeHtml(statusCat.label)}</span>`;
+        scoreText = `${liveMatch.goals?.home ?? 0} : ${liveMatch.goals?.away ?? 0}`;
+      } else if (statusCat.isFinished) {
+        statusBadge = `<span class="day-fav-status finished">ENC.</span>`;
+        scoreText = `${liveMatch.goals?.home ?? 0} : ${liveMatch.goals?.away ?? 0}`;
+      } else if (statusCat.isPostponed) {
+        statusBadge = `<span class="day-fav-status postponed">${escapeHtml(statusCat.label)}</span>`;
+        scoreText = '×';
+      } else {
+        const kickoff = new Date(liveMatch.fixture.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        statusBadge = `<span class="day-fav-status scheduled">${kickoff}</span>`;
+        scoreText = 'vs';
+      }
+    } else if (fav.date) {
+      const d = new Date(fav.date);
+      const isToday = getLocalDateString(d) === getLocalDateString(new Date());
+      const formattedDate = isToday
+        ? `Hoje ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+        : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      statusBadge = `<span class="day-fav-status scheduled">${formattedDate}</span>`;
+    } else {
+      statusBadge = `<span class="day-fav-status scheduled">Em breve</span>`;
+    }
+
+    const homeName = fav.home?.name || 'Casa';
+    const awayName = fav.away?.name || 'Fora';
+    const leagueName = fav.league?.name || 'Partida';
+
+    return `
+      <a class="day-fav-item" href="#/jogo/${fav.id}" title="Ver detalhes de ${escapeHtml(homeName)} × ${escapeHtml(awayName)}">
+        <div class="day-fav-item-header">
+          <span class="day-fav-league">${escapeHtml(leagueName)}</span>
+          ${statusBadge}
+        </div>
+        <div class="day-fav-item-teams">
+          <div class="day-fav-team home">
+            ${fav.home?.logo ? `<img src="${sanitizeUrl(fav.home.logo)}" alt="" loading="lazy">` : ''}
+            <span class="day-fav-team-name">${escapeHtml(homeName)}</span>
+          </div>
+          <div class="day-fav-score">
+            <strong>${escapeHtml(scoreText)}</strong>
+          </div>
+          <div class="day-fav-team away">
+            <span class="day-fav-team-name">${escapeHtml(awayName)}</span>
+            ${fav.away?.logo ? `<img src="${sanitizeUrl(fav.away.logo)}" alt="" loading="lazy">` : ''}
+          </div>
+        </div>
+      </a>
+    `;
+  }).join('');
+
+  return `
+    <div class="day-fav-head">
+      <span class="page-eyebrow">SEU ESPAÇO</span>
+      <span class="day-fav-count">${count} ${count === 1 ? 'SEGUIDO' : 'SEGUIDOS'}</span>
+    </div>
+    <h2>Jogos Seguidos</h2>
+    <div class="day-fav-list">
+      ${itemsHtml}
+    </div>
+    <div style="margin-top:10px;text-align:right;">
+      <a href="javascript:void(0)" class="day-fav-manage" id="btn-manage-user-space">Gerenciar alertas 🔔</a>
+    </div>
+  `;
+}
+
 async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
   const view = captureView();
   const app = view.root;
@@ -115,7 +200,7 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
       <aside class="day-right" aria-label="Resumo do dia">
         <div class="day-rail-card"><span class="page-eyebrow">EM UM OLHAR</span><h2>Resumo do dia</h2><div id="day-summary">Carregando partidas…</div></div>
         <div class="day-rail-card day-next-card" id="day-next-card" hidden></div>
-        <div class="day-rail-card"><span class="page-eyebrow">SEU ESPAÇO</span><h2>Acompanhe o que importa</h2><p>Abra uma partida para seguir o jogo e receber alertas.</p></div>
+        <div class="day-rail-card" id="day-user-space">${renderDayUserSpace()}</div>
       </aside>
     </div>
   `;
@@ -223,6 +308,14 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
     const nextCard = document.getElementById('day-next-card');
     nextCard.hidden = !next;
     if (next) nextCard.innerHTML = `<span class="page-eyebrow">PRÓXIMO DESTAQUE</span><strong>${escapeHtml(next.teams.home.name)} × ${escapeHtml(next.teams.away.name)}</strong><p>${new Date(next.fixture.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · ${escapeHtml(next.league?.name || '')}</p><a href="#/jogo/${next.fixture.id}">Ver partida ↗</a>`;
+
+    const userSpaceCard = document.getElementById('day-user-space');
+    if (userSpaceCard) {
+      userSpaceCard.innerHTML = renderDayUserSpace(relevant);
+      userSpaceCard.querySelector('#btn-manage-user-space')?.addEventListener('click', () => {
+        document.getElementById('btn-open-notifications')?.click() || document.getElementById('bottom-nav-bell')?.click();
+      });
+    }
 
     if (!relevant.length) {
       document.getElementById('day-spotlight').innerHTML = '';

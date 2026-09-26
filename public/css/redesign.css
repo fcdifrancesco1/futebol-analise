@@ -150,6 +150,29 @@ body { padding-bottom: 0; }
 .day-next-card { background: linear-gradient(140deg, #19413d, #142b34); }
 .day-next-card > strong { display: block; margin-top: 11px; font: 700 23px/1.05 var(--font-display); }
 .day-next-card p { margin: 8px 0 15px; }
+/* Seu Espaço - Jogos Seguidos */
+.day-fav-head { display: flex; justify-content: space-between; align-items: baseline; }
+.day-fav-count { font: 700 10px var(--font-mono); color: var(--gold); }
+.day-fav-list { display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; padding-right: 2px; }
+.day-fav-list::-webkit-scrollbar { width: 4px; }
+.day-fav-list::-webkit-scrollbar-thumb { background: var(--pitch-border); border-radius: 4px; }
+.day-fav-item { display: block; text-decoration: none; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--pitch-border); border-radius: var(--radius-sm); padding: 9px 11px; transition: all 0.15s ease; color: var(--chalk); }
+.day-fav-item:hover { background: rgba(99, 216, 197, 0.07); border-color: var(--gold-border); transform: translateY(-1px); }
+.day-fav-item-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
+.day-fav-league { font: 600 10px var(--font-mono); color: var(--chalk-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62%; }
+.day-fav-status { font: 700 10px var(--font-mono); white-space: nowrap; }
+.day-fav-status.live { color: var(--terracotta); }
+.day-fav-status.finished { color: var(--chalk-dim); }
+.day-fav-status.scheduled { color: var(--gold); }
+.day-fav-status.postponed { color: var(--chalk-dim); }
+.day-fav-item-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 6px; }
+.day-fav-team { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; font-weight: 600; color: var(--chalk); }
+.day-fav-team.away { justify-content: flex-end; text-align: right; }
+.day-fav-team img { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+.day-fav-team-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-fav-score { font: 700 15px var(--font-display); color: var(--chalk); white-space: nowrap; padding: 0 4px; text-align: center; }
+.day-fav-manage { font-size: 11px; color: var(--gold); text-decoration: none; font-weight: 700; }
+.day-fav-manage:hover { text-decoration: underline; }
 
 .mobile-more { display: none; }
 @media (max-width: 1200px) {
