@@ -172,6 +172,15 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       return;
     }
 
+    const isMatchOver = isFinished || (statusInfo.isPostponed && ['CANC', 'ABD'].includes(String(statusInfo.short || '').toUpperCase()));
+    if (isMatchOver && state.favoriteFixtures.some(f => f.id === fixtureId)) {
+      state.favoriteFixtures = state.favoriteFixtures.filter(f => f.id !== fixtureId);
+      try { localStorage.setItem("ap_fav_fixtures", JSON.stringify(state.favoriteFixtures)); } catch {}
+      if (typeof NotificationManager !== 'undefined' && typeof NotificationManager.syncPreferences === 'function') {
+        NotificationManager.syncPreferences().catch(() => {});
+      }
+    }
+
     const isFavFixture = state.favoriteFixtures.some(f => f.id === fixtureId);
 
     content.innerHTML = `
@@ -183,9 +192,15 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           <button class="day-nav-btn day-refresh-btn" id="btn-refresh-fixture" title="Atualizar dados e eventos agora" style="padding:6px 12px;font-size:0.82rem;">
             <span class="refresh-spin-icon">🔄</span> Atualizar
           </button>
-          <button class="btn ${isFavFixture ? 'active-fav' : 'ghost'} small" id="btn-toggle-fixture-fav" style="display:inline-flex;align-items:center;gap:6px;">
-            ${isFavFixture ? '🔔 Alertas Ativados (Jogo)' : '🔔 Seguir Jogo (Gols & Escalações)'}
-          </button>
+          ${isMatchOver ? `
+            <span class="badge" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);color:var(--chalk-dim);padding:6px 12px;border-radius:8px;font-size:0.8rem;">
+              🏁 Partida Encerrada
+            </span>
+          ` : `
+            <button class="btn ${isFavFixture ? 'active-fav' : 'ghost'} small" id="btn-toggle-fixture-fav" style="display:inline-flex;align-items:center;gap:6px;">
+              ${isFavFixture ? '🔔 Alertas Ativados (Jogo)' : '🔔 Seguir Jogo (Gols & Escalações)'}
+            </button>
+          `}
           ${isLive ? `
             <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);padding:4px 12px;border-radius:999px;border:1px solid var(--gold-soft);">
               <span class="pulse-dot"></span>
@@ -340,6 +355,10 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     const btnFav = document.getElementById("btn-toggle-fixture-fav");
     if (btnFav) {
       btnFav.addEventListener("click", async () => {
+        if (isMatchOver) {
+          toast("Esta partida já foi encerrada e não pode mais receber alertas.", true);
+          return;
+        }
         const previousFavorites = state.favoriteFixtures.slice();
         btnFav.disabled = true;
         try {

@@ -381,3 +381,78 @@ test('day user space renders empty guidance or followed fixtures with live statu
   assert.match(populatedHtml, /href="#\/jogo\/992"/);
   assert.match(populatedHtml, /Gerenciar alertas/);
 });
+
+test('finished matches are automatically removed from day user space and favoriteFixtures', () => {
+  const matchesSrc = fs.readFileSync('public/js/matches.js', 'utf8');
+  let synced = false;
+  const context = vm.createContext({
+    state: {
+      favoriteFixtures: [
+        {
+          id: 101,
+          home: { name: 'France' },
+          away: { name: 'Germany' },
+          date: '2026-09-25T15:00:00+00:00'
+        },
+        {
+          id: 102,
+          home: { name: 'Brazil' },
+          away: { name: 'Italy' },
+          date: '2026-09-26T18:00:00+00:00'
+        },
+        {
+          id: 103,
+          home: { name: 'Japan' },
+          away: { name: 'Korea' },
+          date: '2026-09-26T21:00:00+00:00'
+        }
+      ]
+    },
+    escapeHtml: s => s,
+    sanitizeUrl: u => u,
+    formatRoundName: r => r,
+    getLocalDateString: () => '2026-09-26',
+    getMatchStatusCategory: f => ({
+      isLive: f.status.short === '1H' || f.status.short === '2H',
+      isFinished: f.status.short === 'FT' || f.status.short === 'AET',
+      isScheduled: f.status.short === 'NS',
+      isPostponed: false,
+      label: f.status.short
+    }),
+    NotificationManager: {
+      syncPreferences: async () => { synced = true; }
+    },
+    localStorage: {
+      setItem: () => {}
+    }
+  });
+  vm.runInContext(matchesSrc, context);
+
+  const todayFixtures = [
+    {
+      fixture: { id: 102, date: '2026-09-26T18:00:00+00:00', status: { short: 'FT' } },
+      teams: { home: { name: 'Brazil' }, away: { name: 'Italy' } },
+      goals: { home: 2, away: 1 }
+    },
+    {
+      fixture: { id: 103, date: '2026-09-26T21:00:00+00:00', status: { short: 'NS' } },
+      teams: { home: { name: 'Japan' }, away: { name: 'Korea' } },
+      goals: { home: null, away: null }
+    }
+  ];
+
+  context.todayFixtures = todayFixtures;
+  const html = vm.runInContext('renderDayUserSpace(todayFixtures)', context);
+
+  assert.equal(context.state.favoriteFixtures.length, 1);
+  assert.equal(context.state.favoriteFixtures[0].id, 103);
+  assert.match(html, /1 SEGUIDO/);
+  assert.match(html, /Japan/);
+  assert.doesNotMatch(html, /France/);
+  assert.doesNotMatch(html, /Brazil/);
+
+  todayFixtures[1].fixture.status.short = 'FT';
+  const emptyHtml = vm.runInContext('renderDayUserSpace(todayFixtures)', context);
+  assert.equal(context.state.favoriteFixtures.length, 0);
+  assert.match(emptyHtml, /Acompanhe o que importa/);
+});

@@ -17,6 +17,9 @@ const NotificationManager = {
   async init() {
     if (!Array.isArray(state.favoriteTeams)) state.favoriteTeams = [];
     if (!Array.isArray(state.favoriteFixtures)) state.favoriteFixtures = [];
+    if (typeof cleanFinishedFavoriteFixtures === 'function') {
+      cleanFinishedFavoriteFixtures();
+    }
 
     // Garante que o time do coração (ex: Real Madrid) esteja na lista de times seguidos
     const heartTeam = UserPrefs.getFavoriteTeam();
@@ -237,6 +240,9 @@ const NotificationManager = {
   },
 
   renderFavoriteFixturesList() {
+    if (typeof cleanFinishedFavoriteFixtures === 'function') {
+      cleanFinishedFavoriteFixtures();
+    }
     const container = document.getElementById("notif-fav-fixtures-list");
     if (!container) return;
 

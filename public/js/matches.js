@@ -1,8 +1,10 @@
-function getLocalDateString(d = new Date()) {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+if (typeof getLocalDateString !== 'function') {
+  var getLocalDateString = function(d = new Date()) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 }
 
 function shiftDate(dateStr, days) {
@@ -62,8 +64,85 @@ function renderDayTicker(fixtures) {
   }).join('')}`;
 }
 
+function isFixtureFinished(fav, liveMatch = null) {
+  if (!fav && !liveMatch) return false;
+
+  const fxObj = liveMatch?.fixture || (fav?.status ? fav : null);
+  if (fxObj) {
+    if (typeof getMatchStatusCategory === 'function') {
+      const statusCat = getMatchStatusCategory(fxObj);
+      if (statusCat) {
+        if (statusCat.isFinished) return true;
+        if (statusCat.isPostponed && ['CANC', 'ABD'].includes(String(statusCat.short || '').toUpperCase())) return true;
+        if (statusCat.isLive || statusCat.isScheduled) return false;
+      }
+    }
+    const short = String(fxObj.status?.short || fxObj.short || '').toUpperCase();
+    if (['FT', 'AET', 'PEN', 'AWD', 'WO', 'CANC', 'ABD'].includes(short)) return true;
+    if (['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE', 'NS', 'TBD'].includes(short)) return false;
+  }
+
+  const dateStr = liveMatch?.fixture?.date || fav?.date;
+  if (dateStr) {
+    const kickoffDate = new Date(dateStr);
+    const kickoff = kickoffDate.getTime();
+    if (Number.isFinite(kickoff)) {
+      const todayStr = typeof getLocalDateString === 'function' ? getLocalDateString(new Date()) : '';
+      const matchDay = (kickoffDate instanceof Date && !isNaN(kickoffDate))
+        ? `${kickoffDate.getFullYear()}-${String(kickoffDate.getMonth() + 1).padStart(2, '0')}-${String(kickoffDate.getDate()).padStart(2, '0')}`
+        : '';
+
+      if (todayStr && matchDay && matchDay > todayStr) return false;
+      if (todayStr && matchDay && matchDay < todayStr) return true;
+
+      const minutesSinceKickoff = (Date.now() - kickoff) / 60000;
+      if (minutesSinceKickoff > 160) return true;
+    }
+  }
+
+  return false;
+}
+
+function cleanFinishedFavoriteFixtures(knownFixtures = []) {
+  if (!Array.isArray(state.favoriteFixtures) || !state.favoriteFixtures.length) {
+    return false;
+  }
+  const beforeCount = state.favoriteFixtures.length;
+  const remaining = state.favoriteFixtures.filter(fav => {
+    const match = knownFixtures?.find(f => Number(f.fixture?.id) === Number(fav.id));
+    return !isFixtureFinished(fav, match);
+  });
+
+  if (remaining.length !== beforeCount) {
+    state.favoriteFixtures = remaining;
+    try {
+      localStorage.setItem("ap_fav_fixtures", JSON.stringify(state.favoriteFixtures));
+    } catch { /* storage fallback */ }
+
+    if (typeof NotificationManager !== 'undefined' && typeof NotificationManager.syncPreferences === 'function') {
+      NotificationManager.syncPreferences().catch(err => {
+        console.warn("Preferências de alertas sincronizadas localmente; erro remoto:", err);
+      });
+    }
+    return true;
+  }
+  return false;
+}
+
+if (typeof window !== 'undefined') {
+  window.isFixtureFinished = isFixtureFinished;
+  window.cleanFinishedFavoriteFixtures = cleanFinishedFavoriteFixtures;
+}
+
 function renderDayUserSpace(fixtures = []) {
-  const favorites = state.favoriteFixtures || [];
+  if (typeof cleanFinishedFavoriteFixtures === 'function') {
+    cleanFinishedFavoriteFixtures(fixtures);
+  }
+  const favorites = (state.favoriteFixtures || []).filter(fav => {
+    const liveMatch = fixtures?.find(f => Number(f.fixture?.id) === Number(fav.id));
+    return !isFixtureFinished(fav, liveMatch);
+  });
+
   if (!favorites.length) {
     return `
       <span class="page-eyebrow">SEU ESPAÇO</span>
@@ -74,7 +153,7 @@ function renderDayUserSpace(fixtures = []) {
 
   const count = favorites.length;
   const itemsHtml = favorites.map(fav => {
-    const liveMatch = fixtures?.find(f => f.fixture?.id === fav.id);
+    const liveMatch = fixtures?.find(f => Number(f.fixture?.id) === Number(fav.id));
     let statusBadge = '';
     let scoreText = 'vs';
 
@@ -82,9 +161,6 @@ function renderDayUserSpace(fixtures = []) {
       const statusCat = getMatchStatusCategory(liveMatch.fixture);
       if (statusCat.isLive) {
         statusBadge = `<span class="day-fav-status live">● ${escapeHtml(statusCat.label)}</span>`;
-        scoreText = `${liveMatch.goals?.home ?? 0} : ${liveMatch.goals?.away ?? 0}`;
-      } else if (statusCat.isFinished) {
-        statusBadge = `<span class="day-fav-status finished">ENC.</span>`;
         scoreText = `${liveMatch.goals?.home ?? 0} : ${liveMatch.goals?.away ?? 0}`;
       } else if (statusCat.isPostponed) {
         statusBadge = `<span class="day-fav-status postponed">${escapeHtml(statusCat.label)}</span>`;
@@ -96,7 +172,7 @@ function renderDayUserSpace(fixtures = []) {
       }
     } else if (fav.date) {
       const d = new Date(fav.date);
-      const isToday = getLocalDateString(d) === getLocalDateString(new Date());
+      const isToday = typeof getLocalDateString === 'function' && getLocalDateString(d) === getLocalDateString(new Date());
       const formattedDate = isToday
         ? `Hoje ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
         : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
