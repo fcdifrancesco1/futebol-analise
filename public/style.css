@@ -1543,10 +1543,16 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.hero-goals-section.only-home,
+.hero-goals-section.only-away {
+  grid-template-columns: 1fr;
+}
+
 .hero-goals-col {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+  min-width: 0;
 }
 .hero-goals-col.home {
   align-items: flex-start;
@@ -1560,14 +1566,24 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
 .hero-goal-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.75rem;
+  gap: 6px;
+  font-size: 0.76rem;
   color: var(--chalk-dim);
-  flex-wrap: wrap;
+  white-space: nowrap;
+  max-width: 100%;
+  line-height: 1.35;
+}
+.hero-goal-item .hero-goal-icon {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  line-height: 1;
 }
 .hero-goal-item .player-name {
   color: var(--chalk);
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .hero-goal-item .assist-name {
   color: var(--chalk-dim);
@@ -1578,6 +1594,9 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   font-family: var(--font-mono);
   color: var(--gold);
   font-weight: 700;
+  flex-shrink: 0;
+  margin-left: 2px;
+  white-space: nowrap;
 }
 
 /* ============================================================
@@ -2469,10 +2488,19 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
     font-size: 0.68rem;
   }
   .hero-goals-section {
+    display: flex;
+    flex-direction: column;
     gap: 8px;
     margin-top: 10px;
     padding-top: 10px;
     font-size: 0.72rem;
+  }
+  .hero-goals-section.both-teams .hero-goals-col.home {
+    padding-bottom: 6px;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+  }
+  .hero-goals-col {
+    width: 100%;
   }
 
   .stat-grid {

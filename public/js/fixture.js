@@ -245,50 +245,54 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         </div>
 
         ${(homeGoals.length || awayGoals.length) ? `
-          <div class="hero-goals-section">
-            <div class="hero-goals-col home">
-              ${homeGoals.map(g => {
-                const playerName = g.player?.name || "Gol";
-                const isOwnGoal = g.detail === 'Own Goal';
-                const isPen = g.detail === 'Penalty';
-                const rawAssist = g.assist?.name;
-                const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
-                const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : '';
-                const hasTime = g.time && g.time.elapsed != null && g.time.elapsed !== "-";
-                const timeStr = hasTime ? `${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ""}'` : "";
-                const tagStr = `${timeStr}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}`;
+          <div class="hero-goals-section ${!homeGoals.length ? 'only-away' : !awayGoals.length ? 'only-home' : 'both-teams'}">
+            ${homeGoals.length ? `
+              <div class="hero-goals-col home">
+                ${homeGoals.map(g => {
+                  const playerName = g.player?.name || "Gol";
+                  const isOwnGoal = g.detail === 'Own Goal';
+                  const isPen = g.detail === 'Penalty';
+                  const rawAssist = g.assist?.name;
+                  const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
+                  const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : '';
+                  const hasTime = g.time && g.time.elapsed != null && g.time.elapsed !== "-";
+                  const timeStr = hasTime ? `${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ""}'` : "";
+                  const tagStr = `${timeStr}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}`;
 
-                return `
-                  <div class="hero-goal-item">
-                    <span>⚽</span>
-                    <span class="player-name"${g.isPendingSummary ? ' style="opacity:0.85;font-style:italic;"' : ''}>${escapeHtml(playerName)}${assistHtml}</span>
-                    ${tagStr ? `<span class="time">${escapeHtml(tagStr)}</span>` : ''}
-                  </div>
-                `;
-              }).join("")}
-            </div>
+                  return `
+                    <div class="hero-goal-item">
+                      <span class="hero-goal-icon">⚽</span>
+                      <span class="player-name"${g.isPendingSummary ? ' style="opacity:0.85;font-style:italic;"' : ''}>${escapeHtml(playerName)}${assistHtml}</span>
+                      ${tagStr ? `<span class="time">${escapeHtml(tagStr)}</span>` : ''}
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            ` : ""}
 
-            <div class="hero-goals-col away">
-              ${awayGoals.map(g => {
-                const playerName = g.player?.name || "Gol";
-                const isOwnGoal = g.detail === 'Own Goal';
-                const isPen = g.detail === 'Penalty';
-                const rawAssist = g.assist?.name;
-                const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
-                const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : '';
-                const hasTime = g.time && g.time.elapsed != null && g.time.elapsed !== "-";
-                const timeStr = hasTime ? `${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ""}'` : "";
-                const tagStr = `${timeStr}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}`;
+            ${awayGoals.length ? `
+              <div class="hero-goals-col away">
+                ${awayGoals.map(g => {
+                  const playerName = g.player?.name || "Gol";
+                  const isOwnGoal = g.detail === 'Own Goal';
+                  const isPen = g.detail === 'Penalty';
+                  const rawAssist = g.assist?.name;
+                  const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
+                  const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : '';
+                  const hasTime = g.time && g.time.elapsed != null && g.time.elapsed !== "-";
+                  const timeStr = hasTime ? `${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ""}'` : "";
+                  const tagStr = `${timeStr}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}`;
 
-                return `
-                  <div class="hero-goal-item">
-                    <span>⚽</span>
-                    <span class="player-name"${g.isPendingSummary ? ' style="opacity:0.85;font-style:italic;"' : ''}>${escapeHtml(playerName)}${assistHtml}</span>
-                    ${tagStr ? `<span class="time">${escapeHtml(tagStr)}</span>` : ''}
-                  </div>
-                `;
-              }).join("")}
-            </div>
+                  return `
+                    <div class="hero-goal-item">
+                      <span class="hero-goal-icon">⚽</span>
+                      <span class="player-name"${g.isPendingSummary ? ' style="opacity:0.85;font-style:italic;"' : ''}>${escapeHtml(playerName)}${assistHtml}</span>
+                      ${tagStr ? `<span class="time">${escapeHtml(tagStr)}</span>` : ''}
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            ` : ""}
           </div>
         ` : ""}
       </div>
