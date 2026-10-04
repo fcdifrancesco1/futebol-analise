@@ -456,3 +456,54 @@ test('finished matches are automatically removed from day user space and favorit
   assert.equal(context.state.favoriteFixtures.length, 0);
   assert.match(emptyHtml, /Acompanhe o que importa/);
 });
+
+test('day spotlight prioritizes favorite teams, prominent competitions and complete logos over obscure preliminary matches', () => {
+  const matchesSrc = fs.readFileSync('public/js/matches.js', 'utf8');
+  const context = vm.createContext({
+    state: { favoriteFixtures: [] },
+    escapeHtml: s => s,
+    sanitizeUrl: u => u,
+    formatRoundName: r => r,
+    UserPrefs: { getFavoriteTeam: () => null },
+    getMatchStatusCategory: f => ({
+      isLive: f.status.short === '1H',
+      isFinished: f.status.short === 'FT',
+      isScheduled: f.status.short === 'NS',
+      isPostponed: false,
+      label: f.status.short,
+      short: f.status.short
+    })
+  });
+  vm.runInContext(matchesSrc, context);
+
+  // Cenário 1: Jogo preliminar da Copa do Rei com time sem escudo às 08:00 vs Amistoso de Seleções com escudos às 10:00
+  const fixtures = [
+    {
+      fixture: { id: 1, date: '2026-10-04T08:00:00Z', status: { short: 'NS' } },
+      league: { id: 143, name: 'Copa do Rei', round: '1/128-finals' },
+      teams: { home: { id: 101, name: 'Güímar', logo: 'https://example.com/not-available.png' }, away: { id: 102, name: 'Hortaleza', logo: 'https://example.com/hortaleza.png' } }
+    },
+    {
+      fixture: { id: 2, date: '2026-10-04T10:00:00Z', status: { short: 'NS' } },
+      league: { id: 10, name: 'Amistosos Internacionais', round: 'Friendly International' },
+      teams: { home: { id: 201, name: 'Comoros', logo: 'https://example.com/comoros.png' }, away: { id: 202, name: 'Senegal', logo: 'https://example.com/senegal.png' } }
+    }
+  ];
+
+  context.fixtures = fixtures;
+  let html = vm.runInContext('renderDaySpotlight(fixtures)', context);
+  assert.match(html, /Senegal/);
+  assert.doesNotMatch(html, /Güímar/);
+
+  // Cenário 2: Se o usuário tem um time do coração (ex: Güímar), ele supera outros jogos
+  context.UserPrefs.getFavoriteTeam = () => ({ id: 101, name: 'Güímar' });
+  html = vm.runInContext('renderDaySpotlight(fixtures)', context);
+  assert.match(html, /Güímar/);
+
+  // Cenário 3: Jogo ao vivo supera agendado
+  fixtures[1].fixture.status.short = '1H';
+  context.UserPrefs.getFavoriteTeam = () => null;
+  html = vm.runInContext('renderDaySpotlight(fixtures)', context);
+  assert.match(html, /Senegal/);
+  assert.match(html, /AO VIVO/);
+});

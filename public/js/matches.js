@@ -31,11 +31,80 @@ function formatDateDisplayBR(dateStr) {
   };
 }
 
+// ponytail: peso de relevância para seleção inteligente do jogo destaque
+const SPOTLIGHT_TIER_1_LEAGUES = new Set([2, 1, 13, 71, 39, 140, 4, 9, 14]);
+const SPOTLIGHT_TIER_2_LEAGUES = new Set([135, 78, 61, 73, 3, 5, 10]);
+
+function getSpotlightScore(f, favTeamId = null, favFixtureIds = new Set()) {
+  let score = 0;
+  const homeId = Number(f.teams?.home?.id);
+  const awayId = Number(f.teams?.away?.id);
+  const fixtureId = Number(f.fixture?.id);
+
+  // 1. Time do coração do usuário (prioridade máxima absoluta)
+  if (favTeamId && (homeId === favTeamId || awayId === favTeamId)) {
+    score += 1000;
+  }
+
+  // 2. Partida favoritada/seguida pelo usuário
+  if (favFixtureIds.has(fixtureId)) {
+    score += 500;
+  }
+
+  // 3. Status da partida (Ao vivo > Agendado > Encerrado)
+  const statusCat = typeof getMatchStatusCategory === 'function' ? getMatchStatusCategory(f.fixture) : null;
+  if (statusCat?.isLive) {
+    score += 300;
+  } else if (statusCat?.isScheduled) {
+    score += 100;
+  } else if (statusCat?.isFinished) {
+    score += 10;
+  }
+
+  // 4. Peso / Prestígio da Competição
+  const leagueId = Number(f.league?.id);
+  if (SPOTLIGHT_TIER_1_LEAGUES.has(leagueId)) {
+    score += 80;
+  } else if (SPOTLIGHT_TIER_2_LEAGUES.has(leagueId)) {
+    score += 50;
+  } else {
+    score += 20;
+  }
+
+  // 5. Qualidade dos dados / Escudos disponíveis
+  const homeLogo = String(f.teams?.home?.logo || '');
+  const awayLogo = String(f.teams?.away?.logo || '');
+  if (homeLogo && awayLogo && !homeLogo.includes('not-available') && !awayLogo.includes('not-available')) {
+    score += 25;
+  }
+
+  // 6. Penalização para fases muito preliminares (ex: 1/128-finals)
+  const round = String(f.league?.round || '');
+  if (/\b(?:1\/128|1\/64|prelimin|qualif)/i.test(round)) {
+    score -= 35;
+  }
+
+  return score;
+}
+
 function renderDaySpotlight(fixtures) {
   if (!fixtures.length) return '';
-  const featured = fixtures.find(f => getMatchStatusCategory(f.fixture).isLive)
-    || fixtures.find(f => getMatchStatusCategory(f.fixture).isScheduled)
-    || fixtures[0];
+
+  const favTeam = typeof UserPrefs !== 'undefined' && typeof UserPrefs.getFavoriteTeam === 'function' ? UserPrefs.getFavoriteTeam() : null;
+  const favTeamId = favTeam?.id ? Number(favTeam.id) : null;
+  const favFixtureIds = new Set(
+    typeof state !== 'undefined' && Array.isArray(state?.favoriteFixtures)
+      ? state.favoriteFixtures.map(f => Number(f.id))
+      : []
+  );
+
+  const sorted = [...fixtures].sort((a, b) => {
+    const scoreDiff = getSpotlightScore(b, favTeamId, favFixtureIds) - getSpotlightScore(a, favTeamId, favFixtureIds);
+    if (scoreDiff !== 0) return scoreDiff;
+    return new Date(a.fixture?.date || 0) - new Date(b.fixture?.date || 0);
+  });
+
+  const featured = sorted[0];
   const status = getMatchStatusCategory(featured.fixture);
   const hasScore = status.isLive || status.isFinished;
   const kickoff = new Date(featured.fixture.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -132,6 +201,7 @@ function cleanFinishedFavoriteFixtures(knownFixtures = []) {
 if (typeof window !== 'undefined') {
   window.isFixtureFinished = isFixtureFinished;
   window.cleanFinishedFavoriteFixtures = cleanFinishedFavoriteFixtures;
+  window.getSpotlightScore = getSpotlightScore;
 }
 
 function renderDayUserSpace(fixtures = []) {
