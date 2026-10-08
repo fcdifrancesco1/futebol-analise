@@ -806,6 +806,41 @@ async function renderBolaoSubTab(tab, league, compObjects, participants, myPredi
   }
 }
 
+// Rodada atual = rodada do próximo jogo (ou do jogo ao vivo) que ainda pertence ao
+// calendário normal dela. Jogos adiados (PST etc.) e jogos remarcados para semanas
+// depois do restante da rodada são ignorados, senão uma rodada antiga com um jogo
+// pendente ficaria eternamente marcada como "atual".
+const BOLAO_LIVE_STATUS = ["1H", "HT", "2H", "ET", "BT", "P", "LIVE", "SUSP", "INT"];
+const BOLAO_UPCOMING_STATUS = ["NS", "TBD"];
+const BOLAO_ROUND_WINDOW_MS = 7 * 24 * 3600 * 1000;
+
+function detectCurrentRoundKey(allRounds, now = Date.now()) {
+  if (!allRounds.length) return null;
+  const kickoffOf = f => new Date(f.fixture?.date).getTime();
+  const statusOf = f => f.fixture?.status?.short;
+
+  const liveRound = allRounds.find(r => r.fixtures.some(f => BOLAO_LIVE_STATUS.includes(statusOf(f))));
+  if (liveRound) return liveRound.roundKey;
+
+  let best = null;
+  for (const r of allRounds) {
+    r.fixtures.forEach((f, i) => {
+      const kickoff = kickoffOf(f);
+      if (!BOLAO_UPCOMING_STATUS.includes(statusOf(f)) || !(kickoff >= now)) return;
+      // Compara com a data típica dos OUTROS jogos da rodada: um jogo remarcado
+      // semanas depois não representa a rodada em andamento.
+      const others = r.fixtures.filter((_, j) => j !== i).map(kickoffOf).filter(Number.isFinite).sort((a, b) => a - b);
+      const typical = others.length ? others[Math.floor((others.length - 1) / 2)] : kickoff;
+      if (Math.abs(kickoff - typical) > BOLAO_ROUND_WINDOW_MS) return;
+      if (!best || kickoff < best.kickoff) best = { kickoff, roundKey: r.roundKey };
+    });
+  }
+  if (best) return best.roundKey;
+
+  // Sem jogos futuros no calendário normal: última rodada (campeonato encerrado).
+  return allRounds[allRounds.length - 1].roundKey;
+}
+
 // ============================================================
 // Aba 1: Jogos & Palpites
 // ============================================================
@@ -934,35 +969,7 @@ async function renderBolaoFixturesTab(container, league, compObjects, participan
       return a.firstTimestamp - b.firstTimestamp;
     });
 
-    // Detecta a rodada atual
-    const now = Date.now();
-    let currentRoundKey = null;
-
-    // 1. Prioriza rodada com jogos acontecendo hoje ou nas próximas 72h que ainda não terminaram
-    for (const r of allRounds) {
-      const hasUpcomingSoon = r.fixtures.some(f => {
-        const kickoff = new Date(f.fixture?.date).getTime();
-        const isFin = ["FT", "AET", "PEN"].includes(f.fixture?.status?.short);
-        return !isFin && (kickoff - now <= 72 * 3600 * 1000);
-      });
-      if (hasUpcomingSoon) {
-        currentRoundKey = r.roundKey;
-        break;
-      }
-    }
-
-    // 2. Se não houver jogos nos próximos 3 dias, pega a primeira rodada com qualquer jogo não finalizado
-    if (!currentRoundKey) {
-      const firstUnfinished = allRounds.find(r => r.fixtures.some(f => !["FT", "AET", "PEN"].includes(f.fixture?.status?.short)));
-      if (firstUnfinished) {
-        currentRoundKey = firstUnfinished.roundKey;
-      }
-    }
-
-    // 3. Se todos os jogos do campeonato acabaram, pega a última rodada
-    if (!currentRoundKey && allRounds.length > 0) {
-      currentRoundKey = allRounds[allRounds.length - 1].roundKey;
-    }
+    const currentRoundKey = detectCurrentRoundKey(allRounds);
 
     let selectedRoundKey = currentRoundKey || (allRounds[0]?.roundKey || "ALL");
     let selectedFilter = "all"; // 'all', 'open', 'finished'

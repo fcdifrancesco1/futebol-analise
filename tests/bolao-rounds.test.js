@@ -157,3 +157,45 @@ test('Bolão - Jogos Encerrados: Filtro e Cálculo de Pontos do Usuário', () =>
   assert.equal(matchResults[2].badge, '❌ 0 PTS (Não Pontuou)');
   assert.equal(matchResults[3].badge, '⚠️ Sem Palpite (0 PTS)');
 });
+
+test('Bolão - Rodada atual: jogo adiado de rodada antiga não vira a rodada atual', () => {
+  const { detectCurrentRoundKey } = sandbox;
+  const now = Date.parse('2026-10-08T12:00:00Z');
+  const day = 86400000;
+  const fx = (iso, status) => ({ fixture: { date: iso, timestamp: Date.parse(iso) / 1000, status: { short: status } } });
+  const round = (roundKey, fixtures) => ({ roundKey, fixtures });
+  const at = offsetDays => new Date(now + offsetDays * day).toISOString();
+
+  // Caso real do Brasileirão 2026: rodada 21 tem Chapecoense x Vasco adiado (PST) desde julho.
+  const rounds = [
+    round('Rodada 21', [fx('2026-07-26T19:00:00Z', 'FT'), fx('2026-07-29T19:00:00Z', 'PST')]),
+    round('Rodada 29', [fx(at(-6), 'FT'), fx(at(-5), 'FT')]),
+    round('Rodada 30', [fx(at(1), 'NS'), fx(at(2), 'NS')]),
+    round('Rodada 31', [fx(at(8), 'NS')])
+  ];
+  assert.equal(detectCurrentRoundKey(rounds, now), 'Rodada 30');
+
+  // Jogo adiado remarcado meses depois (NS, data futura) também não sequestra a rodada atual.
+  rounds[0].fixtures[1] = fx(at(1), 'NS');
+  rounds[2].fixtures = [fx(at(3), 'NS'), fx(at(4), 'NS')];
+  assert.equal(detectCurrentRoundKey(rounds, now), 'Rodada 30');
+
+  // Rodada em andamento com último jogo na segunda-feira continua sendo a atual.
+  const monday = [
+    round('Rodada 30', [fx(at(-2), 'FT'), fx(at(-1), 'FT'), fx(at(0.3), 'NS')]),
+    round('Rodada 31', [fx(at(3), 'NS'), fx(at(4), 'NS')])
+  ];
+  assert.equal(detectCurrentRoundKey(monday, now), 'Rodada 30');
+
+  // Jogo ao vivo tem prioridade.
+  const live = [
+    round('Rodada 30', [fx(at(-0.05), '2H'), fx(at(1), 'NS')]),
+    round('Rodada 31', [fx(at(0.2), 'NS')])
+  ];
+  assert.equal(detectCurrentRoundKey(live, now), 'Rodada 30');
+
+  // Campeonato encerrado: última rodada.
+  const done = [round('Rodada 37', [fx(at(-14), 'FT')]), round('Rodada 38', [fx(at(-7), 'FT')])];
+  assert.equal(detectCurrentRoundKey(done, now), 'Rodada 38');
+  assert.equal(detectCurrentRoundKey([], now), null);
+});
