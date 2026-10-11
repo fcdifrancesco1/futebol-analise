@@ -199,3 +199,18 @@ test('Bolão - Rodada atual: jogo adiado de rodada antiga não vira a rodada atu
   assert.equal(detectCurrentRoundKey(done, now), 'Rodada 38');
   assert.equal(detectCurrentRoundKey([], now), null);
 });
+
+test('Rankings - Eficiência por minutos jogados (gols/assistências)', () => {
+  const { perMinuteRate } = sandbox;
+  // K. Viveros, Brasileirão 2026: 19 gols em 2433 minutos
+  const r = perMinuteRate(19, 2433);
+  assert.equal(r.minutesPer, 128);
+  assert.equal(r.per90, '0,70');
+  assert.equal(r.minutes, 2433);
+  assert.equal(perMinuteRate(1, 90).per90, '1,00');
+  // Sem participação ou sem minutos: não exibe métrica
+  assert.equal(perMinuteRate(0, 900), null);
+  assert.equal(perMinuteRate(5, 0), null);
+  assert.equal(perMinuteRate(5, null), null);
+  assert.equal(perMinuteRate(undefined, 900), null);
+});

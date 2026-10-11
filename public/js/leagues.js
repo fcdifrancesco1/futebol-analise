@@ -134,6 +134,13 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
   const csLeader = cleanSheets[0];
   const csOthers = cleanSheets.slice(1);
 
+  // Sufixo "· 1 a cada X'" ao lado do time, quando houver minutos jogados.
+  const rateSuffix = (item, key) => {
+    const s = item?.statistics?.[0] || {};
+    const rate = perMinuteRate(s.goals?.[key], s.games?.minutes);
+    return rate ? ` · <span title="${rate.per90} por 90 min · ${rate.minutes.toLocaleString("pt-BR")} min jogados">1 a cada ${rate.minutesPer}'</span>` : "";
+  };
+
   return `
     <!-- Card Artilharia -->
     <div class="sidebar-stat-card gold">
@@ -151,7 +158,7 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
             </div>
             <div class="sidebar-leader-info">
               <span class="sidebar-leader-name">${escapeHtml(scorerLeader.player?.name || '-')}</span>
-              <span class="sidebar-leader-team">${escapeHtml(formatTeamName(scorerLeader.statistics?.[0]?.team?.name || ''))}</span>
+              <span class="sidebar-leader-team">${escapeHtml(formatTeamName(scorerLeader.statistics?.[0]?.team?.name || ''))}${rateSuffix(scorerLeader, 'total')}</span>
             </div>
             <div class="sidebar-stat-pill gold">
               <strong>${scorerLeader.statistics?.[0]?.goals?.total ?? 0}</strong>
@@ -172,7 +179,7 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
                 <img class="sidebar-rank-thumb" src="${p.photo}" alt="" loading="lazy">
                 <div class="sidebar-rank-details">
                   <span class="sidebar-rank-name">${escapeHtml(p.name || '-')}</span>
-                  <span class="sidebar-rank-sub">${escapeHtml(formatTeamName(s.team?.name || ''))}</span>
+                  <span class="sidebar-rank-sub">${escapeHtml(formatTeamName(s.team?.name || ''))}${rateSuffix(item, 'total')}</span>
                 </div>
                 <span class="sidebar-rank-val gold">${s.goals?.total ?? 0}</span>
               </a>
@@ -198,7 +205,7 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
             </div>
             <div class="sidebar-leader-info">
               <span class="sidebar-leader-name">${escapeHtml(assistLeader.player?.name || '-')}</span>
-              <span class="sidebar-leader-team">${escapeHtml(formatTeamName(assistLeader.statistics?.[0]?.team?.name || ''))}</span>
+              <span class="sidebar-leader-team">${escapeHtml(formatTeamName(assistLeader.statistics?.[0]?.team?.name || ''))}${rateSuffix(assistLeader, 'assists')}</span>
             </div>
             <div class="sidebar-stat-pill cyan">
               <strong>${assistLeader.statistics?.[0]?.goals?.assists ?? 0}</strong>
@@ -219,7 +226,7 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
                 <img class="sidebar-rank-thumb" src="${p.photo}" alt="" loading="lazy">
                 <div class="sidebar-rank-details">
                   <span class="sidebar-rank-name">${escapeHtml(p.name || '-')}</span>
-                  <span class="sidebar-rank-sub">${escapeHtml(formatTeamName(s.team?.name || ''))}</span>
+                  <span class="sidebar-rank-sub">${escapeHtml(formatTeamName(s.team?.name || ''))}${rateSuffix(item, 'assists')}</span>
                 </div>
                 <span class="sidebar-rank-val cyan">${s.goals?.assists ?? 0}</span>
               </a>
@@ -907,9 +914,9 @@ async function renderLeagueTopStats(leagueId, season) {
 
     content.innerHTML = `
       <h2 class="section-title">Artilharia</h2>
-      <div class="card" style="margin-bottom:20px;">${renderTopList(scorers, s => `${s.goals.total} gols`, leagueId, season)}</div>
+      <div class="card" style="margin-bottom:20px;">${renderTopList(scorers, s => `${s.goals.total} gols`, leagueId, season, s => perMinuteRate(s.goals?.total, s.games?.minutes))}</div>
       <h2 class="section-title">Assistências</h2>
-      <div class="card" style="margin-bottom:20px;">${renderTopList(assists, s => `${s.goals.assists ?? 0} assist.`, leagueId, season)}</div>
+      <div class="card" style="margin-bottom:20px;">${renderTopList(assists, s => `${s.goals.assists ?? 0} assist.`, leagueId, season, s => perMinuteRate(s.goals?.assists, s.games?.minutes))}</div>
       <h2 class="section-title">Cartões Amarelos</h2>
       <div class="card">${renderTopList(yellows, s => `${s.cards.yellow} cartões`, leagueId, season)}</div>
     `;
@@ -918,12 +925,19 @@ async function renderLeagueTopStats(leagueId, season) {
   }
 }
 
-function renderTopList(list, metricFn, leagueId, season) {
+function renderTopList(list, metricFn, leagueId, season, rateFn = null) {
   if (!list || !list.length) return `<p style="color:var(--chalk-dim);">Sem estatísticas disponíveis.</p>`;
   return `<div class="fixture-list">
     ${list.slice(0, 10).map((entry, i) => {
       const p = entry.player || { id: 0, name: "-", photo: "" };
       const s = (Array.isArray(entry.statistics) && entry.statistics[0]) ? entry.statistics[0] : { team: { id: 0, name: "-" }, goals: { total: 0, assists: 0 }, cards: { yellow: 0 } };
+      const rate = rateFn ? rateFn(s) : null;
+      const metric = rate
+        ? `<span style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;">
+             <span style="font-family:var(--font-mono);color:var(--gold);font-weight:700;">${metricFn(s)}</span>
+             <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);" title="${rate.minutes.toLocaleString("pt-BR")} minutos jogados">1 a cada ${rate.minutesPer}' · ${rate.per90}/90</span>
+           </span>`
+        : `<span style="font-family:var(--font-mono);color:var(--gold);font-weight:700;">${metricFn(s)}</span>`;
       return `
         <a class="fixture-row" href="#/jogador/${p.id}/${s.team.id}/${leagueId}/${season}" style="grid-template-columns:30px 40px 1fr auto;" title="Ver estatísticas do jogador">
           <span style="font-family:var(--font-mono);font-weight:700;color:var(--chalk-dim);">${i + 1}</span>
@@ -932,7 +946,7 @@ function renderTopList(list, metricFn, leagueId, season) {
             <div style="font-weight:600;">${escapeHtml(p.name)}</div>
             <div style="font-size:0.75rem;color:var(--chalk-dim);">${escapeHtml(s.team.name)}</div>
           </div>
-          <span style="font-family:var(--font-mono);color:var(--gold);font-weight:700;">${metricFn(s)}</span>
+          ${metric}
         </a>`;
     }).join("")}
   </div>`;

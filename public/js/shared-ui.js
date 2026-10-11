@@ -342,6 +342,18 @@ function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+// Eficiência por minutos jogados: "1 a cada X min" e média por 90 min.
+// Retorna null quando não há minutos ou nenhuma participação (evita "1 a cada ∞").
+function perMinuteRate(count, minutes) {
+  const n = Number(count), min = Number(minutes);
+  if (!Number.isFinite(n) || !Number.isFinite(min) || n <= 0 || min <= 0) return null;
+  return {
+    minutesPer: Math.round(min / n),
+    per90: (n * 90 / min).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    minutes: min
+  };
+}
+
 function sanitizeUrl(url) {
   if (!url || typeof url !== "string") return "#";
   const trimmed = url.trim();
