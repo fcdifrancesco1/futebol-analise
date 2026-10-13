@@ -1599,6 +1599,34 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   white-space: nowrap;
 }
 
+/* Gol anulado pelo VAR */
+.hero-goal-item.is-cancelled .player-name {
+  text-decoration: line-through;
+  color: var(--chalk-dim);
+  font-weight: 500;
+}
+.hero-goal-item.is-cancelled .hero-goal-icon {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+.hero-goal-item.is-cancelled .time {
+  color: var(--chalk-dim);
+  text-decoration: line-through;
+}
+.hero-goal-item .cancel-tag {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  font-weight: 700;
+  color: #EF4444;
+  white-space: nowrap;
+}
+
+/* Lista cronológica única: só no mobile */
+.hero-goals-timeline {
+  display: none;
+}
+
 /* ============================================================
    Perfil do Jogador
    ============================================================ */
@@ -2495,12 +2523,23 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
     padding-top: 10px;
     font-size: 0.72rem;
   }
-  .hero-goals-section.both-teams .hero-goals-col.home {
-    padding-bottom: 6px;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+  /* Mobile: gols dos dois times numa lista única, do menor para o maior minuto */
+  .hero-goals-section .hero-goals-col {
+    display: none;
   }
-  .hero-goals-col {
+  .hero-goals-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     width: 100%;
+  }
+  .hero-goals-timeline .hero-goal-item.side-home {
+    align-self: flex-start;
+    text-align: left;
+  }
+  .hero-goals-timeline .hero-goal-item.side-away {
+    align-self: flex-end;
+    text-align: right;
   }
 
   .stat-grid {

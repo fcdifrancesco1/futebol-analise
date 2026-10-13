@@ -179,6 +179,13 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     homeGoals = recoverMissingGoals(homeGoals, fx.teams.home, fixturePlayersArr, fx.goals?.home);
     awayGoals = recoverMissingGoals(awayGoals, fx.teams.away, fixturePlayersArr, fx.goals?.away);
 
+    // Gols anulados pelo VAR vêm só como evento "Var" (sem evento "Goal"), então o
+    // placar já está certo; entram na lista apenas para exibição, no time do lance.
+    const cancelledGoals = events.filter(isCancelledGoalEvent);
+    const sameTeam = (e, team) => String(e.team?.id ?? "") === String(team?.id ?? "");
+    const homeHeroItems = sortByMatchTime([...homeGoals, ...cancelledGoals.filter(e => sameTeam(e, fx.teams.home))]);
+    const awayHeroItems = sortByMatchTime([...awayGoals, ...cancelledGoals.filter(e => sameTeam(e, fx.teams.away))]);
+
     // Buscar estatísticas pré-jogo se a partida ainda não começou
     let preMatchSection = "";
     if (statsArr.length < 2) {
@@ -270,57 +277,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           </div>
         </div>
 
-        ${(homeGoals.length || awayGoals.length) ? `
-          <div class="hero-goals-section ${!homeGoals.length ? 'only-away' : !awayGoals.length ? 'only-home' : 'both-teams'}">
-            ${homeGoals.length ? `
-              <div class="hero-goals-col home">
-                ${homeGoals.map(g => {
-                  const playerName = g.player?.name || "Gol";
-                  const isOwnGoal = g.detail === 'Own Goal';
-                  const isPen = g.detail === 'Penalty';
-                  const rawAssist = g.assist?.name;
-                  const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
-                  const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : '';
-                  const hasTime = g.time && g.time.elapsed != null && g.time.elapsed !== "-";
-                  const timeStr = hasTime ? `${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ""}'` : "";
-                  const tagStr = `${timeStr}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}`;
-
-                  return `
-                    <div class="hero-goal-item">
-                      <span class="hero-goal-icon">⚽</span>
-                      <span class="player-name"${g.isPendingSummary ? ' style="opacity:0.85;font-style:italic;"' : ''}>${escapeHtml(playerName)}${assistHtml}</span>
-                      ${tagStr ? `<span class="time">${escapeHtml(tagStr)}</span>` : ''}
-                    </div>
-                  `;
-                }).join("")}
-              </div>
-            ` : ""}
-
-            ${awayGoals.length ? `
-              <div class="hero-goals-col away">
-                ${awayGoals.map(g => {
-                  const playerName = g.player?.name || "Gol";
-                  const isOwnGoal = g.detail === 'Own Goal';
-                  const isPen = g.detail === 'Penalty';
-                  const rawAssist = g.assist?.name;
-                  const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
-                  const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : '';
-                  const hasTime = g.time && g.time.elapsed != null && g.time.elapsed !== "-";
-                  const timeStr = hasTime ? `${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ""}'` : "";
-                  const tagStr = `${timeStr}${isPen ? ' (P)' : isOwnGoal ? ' (GC)' : ''}`;
-
-                  return `
-                    <div class="hero-goal-item">
-                      <span class="hero-goal-icon">⚽</span>
-                      <span class="player-name"${g.isPendingSummary ? ' style="opacity:0.85;font-style:italic;"' : ''}>${escapeHtml(playerName)}${assistHtml}</span>
-                      ${tagStr ? `<span class="time">${escapeHtml(tagStr)}</span>` : ''}
-                    </div>
-                  `;
-                }).join("")}
-              </div>
-            ` : ""}
-          </div>
-        ` : ""}
+        ${renderHeroGoals(homeHeroItems, awayHeroItems)}
       </div>
 
       <!-- Estatísticas da Partida (Pré-Jogo ou Ao Vivo) -->
@@ -1109,6 +1066,89 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
   `;
 }
 
+// ---------- Gols do placar principal (ordem cronológica + gols anulados) ----------
+
+// Lances de VAR da API-Football: "Goal cancelled", "Goal Disallowed - offside" etc.
+function isCancelledGoalEvent(e) {
+  return e?.type === "Var" && /^goal (cancelled|disallowed)/i.test(String(e.detail || ""));
+}
+
+const VAR_REASONS = { offside: "impedimento", handball: "mão na bola", foul: "falta" };
+
+function varDetailLabel(detail) {
+  const d = String(detail || "");
+  if (/^goal (cancelled|disallowed)/i.test(d)) {
+    const reason = Object.keys(VAR_REASONS).find(k => new RegExp(k, "i").test(d));
+    return reason ? `Gol anulado (VAR · ${VAR_REASONS[reason]})` : "Gol anulado (VAR)";
+  }
+  if (/^goal confirmed/i.test(d)) return "Gol confirmado (VAR)";
+  if (/^penalty confirmed/i.test(d)) return "Pênalti confirmado (VAR)";
+  if (/^penalty cancelled/i.test(d)) return "Pênalti cancelado (VAR)";
+  if (/^card upgrade/i.test(d)) return "Cartão alterado (VAR)";
+  return d ? `${d} (VAR)` : "Revisão do VAR";
+}
+
+// Minuto do lance para ordenação; gols sem minuto (súmula pendente) vão para o fim.
+function matchTimeKey(e) {
+  const elapsed = Number(e?.time?.elapsed);
+  if (e?.time?.elapsed == null || e.time.elapsed === "-" || !Number.isFinite(elapsed)) return Infinity;
+  return elapsed * 100 + (Number(e.time.extra) || 0);
+}
+
+function sortByMatchTime(items) {
+  return items.map((item, i) => ({ item, i }))
+    .sort((a, b) => (matchTimeKey(a.item) - matchTimeKey(b.item)) || (a.i - b.i))
+    .map(x => x.item);
+}
+
+function heroGoalItemHtml(g, side = "") {
+  const playerName = g.player?.name || "Gol";
+  const hasTime = g.time && g.time.elapsed != null && g.time.elapsed !== "-";
+  const timeStr = hasTime ? `${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ""}'` : "";
+  const sideClass = side ? ` side-${side}` : "";
+
+  if (isCancelledGoalEvent(g)) {
+    const label = varDetailLabel(g.detail);
+    return `
+      <div class="hero-goal-item is-cancelled${sideClass}" title="${escapeHtml(label)}">
+        <span class="hero-goal-icon">⚽</span>
+        <span class="player-name">${escapeHtml(playerName)}</span>
+        ${timeStr ? `<span class="time">${escapeHtml(timeStr)}</span>` : ""}
+        <span class="cancel-tag">${escapeHtml(label.replace(/^Gol anulado/, "Anulado"))}</span>
+      </div>`;
+  }
+
+  const isOwnGoal = g.detail === "Own Goal";
+  const isPen = g.detail === "Penalty";
+  const rawAssist = g.assist?.name;
+  const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
+  const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : "";
+  const tagStr = `${timeStr}${isPen ? " (P)" : isOwnGoal ? " (GC)" : ""}`;
+  return `
+    <div class="hero-goal-item${sideClass}">
+      <span class="hero-goal-icon">⚽</span>
+      <span class="player-name"${g.isPendingSummary ? ' style="opacity:0.85;font-style:italic;"' : ""}>${escapeHtml(playerName)}${assistHtml}</span>
+      ${tagStr ? `<span class="time">${escapeHtml(tagStr)}</span>` : ""}
+    </div>`;
+}
+
+// Desktop: uma coluna por time. Mobile: lista única em ordem de minuto
+// (mandante à esquerda, visitante à direita), alternada via CSS.
+function renderHeroGoals(homeItems, awayItems) {
+  if (!homeItems.length && !awayItems.length) return "";
+  const layout = !homeItems.length ? "only-away" : !awayItems.length ? "only-home" : "both-teams";
+  const timeline = sortByMatchTime([
+    ...homeItems.map(g => ({ ...g, _side: "home" })),
+    ...awayItems.map(g => ({ ...g, _side: "away" }))
+  ]);
+  return `
+    <div class="hero-goals-section ${layout}">
+      ${homeItems.length ? `<div class="hero-goals-col home">${homeItems.map(g => heroGoalItemHtml(g)).join("")}</div>` : ""}
+      ${awayItems.length ? `<div class="hero-goals-col away">${awayItems.map(g => heroGoalItemHtml(g)).join("")}</div>` : ""}
+      <div class="hero-goals-timeline">${timeline.map(g => heroGoalItemHtml(g, g._side)).join("")}</div>
+    </div>`;
+}
+
 function renderFixtureEvents(events, fx, isFinished = false) {
   if (!events || !events.length) return "";
   return `
@@ -1128,10 +1168,10 @@ function renderFixtureEvents(events, fx, isFinished = false) {
           return `
             <div class="fixture-row" style="grid-template-columns:44px auto 1fr auto;">
               <span class="fixture-date">${timeElapsed}</span>
-              <span>${e.type === "Goal" ? "⚽" : e.type === "Card" ? (e.detail === "Red Card" ? "🟥" : "🟨") : "🔁"}</span>
+              <span>${e.type === "Goal" ? "⚽" : e.type === "Card" ? (e.detail === "Red Card" ? "🟥" : "🟨") : e.type === "Var" ? "📺" : "🔁"}</span>
               <div>
                 <strong>${escapeHtml(pName)}</strong>${hasAssist ? ` <span style="color:var(--chalk-dim);font-size:0.8rem;font-weight:400;">(${escapeHtml(String(rawAssist).trim())})</span>` : ''}
-                <span style="color:var(--chalk-dim);font-size:0.75rem;">(${escapeHtml(e.detail || e.type)})</span>
+                <span style="color:${isCancelledGoalEvent(e) ? "#EF4444" : "var(--chalk-dim)"};font-size:0.75rem;">(${escapeHtml(e.type === "Var" ? varDetailLabel(e.detail) : (e.detail || e.type))})</span>
               </div>
               ${(isFinished && isGoal) ? `
                 <a href="${ytGoalUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(pName)} no YouTube">

@@ -539,3 +539,40 @@ test('day spotlight prioritizes favorite teams, prominent competitions and compl
   assert.match(html, /Senegal/);
   assert.match(html, /AO VIVO/);
 });
+
+test('fixture hero goals: chronological mobile list and VAR cancelled goals', () => {
+  const fixtureSrc = fs.readFileSync('public/js/fixture.js', 'utf8');
+  const start = fixtureSrc.indexOf('function isCancelledGoalEvent');
+  const end = fixtureSrc.indexOf('function renderFixtureEvents');
+  const ctx = vm.createContext({ escapeHtml: s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`) });
+  vm.runInContext(fixtureSrc.slice(start, end) + '\nthis.renderHeroGoals = renderHeroGoals; this.sortByMatchTime = sortByMatchTime; this.isCancelledGoalEvent = isCancelledGoalEvent; this.varDetailLabel = varDetailLabel;', ctx);
+
+  // Inter 1 x 1 Club Brugge (fixture 1635671): Tresoldi (Brugge) 30' pênalti, Lautaro (Inter) 44'.
+  const inter = [{ type: 'Goal', detail: 'Normal Goal', player: { name: 'Lautaro Martínez' }, assist: { name: 'Federico Dimarco' }, time: { elapsed: 44 } }];
+  const brugge = [
+    { type: 'Goal', detail: 'Normal Goal', player: { name: 'Nicolo Tresoldi' }, assist: { name: 'Carlos Forbs' }, time: { elapsed: 63 } },
+    { type: 'Goal', detail: 'Penalty', player: { name: 'Nicolo Tresoldi' }, time: { elapsed: 30 } }
+  ];
+  const html = ctx.renderHeroGoals(inter, ctx.sortByMatchTime(brugge));
+  const timeline = html.slice(html.indexOf('hero-goals-timeline'));
+  const order = [...timeline.matchAll(/side-(home|away)[\s\S]*?class="time">([^<]+)</g)].map(m => `${m[1]} ${m[2].replace(/&#39;/g, "'")}`);
+  assert.deepEqual(order, ["away 30' (P)", "home 44'", "away 63'"]);
+  // Colunas do desktop continuam por time
+  assert.match(html, /hero-goals-col home/);
+  assert.match(html, /hero-goals-col away/);
+
+  // Acréscimos e gols sem minuto (súmula pendente) ordenados corretamente
+  const sorted = ctx.sortByMatchTime([
+    { time: { elapsed: '-' } }, { time: { elapsed: 45, extra: 2 } }, { time: { elapsed: 46 } }, { time: { elapsed: 45 } }
+  ]).map(g => `${g.time.elapsed}+${g.time.extra || 0}`);
+  assert.deepEqual(sorted, ['45+0', '45+2', '46+0', '-+0']);
+
+  // Gol anulado pelo VAR (Atlético x Man United, 45')
+  const cancelled = { type: 'Var', detail: 'Goal cancelled', team: { id: 530 }, player: { name: 'Johnny Cardoso' }, time: { elapsed: 45 } };
+  assert.equal(ctx.isCancelledGoalEvent(cancelled), true);
+  assert.equal(ctx.isCancelledGoalEvent({ type: 'Var', detail: 'Penalty confirmed' }), false);
+  assert.equal(ctx.varDetailLabel('Goal Disallowed - offside'), 'Gol anulado (VAR · impedimento)');
+  const cancelledHtml = ctx.renderHeroGoals([cancelled], []);
+  assert.match(cancelledHtml, /is-cancelled/);
+  assert.match(cancelledHtml, /Anulado \(VAR\)/);
+});

@@ -137,3 +137,27 @@ test('own goal notification names the benefiting team and the score at that minu
   assert.equal(goal.payload.title, '⚽ GOL DO RB BRAGANTINO! (CONTRA)');
   assert.match(goal.payload.body, /Kaio Jorge \(contra\) aos 20'! RB Bragantino 2 x 0 Cruzeiro/);
 });
+
+test('VAR cancelled goal (real API format) produces a goal-cancelled notification', () => {
+  // Atletico Madrid x Manchester United (fixture 1635623): VAR anulou gol de Johnny Cardoso aos 45'.
+  const atleti = { id: 530, name: 'Atletico Madrid' };
+  const united = { id: 33, name: 'Manchester United' };
+  const fx = { fixture: { id: 1635623, status: { short: '1H', elapsed: 46 } }, teams: { home: atleti, away: united }, goals: { home: 1, away: 0 } };
+  const events = [
+    { time: { elapsed: 1 }, team: atleti, player: { id: 1, name: 'Pablo Barrios Rivas' }, assist: { id: 2, name: 'Alejandro Baena Rodríguez' }, type: 'Goal', detail: 'Normal Goal' },
+    { time: { elapsed: 45 }, team: atleti, player: { id: 3, name: 'Johnny Cardoso' }, assist: { id: null, name: null }, type: 'Var', detail: 'Goal cancelled' }
+  ];
+  const cancelled = payloads(fx, events, []).filter(r => /ANULADO/.test(r.payload.title));
+  assert.equal(cancelled.length, 1);
+  assert.equal(cancelled[0].kind, 'goals');
+  assert.equal(cancelled[0].payload.title, '❌ GOL ANULADO DO ATLETICO MADRID!');
+  assert.equal(cancelled[0].payload.body, "VAR anulou o gol de Johnny Cardoso aos 45'. Atletico Madrid 1 x 0 Manchester United");
+  assert.equal(cancelled[0].payload.tag, 'goal-1635623-cancelled-45-0-3');
+  // Gol anulado não entra no placar
+  assert.equal(computeScore(events, atleti, united, { home: 1, away: 0 }), 'Atletico Madrid 1 x 0 Manchester United');
+
+  const offside = payloads(fx, [{ ...events[1], detail: 'Goal Disallowed - offside' }], []).find(r => /ANULADO/.test(r.payload.title));
+  assert.match(offside.payload.body, /aos 45' \(impedimento\)\./);
+  // Pênalti confirmado não é gol anulado
+  assert.equal(payloads(fx, [{ ...events[1], detail: 'Penalty confirmed' }], []).some(r => /ANULADO/.test(r.payload.title)), false);
+});
