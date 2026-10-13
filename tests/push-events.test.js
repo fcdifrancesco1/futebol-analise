@@ -76,7 +76,7 @@ test('payloads computes correct score for England 2nd goal even when fx.goals ha
   assert.equal(kaneNotification.title, '⚽ GOL DO ENGLAND!');
   // O placar deve ser 2 x 1 e não o defasado 1 x 1!
   assert.match(kaneNotification.body, /Harry Kane aos 40'! England 2 x 1 Spain/);
-  assert.equal(kaneNotification.tag, 'goal-12345-40-0-3');
+  assert.equal(kaneNotification.tag, 'goal-12345-p3-n1');
 });
 
 test('payloads correctly formats own goal notifications with adjusted team and score', () => {
@@ -152,7 +152,7 @@ test('VAR cancelled goal (real API format) produces a goal-cancelled notificatio
   assert.equal(cancelled[0].kind, 'goals');
   assert.equal(cancelled[0].payload.title, '❌ GOL ANULADO DO ATLETICO MADRID!');
   assert.equal(cancelled[0].payload.body, "VAR anulou o gol de Johnny Cardoso aos 45'. Atletico Madrid 1 x 0 Manchester United");
-  assert.equal(cancelled[0].payload.tag, 'goal-1635623-cancelled-45-0-3');
+  assert.equal(cancelled[0].payload.tag, 'goal-1635623-cancelled-p3-n1');
   // Gol anulado não entra no placar
   assert.equal(computeScore(events, atleti, united, { home: 1, away: 0 }), 'Atletico Madrid 1 x 0 Manchester United');
 
@@ -160,4 +160,23 @@ test('VAR cancelled goal (real API format) produces a goal-cancelled notificatio
   assert.match(offside.payload.body, /aos 45' \(impedimento\)\./);
   // Pênalti confirmado não é gol anulado
   assert.equal(payloads(fx, [{ ...events[1], detail: 'Penalty confirmed' }], []).some(r => /ANULADO/.test(r.payload.title)), false);
+});
+
+test('minute corrections by the API do not create a second alert for the same red card or goal', () => {
+  // Viking x Bayern (fixture 1635742): vermelho de Olise publicado aos 74' e corrigido para 73'.
+  const viking = { id: 759, name: 'Viking' };
+  const bayern = { id: 157, name: 'Bayern München' };
+  const fx = { fixture: { id: 1635742, status: { short: '2H', elapsed: 75 } }, teams: { home: viking, away: bayern }, goals: { home: 2, away: 2 } };
+  const yellow = { time: { elapsed: 73 }, team: bayern, player: { id: 19617, name: 'Michael Olise' }, type: 'Card', detail: 'Yellow Card' };
+  const red = minute => ({ time: { elapsed: minute }, team: bayern, player: { id: 19617, name: 'Michael Olise' }, type: 'Card', detail: 'Red Card' });
+  const tagOf = list => payloads(fx, list, []).find(r => r.kind === 'redcards').payload.tag;
+  assert.equal(tagOf([yellow, red(74)]), 'redcard-1635742-p19617-n1');
+  assert.equal(tagOf([yellow, red(73)]), 'redcard-1635742-p19617-n1');
+
+  // Gol com minuto corrigido mantém a identidade; o 2º gol do mesmo jogador é outro alerta.
+  const kane = (minute, extra) => ({ time: { elapsed: minute, extra }, team: bayern, player: { id: 184, name: 'Harry Kane' }, type: 'Goal', detail: 'Normal Goal' });
+  const goalTags = list => payloads(fx, list, []).filter(r => r.kind === 'goals').map(r => r.payload.tag);
+  assert.deepEqual(goalTags([kane(73)]), ['goal-1635742-p184-n1']);
+  assert.deepEqual(goalTags([kane(72, 1)]), ['goal-1635742-p184-n1']);
+  assert.deepEqual(goalTags([kane(54), kane(74)]), ['goal-1635742-p184-n2']);
 });

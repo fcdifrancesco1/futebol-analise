@@ -5,6 +5,7 @@
   --pitch-card: #132630;
   --pitch-card-elevated: #1a333c;
   --pitch-border: #2a434a;
+  --league-header-bg: #2b3236; /* cinza neutro: separa o campeonato dos jogos */
   --line-faint: #2a434a;
   --line-strong: #42635f;
   --chalk: #eef4f1;
@@ -148,7 +149,8 @@ body { padding-bottom: 0; }
 .day-section-head h2 { margin: 0; font: 700 27px/1 var(--font-display); }
 .day-section-head span { color: var(--chalk-dim); font: 600 10px var(--font-mono); }
 .day-main .league-matches-group { margin-bottom: 13px; overflow: hidden; border: 1px solid var(--pitch-border); border-radius: 13px; background: var(--pitch-card); }
-.day-main .league-matches-header { padding: 11px 14px; border: 0; border-bottom: 1px solid var(--pitch-border); border-radius: 0; background: var(--pitch-card); }
+.league-matches-header { background: var(--league-header-bg); }
+.day-main .league-matches-header { padding: 11px 14px; border: 0; border-bottom: 1px solid #3a4448; border-radius: 0; background: var(--league-header-bg); }
 .day-main .league-matches-header-title { font-size: 12px; }
 .day-main .league-matches-header-left img { width: 28px; height: 28px; }
 .day-main .league-matches-body { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
