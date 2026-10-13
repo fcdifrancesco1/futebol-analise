@@ -82,7 +82,10 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       statusText = `<span style="color:#F59E0B;font-weight:700;">● ${statusInfo.label}</span>`;
     }
 
-    const isGoalForTeam = (e, targetTeam, otherTeam) => {
+    // A API-Football registra o gol contra no time BENEFICIADO (ex.: Kaio Jorge, do
+    // Cruzeiro, vem com team = RB Bragantino). Quando o time real do jogador é
+    // conhecido (escalação, estatísticas ou outros eventos), o beneficiado é o adversário dele.
+    const isGoalForTeam = (e, targetTeam, otherTeam, playerTeamIds = null) => {
       if (e.type !== "Goal" || e.detail === "Missed Penalty") return false;
       const isOwnGoal = e.detail === "Own Goal" || (e.comments && /own goal/i.test(e.comments));
       const targetId = targetTeam?.id != null ? String(targetTeam.id) : "";
@@ -90,18 +93,30 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       const eventTeamId = e.team?.id != null ? String(e.team.id) : "";
       const eventTeamName = String(e.team?.name || "").toLowerCase().trim();
       const targetName = String(targetTeam?.name || "").toLowerCase().trim();
-      const otherName = String(otherTeam?.name || "").toLowerCase().trim();
 
-      const isTargetTeam = (targetId && eventTeamId === targetId) || (targetName && eventTeamName === targetName);
-      const isOtherTeam = (otherId && eventTeamId === otherId) || (otherName && eventTeamName === otherName);
+      const isTargetTeam = Boolean((targetId && eventTeamId === targetId) || (targetName && eventTeamName === targetName));
+      if (!isOwnGoal) return isTargetTeam;
 
-      // Gol contra beneficia o time adversário no placar
-      if (isOwnGoal) return isOtherTeam;
+      const playerTeam = e.player?.id != null && playerTeamIds ? playerTeamIds.get(String(e.player.id)) : null;
+      if (playerTeam && (playerTeam === targetId || playerTeam === otherId)) return playerTeam === otherId;
       return isTargetTeam;
     };
 
-    let homeGoals = events.filter(e => isGoalForTeam(e, fx.teams.home, fx.teams.away));
-    let awayGoals = events.filter(e => isGoalForTeam(e, fx.teams.away, fx.teams.home));
+    // Time real de cada jogador: eventos pelo próprio time, depois escalação e estatísticas por jogador.
+    const playerTeamIds = new Map();
+    const setPlayerTeam = (playerId, teamId) => {
+      if (playerId != null && teamId != null) playerTeamIds.set(String(playerId), String(teamId));
+    };
+    events.forEach(e => {
+      if (e.detail === "Own Goal" || (e.comments && /own goal/i.test(e.comments))) return;
+      setPlayerTeam(e.player?.id, e.team?.id);
+      setPlayerTeam(e.assist?.id, e.team?.id);
+    });
+    lineupsArr.forEach(l => [...(l.startXI || []), ...(l.substitutes || [])].forEach(x => setPlayerTeam(x.player?.id, l.team?.id)));
+    fixturePlayersArr.forEach(b => (b.players || []).forEach(x => setPlayerTeam(x.player?.id, b.team?.id)));
+
+    let homeGoals = events.filter(e => isGoalForTeam(e, fx.teams.home, fx.teams.away, playerTeamIds));
+    let awayGoals = events.filter(e => isGoalForTeam(e, fx.teams.away, fx.teams.home, playerTeamIds));
 
     // Se o placar da partida tiver mais gols que os eventos registrados (delay ou súmula pendente da API)
     const recoverMissingGoals = (currentGoals, team, fixturePlayers, expectedGoals) => {
@@ -115,7 +130,15 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         (teamName && String(b.team?.name || "").toLowerCase().trim() === teamName)
       );
 
-      const existingNames = new Set(currentGoals.map(g => String(g.player?.name || "").toLowerCase().trim()));
+      // Gols já listados por jogador. Compara por id (o nome muda entre endpoints:
+      // "Lucas Henrique Barbosa" nos eventos e "Lucas Barbosa" nas estatísticas).
+      const listedById = new Map();
+      const listedByName = new Map();
+      currentGoals.forEach(g => {
+        if (g.player?.id != null) listedById.set(String(g.player.id), (listedById.get(String(g.player.id)) || 0) + 1);
+        const nameKey = String(g.player?.name || "").toLowerCase().trim();
+        if (nameKey) listedByName.set(nameKey, (listedByName.get(nameKey) || 0) + 1);
+      });
       const result = [...currentGoals];
 
       if (teamBlock && Array.isArray(teamBlock.players)) {
@@ -123,8 +146,11 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           const stats = p.statistics?.[0] || {};
           const goalsScored = Number(stats.goals?.total || 0);
           const pName = p.player?.name || "";
-          if (goalsScored > 0 && pName && !existingNames.has(pName.toLowerCase().trim())) {
-            for (let i = 0; i < goalsScored && result.length < needed; i++) {
+          const alreadyListed = p.player?.id != null && listedById.has(String(p.player.id))
+            ? listedById.get(String(p.player.id))
+            : (listedByName.get(pName.toLowerCase().trim()) || 0);
+          if (goalsScored > alreadyListed && pName) {
+            for (let i = alreadyListed; i < goalsScored && result.length < needed; i++) {
               result.push({
                 type: "Goal",
                 detail: "Normal Goal",

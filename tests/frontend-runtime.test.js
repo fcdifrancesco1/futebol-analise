@@ -282,8 +282,40 @@ test('fixture goal extraction handles own goals and recovers scorers from player
     player: { id: 102, name: 'Defensor Australiano' },
     time: { elapsed: 80 }
   };
-  assert.equal(fnContext.isGoalForTeam(ownGoalAustralia, awayTeam, homeTeam), true);
-  assert.equal(fnContext.isGoalForTeam(ownGoalAustralia, homeTeam, awayTeam), false);
+  // Sabendo que o jogador 102 é da Austrália, o gol contra vai para o Brasil.
+  const roster = new Map([['102', '20']]);
+  assert.equal(fnContext.isGoalForTeam(ownGoalAustralia, awayTeam, homeTeam, roster), true);
+  assert.equal(fnContext.isGoalForTeam(ownGoalAustralia, homeTeam, awayTeam, roster), false);
+
+  // 2b. Formato real da API-Football (fixture 1492402): gol contra de Kaio Jorge (Cruzeiro)
+  // vem com team = RB Bragantino, o time beneficiado.
+  const bragantino = { id: 794, name: 'RB Bragantino' };
+  const cruzeiro = { id: 135, name: 'Cruzeiro' };
+  const kaioJorgeOG = { type: 'Goal', detail: 'Own Goal', team: bragantino, player: { id: 10008, name: 'Kaio Jorge' }, time: { elapsed: 20 } };
+  // Sem saber o time do jogador: vale o time do evento.
+  assert.equal(fnContext.isGoalForTeam(kaioJorgeOG, bragantino, cruzeiro), true);
+  assert.equal(fnContext.isGoalForTeam(kaioJorgeOG, cruzeiro, bragantino), false);
+  // Sabendo que Kaio Jorge é do Cruzeiro: mesmo resultado.
+  const kaioRoster = new Map([['10008', '135']]);
+  assert.equal(fnContext.isGoalForTeam(kaioJorgeOG, bragantino, cruzeiro, kaioRoster), true);
+  assert.equal(fnContext.isGoalForTeam(kaioJorgeOG, cruzeiro, bragantino, kaioRoster), false);
+
+  // 2c. Com os 3 gols do Bragantino nos eventos, a recuperação não inventa um 4º
+  // "Lucas Barbosa" (nome diferente do evento "Lucas Henrique Barbosa", mesmo id).
+  const braGoals = [
+    { type: 'Goal', detail: 'Normal Goal', team: bragantino, player: { id: 279811, name: 'Lucas Henrique Barbosa' }, time: { elapsed: 13 } },
+    kaioJorgeOG,
+    { type: 'Goal', detail: 'Normal Goal', team: bragantino, player: { id: 10027, name: 'Eric Ramires' }, time: { elapsed: 30 } }
+  ];
+  const braPlayers = [{ team: bragantino, players: [
+    { player: { id: 279811, name: 'Lucas Barbosa' }, statistics: [{ goals: { total: 1 } }] },
+    { player: { id: 10027, name: 'Eric Ramires' }, statistics: [{ goals: { total: 1 } }] }
+  ] }];
+  assert.equal(fnContext.recoverMissingGoals(braGoals, bragantino, braPlayers, 3).length, 3);
+  // Se faltar um gol nos eventos, recupera só o que falta, sem duplicar por nome diferente.
+  const recoveredOne = fnContext.recoverMissingGoals(braGoals.slice(0, 2), bragantino, braPlayers, 3);
+  assert.equal(recoveredOne.length, 3);
+  assert.equal(recoveredOne[2].player.name, 'Eric Ramires');
 
   // 3. Recuperação de gol de Rayan a partir de fixturePlayersArr quando o evento ainda não foi publicado na API
   const currentAwayGoals = []; // API events ainda não trouxe o gol do Brasil
