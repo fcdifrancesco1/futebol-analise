@@ -246,6 +246,9 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         </div>
       </div>
 
+      <!-- Desktop: conteúdo à esquerda e escalações à direita (mandante acima do
+           visitante). Mobile: coluna única, na ordem do DOM. -->
+      <div class="fixture-layout">
       <!-- Placar Principal Simétrico -->
       <div class="fixture-hero">
         <div class="fixture-hero-main">
@@ -293,9 +296,9 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       ${renderMatchBroadcastGuide(fx)}
 
       <!-- Campo Tático 2D -->
-      <div id="fixture-lineups-section" style="margin-bottom:24px;">
+      <aside id="fixture-lineups-section" class="fixture-side" style="margin-bottom:24px;">
         ${renderFixtureLineups(lineupsArr, events, fx.league.id, fx.league.season, fixturePlayersMap, mvpPlayerId, fx)}
-      </div>
+      </aside>
 
       <!-- Previsão Oficial -->
       ${pred ? `
@@ -314,6 +317,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       <!-- Linha do Tempo -->
       <div id="fixture-events-section">
         ${renderFixtureEvents(events, fx, isFinished)}
+      </div>
       </div>
     `;
 
@@ -869,6 +873,12 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
       </div>`;
   }
 
+  // Mandante sempre primeiro (acima), independentemente da ordem enviada pela API.
+  const homeId = fx?.teams?.home?.id;
+  if (homeId != null && lineupsArr.length > 1 && lineupsArr[0]?.team?.id !== homeId && lineupsArr[1]?.team?.id === homeId) {
+    lineupsArr = [lineupsArr[1], lineupsArr[0], ...lineupsArr.slice(2)];
+  }
+
   const playerEventsMap = {};
   events.forEach(e => {
     const min = e.time?.elapsed ?? 0;
@@ -956,7 +966,7 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
 
   return `
     <h2 class="section-title">Escalações & Campo Tático 2D (Clique no jogador para ver perfil)</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;">
+    <div class="fixture-lineups-grid">
       ${lineupsArr.map((l, teamIdx) => {
         const isAway = teamIdx === 1;
         const startXI = Array.isArray(l.startXI) ? l.startXI : [];

@@ -79,6 +79,21 @@ body { padding-bottom: 0; }
 .day-ticker-game strong { font: 700 19px var(--font-display); white-space: nowrap; }
 
 .main-content:has(.day-layout) { max-width: 1460px; width: 100%; padding: 32px 28px 90px; }
+
+/* Página da partida: largura total; conteúdo à esquerda, escalações à direita
+   (mandante acima do visitante). A última linha 1fr absorve a altura da coluna
+   de escalações, sem abrir espaços entre as seções da esquerda. */
+.main-content:has(.fixture-layout) { max-width: none; width: 100%; padding: 32px 28px 90px; }
+.fixture-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(460px, 42%); grid-template-rows: repeat(5, auto) 1fr; column-gap: 24px; align-items: start; }
+.fixture-layout > * { grid-column: 1; min-width: 0; }
+.fixture-layout > .fixture-side { grid-column: 2; grid-row: 1 / 7; }
+.fixture-lineups-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.fixture-side .fixture-lineups-grid { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1100px) {
+  .fixture-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .fixture-layout > .fixture-side { grid-column: 1; grid-row: auto; }
+  .fixture-side .fixture-lineups-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+}
 .day-layout { display: grid; grid-template-columns: 206px minmax(0, 1fr) 228px; align-items: start; gap: 27px; }
 .day-main { min-width: 0; }
 .day-sidebar, .day-right { padding-top: 4px; min-width: 0; }
@@ -223,6 +238,7 @@ body { padding-bottom: 0; }
   .brand-crest-img { width: 32px; height: 32px; border-radius: 8px; }
   .brand-name { font-size: 25px; }
   .main-content:has(.day-layout) { padding: 24px 14px calc(90px + env(safe-area-inset-bottom)); }
+  .main-content:has(.fixture-layout) { padding: 16px 12px calc(90px + env(safe-area-inset-bottom)); }
   .day-layout { display: block; }
   .day-right { display: none; }
   .day-intro { margin-bottom: 18px; }
