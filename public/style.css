@@ -2207,7 +2207,8 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
    ============================================================ */
 .substitutes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  /* Cartões mais largos (3 colunas na coluna de escalações) para o nome caber */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
   gap: 8px;
   margin-top: 10px;
 }
@@ -2266,8 +2267,14 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
+  flex: 1 1 90px;
+  min-width: 0;
 }
+
+/* Selos (gol, cartão, "entrou aos 62'") descem para a linha de baixo quando
+   não cabem, em vez de espremer o nome até sumir. */
+.sub-player-card { flex-wrap: wrap; row-gap: 4px; }
+.sub-events { display: inline-flex; gap: 4px; margin-left: auto; flex-shrink: 0; }
 
 /* ============================================================
    FIFA Dashboard
