@@ -547,7 +547,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
               <img src="${matches[0]?.league?.logo || ''}" alt="" loading="lazy">
               <span class="league-matches-header-title">${escapeHtml(leagueInfo.name)}</span>
             </a>
-            <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);">${formatRoundName(matches[0]?.league?.round || "")}</span>
+            <span class="league-matches-header-round">${formatRoundName(matches[0]?.league?.round || "")}</span>
           </div>
 
           <div class="card league-matches-body">
@@ -691,7 +691,7 @@ async function fetchLiveMatches(isForced = false) {
               <img src="${matches[0]?.league?.logo || leagueInfo.logo || ''}" alt="" loading="lazy">
               <span class="league-matches-header-title">${escapeHtml(leagueInfo.name)}</span>
             </a>
-            <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);">${formatRoundName(matches[0]?.league?.round || "")}</span>
+            <span class="league-matches-header-round">${formatRoundName(matches[0]?.league?.round || "")}</span>
           </div>
 
           <div class="card league-matches-body">
