@@ -231,6 +231,38 @@ function dayStandingsCompetitions(fixtures) {
   });
 }
 
+// Variação de posição em relação à rodada anterior. A API devolve status "same"
+// para todos, então a tabela anterior é recalculada sem os jogos da última rodada
+// disputada (motor de desempate da página da liga). A posição atual é a OFICIAL
+// (ordem de `rows`), para a seta sempre bater com a posição exibida.
+// Retorna Map(teamId -> posições ganhas; negativo = caiu) ou null sem referência.
+function dayStandingsRoundNumber(round) {
+  const m = String(round || "").match(/(\d+)\s*$/);
+  return m ? Number(m[1]) : null;
+}
+
+function dayStandingsMovement(rows, fixtures, leagueId) {
+  if (typeof computeTableFromFixtures !== "function" || !Array.isArray(fixtures)) return null;
+  const ids = new Set(rows.map(t => t.team?.id));
+  const finished = fixtures.filter(f => ["FT", "AET", "PEN"].includes(f.fixture?.status?.short)
+    && ids.has(f.teams?.home?.id) && ids.has(f.teams?.away?.id)
+    && dayStandingsRoundNumber(f.league?.round) != null);
+  if (!finished.length) return null;
+  const lastRound = Math.max(...finished.map(f => dayStandingsRoundNumber(f.league.round)));
+  const before = finished.filter(f => dayStandingsRoundNumber(f.league.round) < lastRound);
+  if (!before.length) return null; // primeira rodada: não há tabela anterior
+  const previous = computeTableFromFixtures(before, rows, {}, leagueId);
+  const prevPos = new Map(previous.map((t, i) => [t.team.id, i]));
+  const official = [...rows].sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+  return new Map(official.map((t, i) => [t.team.id, prevPos.has(t.team.id) ? prevPos.get(t.team.id) - i : 0]));
+}
+
+function dayStandingsMoveHtml(delta) {
+  if (delta > 0) return `<span class="day-standings-move up" title="Subiu ${delta} ${delta === 1 ? "posição" : "posições"} desde a rodada anterior">▲<small>${delta}</small></span>`;
+  if (delta < 0) return `<span class="day-standings-move down" title="Caiu ${-delta} ${delta === -1 ? "posição" : "posições"} desde a rodada anterior">▼<small>${-delta}</small></span>`;
+  return `<span class="day-standings-move same" title="Mesma posição da rodada anterior">–</span>`;
+}
+
 function dayStandingsZone(description) {
   const d = String(description || "");
   if (!d) return "";
@@ -238,7 +270,7 @@ function dayStandingsZone(description) {
   return "up";
 }
 
-function renderDayStandingsSlide(slide, rows) {
+function renderDayStandingsSlide(slide, rows, movement = null) {
   const comp = slide.comp;
   const groupLabel = slide.groupName && slide.groupCount > 1 ? `<span class="day-standings-group">${escapeHtml(slide.groupName)}</span>` : "";
   const dots = dayStandings.slides.length > 1
@@ -250,7 +282,7 @@ function renderDayStandingsSlide(slide, rows) {
       <span><strong>${escapeHtml(comp.name)}</strong>${groupLabel}</span>
     </a>
     <table class="day-standings-table">
-      <thead><tr><th scope="col">#</th><th scope="col" class="team">Time</th><th scope="col" title="Pontos">P</th><th scope="col" title="Jogos">J</th><th scope="col" title="Vitórias">V</th><th scope="col" title="Empates">E</th><th scope="col" title="Derrotas">D</th><th scope="col" title="Saldo de gols">SG</th></tr></thead>
+      <thead><tr><th scope="col">#</th><th scope="col" class="move" aria-label="Variação desde a rodada anterior"></th><th scope="col" class="team">Time</th><th scope="col" title="Pontos">P</th><th scope="col" title="Jogos">J</th><th scope="col" title="Vitórias">V</th><th scope="col" title="Empates">E</th><th scope="col" title="Derrotas">D</th><th scope="col" title="Saldo de gols">SG</th></tr></thead>
       <tbody>
         ${rows.map(t => {
           const zone = dayStandingsZone(t.description);
@@ -258,6 +290,7 @@ function renderDayStandingsSlide(slide, rows) {
           return `
           <tr class="${zone ? `zone-${zone}` : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
             <td class="pos">${t.rank ?? "-"}</td>
+            <td class="move">${dayStandingsMoveHtml(movement?.get(t.team?.id) ?? 0)}</td>
             <td class="team"><a href="#/time/${t.team?.id}/${comp.id}/${comp.season}"><img src="${t.team?.logo || ""}" alt="" loading="lazy" data-image-fallback="hide"><span>${escapeHtml(formatTeamName(t.team?.name || ""))}</span></a></td>
             <td class="pts">${t.points ?? 0}</td>
             <td>${t.all?.played ?? 0}</td>
@@ -281,9 +314,15 @@ async function showDayStandingsSlide(index) {
   const slide = dayStandings.slides[dayStandings.index];
 
   let groups = [];
+  let seasonFixtures = null;
   try {
-    const resp = await apiGet("standings", { league: slide.comp.id, season: slide.comp.season }, 15);
+    // Jogos da temporada só servem para a seta de variação; se falharem, a tabela sai sem setas.
+    const [resp, fixtures] = await Promise.all([
+      apiGet("standings", { league: slide.comp.id, season: slide.comp.season }, 15),
+      apiGet("fixtures", { league: slide.comp.id, season: slide.comp.season }, 30).catch(() => null)
+    ]);
     groups = (Array.isArray(resp?.[0]?.league?.standings) ? resp[0].league.standings : []).filter(g => Array.isArray(g) && g.length);
+    seasonFixtures = fixtures;
   } catch { groups = []; }
   if (requestId !== dayStandings.requestId || !dayStandingsEl("day-standings-body")) return;
 
@@ -306,7 +345,9 @@ async function showDayStandingsSlide(index) {
   const rows = groups[slide.group ?? 0] || groups[0];
   if (slide.group == null) { slide.group = 0; slide.groupName = rows[0]?.group || ""; slide.groupCount = 1; }
 
-  body.innerHTML = renderDayStandingsSlide(slide, rows);
+  let movement = null;
+  try { movement = dayStandingsMovement(rows, seasonFixtures, slide.comp.id); } catch { movement = null; }
+  body.innerHTML = renderDayStandingsSlide(slide, rows, movement);
   const card = dayStandingsEl("day-standings");
   card?.classList.toggle("is-paused", dayStandings.userPaused || dayStandings.hoverPaused);
   // A barra de progresso (animação CSS de 15s) comanda a troca: pausar a barra

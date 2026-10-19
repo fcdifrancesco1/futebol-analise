@@ -528,3 +528,42 @@ test('day standings carousel picks the day competitions in LEAGUES order, with f
   assert.equal(ctx.zone('Promotion - Libertadores'), 'up');
   assert.equal(ctx.zone(null), '');
 });
+
+test('day standings movement compares the table before the last round played', () => {
+  const leaguesSrc = fs.readFileSync('public/js/leagues.js', 'utf8');
+  const matchesSrc = fs.readFileSync('public/js/matches.js', 'utf8');
+  const start = matchesSrc.indexOf('function dayStandingsRoundNumber');
+  const end = matchesSrc.indexOf('function dayStandingsZone');
+  const ctx = vm.createContext({ console, Date, Math, Number, String, Set, Map, Array, Object, document: { getElementById: () => null }, window: {} });
+  // Só o motor de tabela de leagues.js (sem rotas/DOM)
+  const engineStart = leaguesSrc.indexOf('function sortStandingsByLeagueRules');
+  const engineEnd = leaguesSrc.indexOf('function renderStandingsTable');
+  vm.runInContext(leaguesSrc.slice(engineStart, engineEnd) + '\n' + matchesSrc.slice(start, end) + '\nthis.movement = dayStandingsMovement; this.moveHtml = dayStandingsMoveHtml;', ctx);
+
+  const team = (id, name) => ({ team: { id, name, logo: '' } });
+  const rows = [team(1, 'A'), team(2, 'B'), team(3, 'C'), team(4, 'D')];
+  const game = (round, home, away, hg, ag, status = 'FT') => ({
+    league: { round: `Regular Season - ${round}` }, fixture: { date: `2026-10-${10 + round}T20:00:00Z`, status: { short: status } },
+    teams: { home: { id: home }, away: { id: away } }, goals: { home: hg, away: ag }
+  });
+  // Rodada 1: A 3x0 B, C 1x0 D -> A (3, +3), C (3, +1), D (0, -1), B (0, -3)
+  // Rodada 2: B 4x0 C, D 2x0 A -> todos com 3 pts; A, B e D com saldo +1 (gols pró B 4, A 3, D 2), C -3
+  const fixtures = [game(1, 1, 2, 3, 0), game(1, 3, 4, 1, 0), game(2, 2, 3, 4, 0), game(2, 4, 1, 2, 0), game(3, 1, 3, null, null, 'NS')];
+  const after = ctx.computeTableFromFixtures(fixtures.slice(0, 4), rows, {}, 999).map(t => t.team.id);
+  assert.deepEqual(JSON.parse(JSON.stringify(after)), [2, 1, 4, 3]);
+  // A posição atual vem do ranking oficial (rank), não do recálculo
+  const official = [[2, 1], [1, 2], [4, 3], [3, 4]].map(([id, rank]) => ({ ...rows.find(r => r.team.id === id), rank }));
+  const mv = ctx.movement(official, fixtures, 999);
+  // Antes: [A, C, D, B]  Depois (oficial): [B, A, D, C]
+  assert.equal(mv.get(2), 3);   // B: 4º -> 1º
+  assert.equal(mv.get(1), -1);  // A: 1º -> 2º
+  assert.equal(mv.get(4), 0);   // D: 3º -> 3º
+  assert.equal(mv.get(3), -2);  // C: 2º -> 4º
+
+  // Só uma rodada disputada: sem tabela anterior
+  assert.equal(ctx.movement(rows, fixtures.slice(0, 2), 999), null);
+  // Setas: ▲ subiu, ▼ caiu, traço amarelo sem mudança
+  assert.match(ctx.moveHtml(2), /up[\s\S]*▲<small>2/);
+  assert.match(ctx.moveHtml(-1), /down[\s\S]*▼<small>1/);
+  assert.match(ctx.moveHtml(0), /same[\s\S]*–/);
+});

@@ -112,12 +112,12 @@ body { padding-bottom: 0; }
 .day-standings-btn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--pitch-border); border-radius: 7px; background: var(--pitch-card-elevated); color: var(--chalk-dim); font-size: 15px; line-height: 1; cursor: pointer; }
 .day-standings-btn:hover, .day-standings-btn:focus-visible { color: var(--gold); border-color: var(--line-strong); }
 .day-standings-btn[aria-pressed="true"] { color: var(--gold); }
-.day-rail-card a.day-standings-title { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; color: var(--chalk); font-size: 15px; text-decoration: none; }
+.day-rail-card a.day-standings-title { display: flex; align-items: center; gap: 12px; margin: 0 -18px 12px; padding: 10px 18px; color: var(--league-header-ink); font-size: 15px; text-decoration: none; background: var(--league-header-bg); border-top: 1px solid #8e989e; border-bottom: 1px solid #8e989e; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 0 rgba(0, 0, 0, 0.18); }
 .day-standings-title img { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
 .day-standings-title span { display: flex; flex-direction: column; min-width: 0; }
 .day-standings-title strong { font-size: 18px; line-height: 1.2; }
-.day-standings-title:hover strong { color: var(--gold); }
-.day-standings-group { font: 600 11px var(--font-mono); color: var(--chalk-muted); letter-spacing: .06em; text-transform: uppercase; }
+.day-standings-title:hover strong { color: #0b5f55; }
+.day-standings-group { font: 600 11px var(--font-mono); color: var(--league-header-ink-dim); letter-spacing: .06em; text-transform: uppercase; }
 .day-standings-table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .day-standings-table th { padding: 7px 5px; color: var(--chalk-muted); font: 600 11.5px var(--font-mono); text-align: center; border-bottom: 1px solid var(--pitch-border); }
 .day-standings-table td { padding: 6px 5px; text-align: center; color: var(--chalk-dim); border-bottom: 1px solid rgba(255, 255, 255, .04); }
@@ -125,6 +125,12 @@ body { padding-bottom: 0; }
 .day-standings-table td.pos { width: 28px; color: var(--chalk-muted); font-weight: 700; box-shadow: inset 3px 0 transparent; }
 .day-standings-table tr.zone-up td.pos { box-shadow: inset 3px 0 var(--gold); color: var(--chalk); }
 .day-standings-table tr.zone-down td.pos { box-shadow: inset 3px 0 var(--terracotta); color: var(--chalk); }
+.day-standings-table th.move, .day-standings-table td.move { width: 30px; padding-left: 0; padding-right: 2px; }
+.day-standings-move { display: inline-flex; align-items: center; justify-content: center; gap: 1px; font-size: 10px; font-weight: 800; line-height: 1; }
+.day-standings-move small { font: 700 10px var(--font-mono); }
+.day-standings-move.up { color: #3ddc84; }
+.day-standings-move.down { color: #ff5a5f; }
+.day-standings-move.same { color: #f5c518; font-size: 15px; }
 .day-standings-table td.pts { color: var(--chalk); font-weight: 800; }
 .day-rail-card .day-standings-table td.team a { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--chalk); font-size: 13.5px; font-weight: 600; }
 .day-standings-table td.team a:hover span { color: var(--gold); }
