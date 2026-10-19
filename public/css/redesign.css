@@ -81,7 +81,8 @@ body { padding-bottom: 0; }
 .day-ticker-game span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .day-ticker-game strong { font: 700 19px var(--font-display); white-space: nowrap; }
 
-.main-content:has(.day-layout) { max-width: 1460px; width: 100%; padding: 32px 28px 90px; }
+/* Jogos do Dia: largura total da página */
+.main-content:has(.day-layout) { max-width: none; width: 100%; padding: 32px 28px 90px; }
 
 /* Página da partida: largura total; conteúdo à esquerda, escalações à direita
    (mandante acima do visitante). A última linha 1fr absorve a altura da coluna
@@ -97,36 +98,49 @@ body { padding-bottom: 0; }
   .fixture-layout > .fixture-side { grid-column: 1; grid-row: auto; }
   .fixture-side .fixture-lineups-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 }
-.day-layout { display: grid; grid-template-columns: 206px minmax(0, 1fr) 228px; align-items: start; gap: 27px; }
+.day-layout { display: grid; grid-template-columns: minmax(320px, 380px) minmax(0, 1fr) 260px; align-items: start; gap: 27px; }
 .day-main { min-width: 0; }
 .day-sidebar, .day-right { padding-top: 4px; min-width: 0; }
-.day-sidebar-card {
-  margin-bottom: 14px;
-  padding: 14px 10px;
-  border: 1px solid var(--pitch-border);
-  border-radius: 13px;
-  background: var(--pitch-card);
-  box-shadow: var(--shadow-pitch);
-}
-.day-sidebar-group { display: flex; flex-direction: column; }
-.day-rail-label { margin: 0 0 7px; padding: 2px 8px; color: var(--chalk-muted); font: 600 10px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
-.day-rail-space { margin-top: 20px; }
-.day-sidebar-divider { height: 1px; background: var(--pitch-border); margin: 10px 6px 12px; opacity: 0.8; }
-.day-side-links { display: flex; flex-direction: column; gap: 2px; }
-.day-side-link { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 7px 10px; border-radius: 8px; color: var(--chalk-dim); text-decoration: none; font-size: 12px; font-weight: 500; transition: background .15s ease, color .15s ease; }
-.day-side-link span { min-width: 0; }
-.day-side-link:hover { color: var(--chalk); background: var(--pitch-card-elevated); }
-.day-side-link.active { color: #ffffff; background: var(--pitch-card-elevated); box-shadow: inset 3px 0 var(--gold); font-weight: 600; }
-.day-side-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; font-size: 13px; flex-shrink: 0; color: var(--chalk-dim); }
-.day-side-link.active .day-side-icon { color: var(--gold); }
-.day-side-live-dot { color: var(--terracotta); font-size: 11px; }
-.day-side-logo { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .45)); }
-.day-side-all-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; font-size: 14px; font-weight: 700; color: var(--gold); flex-shrink: 0; }
-.day-side-card { margin-top: 14px; padding: 16px; border: 1px solid var(--pitch-border); border-radius: 13px; background: var(--pitch-card); }
-.day-sidebar-card + .day-side-card { margin-top: 0; }
-.day-side-card strong { display: block; font-size: 13px; }
-.day-side-card p, .day-rail-card p { color: var(--chalk-dim); font-size: 11px; line-height: 1.55; }
-.day-side-card a, .day-rail-card a { color: var(--gold); font-size: 11px; font-weight: 700; text-decoration: none; }
+.day-rail-card p { color: var(--chalk-dim); font-size: 11px; line-height: 1.55; }
+.day-rail-card a { color: var(--gold); font-size: 11px; font-weight: 700; text-decoration: none; }
+
+/* Classificação rotativa (coluna esquerda) */
+.day-sidebar { position: sticky; top: 90px; max-height: calc(100vh - 106px); overflow-y: auto; scrollbar-width: thin; }
+.day-standings-card { padding: 15px 14px 12px; }
+.day-standings-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.day-standings-head .page-eyebrow { margin: 0; }
+.day-standings-controls { display: flex; gap: 4px; }
+.day-standings-btn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--pitch-border); border-radius: 7px; background: var(--pitch-card-elevated); color: var(--chalk-dim); font-size: 13px; line-height: 1; cursor: pointer; }
+.day-standings-btn:hover, .day-standings-btn:focus-visible { color: var(--gold); border-color: var(--line-strong); }
+.day-standings-btn[aria-pressed="true"] { color: var(--gold); }
+.day-rail-card a.day-standings-title { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; color: var(--chalk); font-size: 13px; text-decoration: none; }
+.day-standings-title img { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
+.day-standings-title span { display: flex; flex-direction: column; min-width: 0; }
+.day-standings-title strong { font-size: 14px; line-height: 1.2; }
+.day-standings-title:hover strong { color: var(--gold); }
+.day-standings-group { font: 600 10px var(--font-mono); color: var(--chalk-muted); letter-spacing: .06em; text-transform: uppercase; }
+.day-standings-table { width: 100%; border-collapse: collapse; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.day-standings-table th { padding: 5px 3px; color: var(--chalk-muted); font: 600 10px var(--font-mono); text-align: center; border-bottom: 1px solid var(--pitch-border); }
+.day-standings-table td { padding: 4px 3px; text-align: center; color: var(--chalk-dim); border-bottom: 1px solid rgba(255, 255, 255, .04); }
+.day-standings-table th.team, .day-standings-table td.team { text-align: left; width: 100%; }
+.day-standings-table td.pos { width: 22px; color: var(--chalk-muted); font-weight: 700; box-shadow: inset 3px 0 transparent; }
+.day-standings-table tr.zone-up td.pos { box-shadow: inset 3px 0 var(--gold); color: var(--chalk); }
+.day-standings-table tr.zone-down td.pos { box-shadow: inset 3px 0 var(--terracotta); color: var(--chalk); }
+.day-standings-table td.pts { color: var(--chalk); font-weight: 800; }
+.day-rail-card .day-standings-table td.team a { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--chalk); font-size: 11.5px; font-weight: 600; }
+.day-standings-table td.team a:hover span { color: var(--gold); }
+.day-standings-table td.team img { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+.day-standings-table td.team span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
+.day-standings-dots { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.day-standings-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--pitch-border); }
+.day-standings-dots span.active { background: var(--gold); }
+.day-standings-progress { height: 2px; margin-top: 8px; border-radius: 2px; background: var(--pitch-border); overflow: hidden; }
+.day-standings-progress span { display: block; height: 100%; background: var(--gold); transform-origin: left; animation: day-standings-progress 15s linear forwards; }
+.day-standings-card.is-paused .day-standings-progress span { animation-play-state: paused; }
+@keyframes day-standings-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* Movimento reduzido: a barra fica invisível, mas segue contando o tempo da troca */
+@media (prefers-reduced-motion: reduce) { .day-standings-progress { opacity: 0; } }
+.day-standings-empty { margin: 6px 0; }
 .day-intro { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-bottom: 23px; }
 .day-intro .page-eyebrow { margin: 0; font: 600 10px var(--font-mono); letter-spacing: .09em; }
 .day-intro .page-title { margin: 6px 0 5px; font: 700 clamp(42px, 4.4vw, 64px)/.95 var(--font-display); letter-spacing: -.01em; }
@@ -221,7 +235,7 @@ body { padding-bottom: 0; }
 .mobile-more { display: none; }
 @media (max-width: 1200px) {
   .quota-pill { display: none; }
-  .day-layout { grid-template-columns: 178px minmax(0, 1fr) 205px; gap: 18px; }
+  .day-layout { grid-template-columns: 300px minmax(0, 1fr) 205px; gap: 18px; }
 }
 @media (max-width: 1050px) {
   .day-layout { grid-template-columns: minmax(0, 1fr) 205px; }

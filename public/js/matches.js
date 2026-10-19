@@ -293,6 +293,161 @@ function renderDayUserSpace(fixtures = []) {
   `;
 }
 
+// ---------- Classificação rotativa (coluna esquerda de "Jogos do Dia") ----------
+// Gira entre os campeonatos com jogos no dia (ordem de LEAGUES) a cada 15s. Cada
+// tabela só é buscada quando entra na tela (cache de 15 min em apiGet). Copas
+// sem tabela são puladas; fases de grupos viram um slide por grupo.
+const DAY_STANDINGS_FALLBACK = [71, 39, 140];
+const DAY_STANDINGS_MAX_SLIDES = 12;
+const dayStandings = { key: "", slides: [], index: 0, userPaused: false, hoverPaused: false, requestId: 0, doc: null };
+
+// O document da tela lança erro quando a tela já foi trocada; aqui isso vira null.
+function dayStandingsEl(id) {
+  try { return dayStandings.doc?.getElementById(id) || null; } catch { return null; }
+}
+
+function dayStandingsCompetitions(fixtures) {
+  const byId = new Map();
+  (fixtures || []).forEach(f => {
+    const id = f.league?.id;
+    if (id != null && !byId.has(id)) byId.set(id, { id, season: f.league.season, logo: f.league.logo, apiName: f.league.name });
+  });
+  const ordered = LEAGUES.filter(l => byId.has(l.id)).map(l => ({ ...byId.get(l.id), name: l.name }));
+  if (ordered.length) return ordered;
+  return DAY_STANDINGS_FALLBACK.map(id => {
+    const league = LEAGUES.find(l => l.id === id);
+    return { id, season: defaultSeasonFor(league), logo: `https://media.api-sports.io/football/leagues/${id}.png`, name: league?.name || "" };
+  });
+}
+
+function dayStandingsZone(description) {
+  const d = String(description || "");
+  if (!d) return "";
+  if (/relegation|rebaixamento/i.test(d)) return "down";
+  return "up";
+}
+
+function renderDayStandingsSlide(slide, rows) {
+  const comp = slide.comp;
+  const groupLabel = slide.groupName && slide.groupCount > 1 ? `<span class="day-standings-group">${escapeHtml(slide.groupName)}</span>` : "";
+  const dots = dayStandings.slides.length > 1
+    ? `<div class="day-standings-dots" aria-hidden="true">${dayStandings.slides.map((_, i) => `<span class="${i === dayStandings.index ? "active" : ""}"></span>`).join("")}</div>`
+    : "";
+  return `
+    <a class="day-standings-title" href="#/liga/${comp.id}/${comp.season}" title="Ver classificação completa">
+      <img src="${comp.logo || ""}" alt="" loading="lazy" data-image-fallback="hide">
+      <span><strong>${escapeHtml(comp.name)}</strong>${groupLabel}</span>
+    </a>
+    <table class="day-standings-table">
+      <thead><tr><th scope="col">#</th><th scope="col" class="team">Time</th><th scope="col" title="Pontos">P</th><th scope="col" title="Jogos">J</th><th scope="col" title="Vitórias">V</th><th scope="col" title="Empates">E</th><th scope="col" title="Derrotas">D</th><th scope="col" title="Saldo de gols">SG</th></tr></thead>
+      <tbody>
+        ${rows.map(t => {
+          const zone = dayStandingsZone(t.description);
+          const gd = Number(t.goalsDiff) || 0;
+          return `
+          <tr class="${zone ? `zone-${zone}` : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
+            <td class="pos">${t.rank ?? "-"}</td>
+            <td class="team"><a href="#/time/${t.team?.id}/${comp.id}/${comp.season}"><img src="${t.team?.logo || ""}" alt="" loading="lazy" data-image-fallback="hide"><span>${escapeHtml(formatTeamName(t.team?.name || ""))}</span></a></td>
+            <td class="pts">${t.points ?? 0}</td>
+            <td>${t.all?.played ?? 0}</td>
+            <td>${t.all?.win ?? 0}</td>
+            <td>${t.all?.draw ?? 0}</td>
+            <td>${t.all?.lose ?? 0}</td>
+            <td>${gd > 0 ? "+" + gd : gd}</td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>
+    ${dots}
+    ${dayStandings.slides.length > 1 ? '<div class="day-standings-progress" aria-hidden="true"><span></span></div>' : ""}`;
+}
+
+async function showDayStandingsSlide(index) {
+  const body = dayStandingsEl("day-standings-body");
+  if (!body || !dayStandings.slides.length) return;
+  const requestId = ++dayStandings.requestId;
+  dayStandings.index = ((index % dayStandings.slides.length) + dayStandings.slides.length) % dayStandings.slides.length;
+  const slide = dayStandings.slides[dayStandings.index];
+
+  let groups = [];
+  try {
+    const resp = await apiGet("standings", { league: slide.comp.id, season: slide.comp.season }, 15);
+    groups = (Array.isArray(resp?.[0]?.league?.standings) ? resp[0].league.standings : []).filter(g => Array.isArray(g) && g.length);
+  } catch { groups = []; }
+  if (requestId !== dayStandings.requestId || !dayStandingsEl("day-standings-body")) return;
+
+  // Sem tabela (copa em mata-mata): remove o slide e segue para o próximo.
+  if (!groups.length) {
+    dayStandings.slides.splice(dayStandings.index, 1);
+    if (!dayStandings.slides.length) {
+      body.innerHTML = `<p class="day-standings-empty">Sem classificação disponível para os campeonatos de hoje.</p>`;
+      return;
+    }
+    return showDayStandingsSlide(dayStandings.index);
+  }
+  // Fase de grupos: um slide por grupo, na primeira vez que o campeonato aparece.
+  if (slide.group == null && groups.length > 1) {
+    const room = Math.max(1, DAY_STANDINGS_MAX_SLIDES - dayStandings.slides.length + 1);
+    const groupSlides = groups.slice(0, room).map((g, gi) => ({ comp: slide.comp, group: gi, groupName: g[0]?.group || `Grupo ${gi + 1}`, groupCount: groups.length }));
+    dayStandings.slides.splice(dayStandings.index, 1, ...groupSlides);
+    return showDayStandingsSlide(dayStandings.index);
+  }
+  const rows = groups[slide.group ?? 0] || groups[0];
+  if (slide.group == null) { slide.group = 0; slide.groupName = rows[0]?.group || ""; slide.groupCount = 1; }
+
+  body.innerHTML = renderDayStandingsSlide(slide, rows);
+  const card = dayStandingsEl("day-standings");
+  card?.classList.toggle("is-paused", dayStandings.userPaused || dayStandings.hoverPaused);
+  // A barra de progresso (animação CSS de 15s) comanda a troca: pausar a barra
+  // (mouse em cima, foco ou botão de pausa) pausa a rotação sem dessincronizar.
+  const bar = body.querySelector(".day-standings-progress span");
+  bar?.addEventListener("animationend", () => {
+    if (requestId === dayStandings.requestId && dayStandingsEl("day-standings-body")) showDayStandingsSlide(dayStandings.index + 1);
+  }, { once: true });
+}
+
+function setupDayStandings(fixtures, doc = globalThis.document) {
+  // Usa o document da tela (o mesmo de fetchAndRenderDayMatches); sem tela, não faz nada.
+  if (!doc) return;
+  dayStandings.doc = doc;
+  const card = dayStandingsEl("day-standings");
+  if (!card) return;
+  const comps = dayStandingsCompetitions(fixtures);
+  const key = comps.map(c => `${c.id}:${c.season}`).join(",");
+  // Atualizações de placar não reiniciam a rotação se os campeonatos são os mesmos.
+  if (key === dayStandings.key && card.dataset.ready === "1") return;
+  dayStandings.key = key;
+  dayStandings.slides = comps.slice(0, DAY_STANDINGS_MAX_SLIDES).map(comp => ({ comp, group: null }));
+  dayStandings.index = 0;
+  if (card.dataset.bound !== "1") { dayStandings.userPaused = false; dayStandings.hoverPaused = false; }
+  card.dataset.ready = "1";
+
+  if (card.dataset.bound !== "1") {
+    card.dataset.bound = "1";
+    card.addEventListener("click", e => {
+      const btn = e.target.closest("[data-standings]");
+      if (!btn) return;
+      const action = btn.dataset.standings;
+      if (action === "pause") {
+        dayStandings.userPaused = !dayStandings.userPaused;
+        btn.setAttribute("aria-pressed", String(dayStandings.userPaused));
+        btn.setAttribute("aria-label", dayStandings.userPaused ? "Retomar troca automática" : "Pausar troca automática");
+        btn.textContent = dayStandings.userPaused ? "▶" : "❚❚";
+        card.classList.toggle("is-paused", dayStandings.userPaused || dayStandings.hoverPaused);
+        return;
+      }
+      showDayStandingsSlide(dayStandings.index + (action === "prev" ? -1 : 1));
+    });
+    const setHover = paused => { dayStandings.hoverPaused = paused; card.classList.toggle("is-paused", dayStandings.userPaused || paused); };
+    card.addEventListener("mouseenter", () => setHover(true));
+    card.addEventListener("mouseleave", () => setHover(false));
+    card.addEventListener("focusin", () => setHover(true));
+    card.addEventListener("focusout", e => { if (!card.contains(e.relatedTarget)) setHover(false); });
+  }
+
+  showDayStandingsSlide(0);
+}
+
 async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
   const view = captureView();
   const app = view.root;
@@ -305,30 +460,18 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
 
   app.innerHTML = `
     <div class="day-layout">
-      <aside class="day-sidebar" aria-label="Atalhos e competições">
-        <div class="day-sidebar-card day-rail-card">
-          <div class="day-sidebar-group">
-            <p class="day-rail-label">Navegar</p>
-            <div class="day-side-links">
-              <a class="day-side-link active" href="#/jogos-do-dia"><span class="day-side-icon">▦</span> <span>Jogos do Dia</span></a>
-              <a class="day-side-link" href="#/aovivo"><span class="day-side-icon day-side-live-dot">●</span> <span>Ao Vivo</span></a>
-              <a class="day-side-link" href="#/bolao"><span class="day-side-icon">◎</span> <span>Meu Bolão</span></a>
+      <aside class="day-sidebar" aria-label="Classificação dos campeonatos">
+        <div class="day-rail-card day-standings-card" id="day-standings">
+          <div class="day-standings-head">
+            <span class="page-eyebrow">CLASSIFICAÇÃO</span>
+            <div class="day-standings-controls">
+              <button type="button" class="day-standings-btn" data-standings="prev" aria-label="Campeonato anterior">‹</button>
+              <button type="button" class="day-standings-btn" data-standings="pause" aria-label="Pausar troca automática" aria-pressed="false">❚❚</button>
+              <button type="button" class="day-standings-btn" data-standings="next" aria-label="Próximo campeonato">›</button>
             </div>
           </div>
-
-          <div class="day-sidebar-divider"></div>
-
-          <div class="day-sidebar-group">
-            <p class="day-rail-label">Competições</p>
-            <div class="day-side-links">
-              <a class="day-side-link" href="#/liga/71/${defaultSeasonFor(LEAGUES.find(l => l.id === 71))}"><img class="day-side-logo" src="https://media.api-sports.io/football/leagues/71.png" alt="" loading="lazy" data-image-fallback="hide"> <span>Brasileirão</span></a>
-              <a class="day-side-link" href="#/liga/2/${defaultSeasonFor(LEAGUES.find(l => l.id === 2))}"><img class="day-side-logo" src="https://media.api-sports.io/football/leagues/2.png" alt="" loading="lazy" data-image-fallback="hide"> <span>Champions League</span></a>
-              <a class="day-side-link" href="#/liga/39/${defaultSeasonFor(LEAGUES.find(l => l.id === 39))}"><img class="day-side-logo" src="https://media.api-sports.io/football/leagues/39.png" alt="" loading="lazy" data-image-fallback="hide"> <span>Premier League</span></a>
-              <a class="day-side-link" href="#/ligas"><span class="day-side-all-icon" aria-hidden="true">＋</span> <span>Todas as ligas</span></a>
-            </div>
-          </div>
+          <div id="day-standings-body"><p class="day-standings-empty">Carregando classificação…</p></div>
         </div>
-        <div class="day-side-card"><strong>Seu bolão, sem confusão.</strong><p>Palpites e classificação no mesmo lugar.</p><a href="#/bolao">Acessar bolão ↗</a></div>
       </aside>
 
       <section class="day-main" aria-label="Jogos do dia">
@@ -445,6 +588,8 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
       const fixtureDateLocal = getLocalDateString(new Date(f.fixture?.date));
       return fixtureDateLocal === dateStr;
     });
+
+    setupDayStandings(relevant, document);
 
     const liveCount = relevant.filter(f => getMatchStatusCategory(f.fixture).isLive).length;
     const finishedCount = relevant.filter(f => getMatchStatusCategory(f.fixture).isFinished).length;
@@ -594,6 +739,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
     content.innerHTML = groupsHtml;
   } catch (err) {
     if (requestId !== dayMatchesRequestId || app !== window.document.getElementById('route-view')) return;
+    setupDayStandings([], document); // sem jogos carregados: mostra os campeonatos principais
     content.innerHTML = errorBox(err.message);
   }
 }
