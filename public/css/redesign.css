@@ -98,6 +98,93 @@ body { padding-bottom: 0; }
   .fixture-layout > .fixture-side { grid-column: 1; grid-row: auto; }
   .fixture-side .fixture-lineups-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 }
+/* Liga › Classificação: largura total. Rodada à esquerda, tabela no centro e
+   rankings à direita (>=1700px); abaixo de 1700, a rodada sobe para a coluna da
+   direita; no celular, tudo em coluna única (tabela, rodada, destaques/projeção). */
+.main-content:has(.league-desktop-layout.has-insights) { max-width: none; width: 100%; padding: 32px 28px 90px; }
+.league-desktop-layout.has-insights { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "round" "insights"; gap: 24px; align-items: start; }
+.has-insights > .league-main-column { grid-area: main; }
+.has-insights > .league-round-column { grid-area: round; min-width: 0; }
+.has-insights > .league-insights-column { grid-area: insights; min-width: 0; }
+.has-insights > .league-sidebar-column { grid-area: side; position: static; }
+@media (min-width: 1024px) {
+  .league-desktop-layout.has-insights { grid-template-columns: minmax(0, 1fr) 380px; grid-template-areas: "main round" "main side" "insights side"; }
+}
+@media (min-width: 1700px) {
+  .league-desktop-layout.has-insights { grid-template-columns: 340px minmax(0, 1fr) 380px; grid-template-areas: "round main side" "insights insights side"; }
+}
+
+/* Rodada atual */
+.league-round-card { padding: 14px; margin: 0; }
+.league-round-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.league-round-title { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.league-round-title .page-eyebrow { margin: 0; font: 600 10px var(--font-mono); }
+.league-round-title strong { font: 700 21px/1.1 var(--font-display); color: var(--chalk); }
+.league-round-nav { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--pitch-border); border-radius: 8px; background: var(--pitch-card-elevated); color: var(--chalk-dim); font-size: 16px; cursor: pointer; }
+.league-round-nav:disabled { opacity: .35; cursor: default; }
+.league-round-nav:not(:disabled):hover, .league-round-nav:focus-visible { color: var(--gold); border-color: var(--line-strong); }
+.league-round-list { display: flex; flex-direction: column; }
+.league-round-match { display: block; padding: 9px 6px; border-top: 1px solid rgba(255, 255, 255, .05); border-radius: 8px; color: var(--chalk); text-decoration: none; }
+.league-round-match:first-child { border-top: 0; }
+.league-round-match:hover { background: var(--pitch-card-elevated); }
+.league-round-when { margin-bottom: 5px; color: var(--chalk-muted); font: 600 10px var(--font-mono); text-align: center; text-transform: capitalize; }
+.league-round-live { color: var(--terracotta); }
+.league-round-postponed { color: #f59e0b; }
+.league-round-line { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.league-round-line .team { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; font-weight: 600; }
+.league-round-line .team.home { justify-content: flex-end; text-align: right; }
+.league-round-line .team span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.league-round-line .team img { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+.league-round-line .score { min-width: 48px; text-align: center; white-space: nowrap; font: 700 17px var(--font-display); }
+.league-round-line .score span { margin: 0 2px; color: var(--chalk-muted); font-size: 12px; }
+.league-round-match.is-live .score { color: var(--gold); }
+.league-round-back { width: 100%; margin-top: 10px; min-height: 34px; border: 1px solid var(--pitch-border); border-radius: 8px; background: transparent; color: var(--gold); font-size: 12px; font-weight: 700; cursor: pointer; }
+
+/* Tabela: zonas, variação, aproveitamento e distância */
+.standings-table .move-cell { width: 34px; padding-left: 2px; padding-right: 2px; }
+.standings-table td.aprov-cell { color: var(--chalk-dim); font-size: .8rem; }
+.standings-table td.dist-cell { white-space: nowrap; }
+.league-dist { font: 600 11px var(--font-mono); color: var(--chalk-dim); }
+.league-dist.down { color: var(--terracotta); font-weight: 700; }
+.standings-table tbody tr[class*="zone-"] .pos-cell { box-shadow: inset 3px 0 var(--zone-color, transparent); }
+.zone-top { --zone-color: var(--gold); }
+.zone-qual { --zone-color: #8fd3c8; }
+.zone-cont2 { --zone-color: #4ea8ff; }
+.zone-cont3 { --zone-color: #a78bfa; }
+.zone-promo { --zone-color: #3ddc84; }
+.zone-downpo { --zone-color: #f59e0b; }
+.zone-down { --zone-color: var(--terracotta); }
+.zone-other { --zone-color: var(--chalk-muted); }
+.league-zone-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 10px 2px 0; color: var(--chalk-dim); font-size: 12px; }
+.league-zone-item { display: inline-flex; align-items: center; gap: 6px; }
+.league-zone-item small { color: var(--chalk-muted); font: 600 10px var(--font-mono); }
+.zone-swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--zone-color); }
+
+/* Destaques e projeção */
+.league-insight-section { margin-bottom: 26px; }
+.league-insight-note { margin: -4px 0 10px; color: var(--chalk-muted); font-size: 12px; line-height: 1.5; }
+.league-insight-empty { padding: 18px; color: var(--chalk-dim); text-align: center; }
+.league-highlights { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.league-highlight { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 14px; }
+.league-highlight-title { color: var(--chalk-muted); font: 600 10.5px var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
+.league-highlight-team { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--chalk); font-size: 13.5px; font-weight: 700; text-decoration: none; }
+.league-highlight-team:hover span { color: var(--gold); }
+.league-highlight-team img { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
+.league-highlight-team span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.league-highlight-value { color: var(--gold); font: 700 22px/1.1 var(--font-display); }
+.league-highlight-sub { color: var(--chalk-dim); font-size: 11.5px; }
+.league-result-bar { display: flex; height: 6px; margin-top: 4px; overflow: hidden; border-radius: 4px; background: var(--pitch-border); }
+.league-result-bar span:nth-child(1) { background: var(--gold); }
+.league-result-bar span:nth-child(2) { background: #64748b; }
+.league-result-bar span:nth-child(3) { background: var(--terracotta); }
+.league-projection-table td.league-chance { color: var(--chalk-dim); }
+.league-projection-table td.league-chance.hi { color: var(--gold); font-weight: 800; }
+.league-projection-table td.league-chance.down.hi { color: var(--terracotta); }
+.league-difficulty { display: inline-block; padding: 2px 8px; border-radius: 999px; font: 600 11px var(--font-mono); white-space: nowrap; }
+.league-difficulty.hard { background: rgba(239, 68, 68, .16); color: #ff8a8d; }
+.league-difficulty.mid { background: rgba(148, 163, 184, .14); color: var(--chalk-dim); }
+.league-difficulty.easy { background: rgba(61, 220, 132, .14); color: #5ee49a; }
+
 .day-layout { display: grid; grid-template-columns: minmax(440px, 560px) minmax(0, 1fr); align-items: start; gap: 28px; }
 .day-main { min-width: 0; }
 .day-sidebar { padding-top: 4px; min-width: 0; }
@@ -235,6 +322,7 @@ body { padding-bottom: 0; }
   .brand-name { font-size: 25px; }
   .main-content:has(.day-layout) { padding: 24px 14px calc(90px + env(safe-area-inset-bottom)); }
   .main-content:has(.fixture-layout) { padding: 16px 12px calc(90px + env(safe-area-inset-bottom)); }
+  .main-content:has(.league-desktop-layout.has-insights) { padding: 16px 12px calc(90px + env(safe-area-inset-bottom)); }
   .day-layout { display: block; }
   .day-intro { margin-bottom: 18px; }
   .day-intro .page-title { font-size: 44px; }

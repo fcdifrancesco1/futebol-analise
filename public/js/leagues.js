@@ -315,7 +315,9 @@ async function renderLeague(leagueId, season) {
       { label: "Rankings", href: `#/liga/${leagueId}/${season}/artilheiros` },
     ])}
 
-    <div class="league-desktop-layout">
+    <div class="league-desktop-layout has-insights">
+      <aside class="league-round-column" id="league-round-panel" aria-label="Jogos da rodada"></aside>
+
       <div class="league-main-column">
         <div class="table-filter-group" id="table-filters">
           <button class="table-filter-btn ${state.currentTableFilter === 'all' ? 'active' : ''}" data-filter="all">Geral</button>
@@ -325,6 +327,8 @@ async function renderLeague(leagueId, season) {
 
         <div id="league-content">${skeletonTable()}</div>
       </div>
+
+      <div class="league-insights-column" id="league-insights"></div>
 
       <aside class="league-sidebar-column" id="league-desktop-sidebar">
         ${renderLeagueSidebarSkeleton()}
@@ -367,15 +371,23 @@ async function renderStandingsFromCache(leagueId, season) {
     const [standingsResp, fixturesResp, scorersResp = [], assistsResp = []] = await Promise.all(fetchPromises);
 
     const officialStandings = Array.isArray(standingsResp?.[0]?.league?.standings) ? standingsResp[0].league.standings : [];
+    const allFixtures = preprocessLeagueFixtures(filterSeniorNationalFixtures(fixturesResp));
+
+    // Painel "Rodada atual": só redesenha ao trocar de liga/temporada (os filtros não mexem nele)
+    const roundPanel = document.getElementById("league-round-panel");
+    if (roundPanel && typeof renderLeagueRoundPanel === "function" && roundPanel.dataset.loaded !== `${leagueId}-${season}`) {
+      roundPanel.dataset.loaded = `${leagueId}-${season}`;
+      renderLeagueRoundPanel(roundPanel, allFixtures);
+    }
+
     if (!officialStandings.length || !officialStandings[0]) {
       content.innerHTML = `<div class="card" style="text-align:center;color:var(--chalk-dim);padding:30px;">Sem tabela de pontos corridos nesta competição (formato mata-mata). Acesse a aba <strong>Jogos</strong> para ver os confrontos de Ida e Volta.</div>`;
       if (sidebar) {
-        sidebar.innerHTML = renderLeagueSidebar(leagueId, season, filterSeniorNationalFixtures(fixturesResp), scorersResp, assistsResp);
+        sidebar.innerHTML = renderLeagueSidebar(leagueId, season, allFixtures, scorersResp, assistsResp);
       }
       return;
     }
 
-    const allFixtures = preprocessLeagueFixtures(filterSeniorNationalFixtures(fixturesResp));
     const finishedFixtures = allFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short));
 
     let tablesToRender = officialStandings;
@@ -402,8 +414,26 @@ async function renderStandingsFromCache(leagueId, season) {
       }
     }
 
-    content.innerHTML = tablesToRender.map((table, gi) => 
-      renderStandingsTable(table, leagueId, season, tablesToRender.length > 1 ? `Grupo ${gi + 1}` : null, state.currentTableFilter, finishedFixtures)
+    // Tabela única: zonas por posição (tabela oficial), seta de variação e painéis extras
+    let extras = null;
+    const singleTable = tablesToRender.length === 1 && finishedFixtures.length > 0 && typeof leagueZones === "function";
+    if (singleTable) {
+      const sortedAll = sortStandingsByLeagueRules(tablesToRender[0], leagueId, finishedFixtures, "all");
+      let movement = null;
+      try { movement = standingsMovementByRound(finishedFixtures, officialStandings[0], leagueId, sortedAll.map(t => t.team.id)); } catch { movement = null; }
+      const zones = leagueZones(officialStandings[0]);
+      extras = { movement, zones };
+
+      const insights = document.getElementById("league-insights");
+      const insightsKey = `${leagueId}-${season}-${finishedFixtures.length}`;
+      if (insights && insights.dataset.loaded !== insightsKey) {
+        insights.dataset.loaded = insightsKey;
+        renderLeagueInsights(insights, { leagueId, season, sortedRows: sortedAll, allFixtures, finished: finishedFixtures, zones });
+      }
+    }
+
+    content.innerHTML = tablesToRender.map((table, gi) =>
+      renderStandingsTable(table, leagueId, season, tablesToRender.length > 1 ? `Grupo ${gi + 1}` : null, state.currentTableFilter, finishedFixtures, extras)
     ).join("");
 
     // Renderiza a coluna lateral na versão desktop
@@ -623,21 +653,41 @@ function computeTableFromFixtures(fixtures, templateTable, officialNotes, league
   return sortStandingsByLeagueRules(result, leagueId, fixtures, "all");
 }
 
-function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all", finishedFixtures = []) {
+// Variação de posição desde a rodada anterior: recalcula a tabela sem os jogos da
+// última rodada disputada e compara com a ordem atual exibida (currentIds).
+function standingsMovementByRound(finished, templateTable, leagueId, currentIds) {
+  const num = f => { const m = String(f.league?.round || "").match(/(\d+)\s*$/); return m ? Number(m[1]) : null; };
+  const numbered = (finished || []).filter(f => num(f) != null);
+  if (!numbered.length) return null;
+  const last = Math.max(...numbered.map(num));
+  const before = numbered.filter(f => num(f) < last);
+  if (!before.length) return null; // primeira rodada: não há tabela anterior
+  const prevPos = new Map(computeTableFromFixtures(before, templateTable, {}, leagueId).map((t, i) => [t.team.id, i]));
+  return new Map(currentIds.map((id, i) => [id, prevPos.has(id) ? prevPos.get(id) - i : 0]));
+}
+
+// extras (opcional, só na visão "Geral" de tabela única): { movement, zones }
+function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all", finishedFixtures = [], extras = null) {
   const sortedTable = sortStandingsByLeagueRules(table, leagueId, finishedFixtures, filter);
+  const showMove = filter === "all" && extras?.movement && typeof dayStandingsMoveHtml === "function";
+  const zones = extras?.zones || null;
+  const showDist = filter === "all" && zones && (zones.top || zones.down) && typeof leagueDistance === "function";
 
   const rows = sortedTable.map((row, idx) => {
     const stat = filter === "home" ? row.home : filter === "away" ? row.away : row.all;
     const pts = filter === "all" ? row.points : (stat.win * 3 + stat.draw);
     const diff = stat.goals.for - stat.goals.against;
-    
-    const formPills = (row.form || "").split("").slice(-5).map(c => 
+    const aprov = stat.played ? Math.round((pts / (stat.played * 3)) * 100) : 0;
+    const zone = filter === "all" ? zones?.byPos?.[idx] : null;
+
+    const formPills = (row.form || "").split("").slice(-5).map(c =>
       `<span class="form-pill ${c}" title="${c}">${c}</span>`
     ).join("");
 
     return `
-      <tr data-team-id="${row.team.id}" data-league-id="${leagueId}" data-season="${season}">
+      <tr data-team-id="${row.team.id}" data-league-id="${leagueId}" data-season="${season}"${zone ? ` class="zone-${zone.kind}" title="${escapeHtml(zone.label)}"` : ""}>
         <td class="pos-cell">${idx + 1}</td>
+        ${showMove ? `<td class="move-cell">${dayStandingsMoveHtml(extras.movement.get(row.team.id) ?? 0)}</td>` : ""}
         <td class="team-cell">
           <div class="team-cell-inner">
             <img src="${row.team.logo}" alt="" loading="lazy">
@@ -652,6 +702,8 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
         <td>${stat.goals.against}</td>
         <td>${diff > 0 ? "+" : ""}${diff}</td>
         <td><strong>${pts}</strong></td>
+        <td class="aprov-cell">${aprov}%</td>
+        ${showDist ? `<td class="dist-cell">${leagueDistanceHtml(leagueDistance(sortedTable, idx, zones))}</td>` : ""}
         <td>${formPills}</td>
       </tr>`;
   }).join("");
@@ -663,14 +715,19 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
         <thead>
           <tr>
             <th class="pos-cell">#</th>
+            ${showMove ? `<th class="move-cell" title="Variação desde a rodada anterior" aria-label="Variação desde a rodada anterior"></th>` : ""}
             <th class="team-cell">Time</th>
             <th>J</th><th>V</th><th>E</th><th>D</th>
-            <th>GP</th><th>GC</th><th>SG</th><th>Pts</th><th>Últ. 5</th>
+            <th>GP</th><th>GC</th><th>SG</th><th>Pts</th>
+            <th title="Aproveitamento dos pontos disputados">%</th>
+            ${showDist ? `<th title="Pontos até a zona de cima (G) ou para sair do rebaixamento (Z)">Dist.</th>` : ""}
+            <th>Últ. 5</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>`;
+    </div>
+    ${filter === "all" && zones && typeof renderLeagueZoneLegend === "function" ? renderLeagueZoneLegend(zones) : ""}`;
 }
 
 // ============================================================
