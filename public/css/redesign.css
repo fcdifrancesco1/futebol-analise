@@ -145,13 +145,14 @@ body { padding-bottom: 0; }
 .day-intro .page-title { margin: 6px 0 5px; font: 700 clamp(42px, 4.4vw, 64px)/.95 var(--font-display); letter-spacing: -.01em; }
 .day-intro .page-sub { font-size: 12px; }
 .day-count { padding-bottom: 4px; white-space: nowrap; color: var(--chalk-dim); font: 600 10px var(--font-mono); }
-.day-selector-bar { display: grid; gap: 9px; margin-bottom: 12px; padding: 6px; background: var(--pitch-card); border: 1px solid var(--pitch-border); border-radius: 12px; }
-.day-nav-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 5px; }
+/* Desktop: datas à esquerda e "Escolher data" + Atualizar à direita, numa linha só */
+.day-selector-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 9px; margin-bottom: 12px; padding: 6px; background: var(--pitch-card); border: 1px solid var(--pitch-border); border-radius: 12px; }
+.day-nav-actions { display: flex; width: auto; gap: 5px; }
 .day-nav-btn { justify-content: center; min-height: 40px; border: 0; border-radius: 8px; background: transparent; color: var(--chalk-dim); padding: 8px 10px; font-size: 11px; box-shadow: none; }
 .day-nav-btn small { margin-left: 4px; font: 600 10px var(--font-mono); }
 .day-nav-btn.active { background: #eef1e8; color: #14262e; }
 .day-nav-btn:hover { background: var(--pitch-card-elevated); color: var(--chalk); border: 0; }
-.day-current-display { justify-content: flex-end; padding: 0 6px 5px; }
+.day-current-display { justify-content: flex-end; padding: 0 6px; }
 .day-date-title { color: var(--chalk-dim); font: 600 10px var(--font-mono); }
 .day-date-picker { border-color: var(--pitch-border); background: var(--bg-app); color: var(--chalk); font-size: 11px; }
 .day-refresh-btn { min-height: 30px; border: 1px solid var(--pitch-border); background: var(--pitch-card-elevated); color: var(--gold); }
@@ -232,7 +233,9 @@ body { padding-bottom: 0; }
   .day-intro { margin-bottom: 18px; }
   .day-intro .page-title { font-size: 44px; }
   .day-intro .page-sub { max-width: 250px; line-height: 1.45; }
-  .day-current-display { grid-row: auto; }
+  .day-selector-bar { display: grid; justify-content: stretch; } /* sem isso a coluna encolhe e os botões ocupavam metade da largura */
+  .day-nav-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .day-current-display { grid-row: auto; padding-bottom: 5px; }
   .day-count { display: none; }
   .day-filter-row { margin-bottom: 12px; }
   .day-timezone { display: none; }
