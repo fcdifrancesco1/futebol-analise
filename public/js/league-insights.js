@@ -196,9 +196,6 @@ function leagueHighlights(sortedRows, finished) {
   const run = pick(unbeaten, (a, b) => a > b);
   const drought = pick(winless, (a, b) => a > b);
   const goals = finished.reduce((s, f) => s + (f.goals?.home || 0) + (f.goals?.away || 0), 0);
-  const hw = finished.filter(f => f.goals.home > f.goals.away).length;
-  const dr = finished.filter(f => f.goals.home === f.goals.away).length;
-  const aw = finished.length - hw - dr;
 
   const team = t => ({ name: t.team.name, logo: t.team.logo, id: t.team.id });
   return [
@@ -208,8 +205,7 @@ function leagueHighlights(sortedRows, finished) {
     { icon: "✈️", title: "Melhor visitante", team: team(away), value: `${awayPts(away)} pts fora`, sub: `${pct(awayPts(away), (away.away?.played || 0) * 3)}% de aproveitamento` },
     { icon: "🔥", title: "Maior invencibilidade", team: team(run), value: `${unbeaten(run)} ${unbeaten(run) === 1 ? "jogo" : "jogos"}`, sub: "sem perder (sequência atual)" },
     { icon: "🥶", title: "Maior jejum de vitórias", team: team(drought), value: `${winless(drought)} ${winless(drought) === 1 ? "jogo" : "jogos"}`, sub: "sem vencer (sequência atual)" },
-    { icon: "📊", title: "Média de gols", value: `${fmt(goals / finished.length)} por jogo`, sub: `${goals} gols em ${finished.length} jogos` },
-    { icon: "⚖️", title: "Resultados", value: `${pct(hw, finished.length)}% · ${pct(dr, finished.length)}% · ${pct(aw, finished.length)}%`, sub: "mandante · empate · visitante", bar: [pct(hw, finished.length), pct(dr, finished.length), pct(aw, finished.length)] }
+    { icon: "📊", title: "Média de gols", value: `${fmt(goals / finished.length)} por jogo`, sub: `${goals} gols em ${finished.length} jogos` }
   ];
 }
 
@@ -225,7 +221,6 @@ function renderLeagueHighlights(items, leagueId, season) {
             ${h.team ? `<a class="league-highlight-team" href="#/time/${h.team.id}/${leagueId}/${season}"><img src="${h.team.logo || ""}" alt="" loading="lazy" data-image-fallback="hide"><span>${escapeHtml(h.team.name)}</span></a>` : ""}
             <strong class="league-highlight-value">${escapeHtml(h.value)}</strong>
             <span class="league-highlight-sub">${escapeHtml(h.sub)}</span>
-            ${h.bar ? `<div class="league-result-bar" aria-hidden="true"><span style="width:${h.bar[0]}%"></span><span style="width:${h.bar[1]}%"></span><span style="width:${h.bar[2]}%"></span></div>` : ""}
           </div>`).join("")}
       </div>
     </section>`;

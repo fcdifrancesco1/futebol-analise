@@ -285,6 +285,45 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
 // ============================================================
 // View: Liga — Classificação
 // ============================================================
+// Cabeçalho compacto das abas da liga: logo + nome (com rastro curto e Voltar) e,
+// na linha de baixo, as abas com o seletor de temporada ao lado de "Rankings".
+const LEAGUE_TABS = [
+  { key: "table", label: "Classificação", suffix: "" },
+  { key: "fixtures", label: "Jogos", suffix: "/jogos" },
+  { key: "rankings", label: "Rankings", suffix: "/artilheiros" }
+];
+
+function leagueHeader(league, leagueId, season, activeTab) {
+  const tab = LEAGUE_TABS.find(t => t.key === activeTab) || LEAGUE_TABS[0];
+  return `
+    <div class="league-head">
+      <img class="league-head-logo" src="https://media.api-sports.io/football/leagues/${leagueId}.png" alt="" data-image-fallback="hide">
+      <div class="league-head-text">
+        <nav class="breadcrumbs league-head-crumbs" aria-label="Rastro de navegação">
+          <a href="#/">Ligas</a><span class="breadcrumbs-sep">/</span><span>${escapeHtml(league.country || "")}</span>
+        </nav>
+        <h1 class="page-title">${escapeHtml(league.name)}</h1>
+      </div>
+      <button class="btn-back" data-action="back" title="Retornar à tela anterior">← Voltar</button>
+    </div>
+    <div class="league-tabs-row">
+      ${subNav(LEAGUE_TABS.map(t => ({ label: t.label, href: `#/liga/${leagueId}/${season}${t.suffix}`, active: t.key === tab.key })))}
+      <label class="league-season">
+        <span>Temporada</span>
+        <select id="season-select" data-suffix="${tab.suffix}">
+          ${[season + 1, season, season - 1, season - 2].map(y => `<option value="${y}" ${y === season ? "selected" : ""}>${y}</option>`).join("")}
+        </select>
+      </label>
+    </div>`;
+}
+
+function bindLeagueSeasonSelect(document, leagueId) {
+  const select = document.getElementById("season-select");
+  select?.addEventListener("change", e => {
+    location.hash = `#/liga/${leagueId}/${e.target.value}${select.dataset.suffix || ""}`;
+  });
+}
+
 async function renderLeague(leagueId, season) {
   const view = captureView();
   const app = view.root;
@@ -293,27 +332,7 @@ async function renderLeague(leagueId, season) {
   season = season || defaultSeasonFor(league);
 
   app.innerHTML = `
-    ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league.name, href: `#/liga/${leagueId}/${season}` }])}
-    <div class="page-head">
-      <p class="page-eyebrow">${escapeHtml(league.country)}</p>
-      <h1 class="page-title">${escapeHtml(league.name)}</h1>
-    </div>
-
-    <div class="season-row">
-      <div class="season-row-controls">
-        <label for="season-select">Temporada</label>
-        <select id="season-select">
-          ${[season + 1, season, season - 1, season - 2].map(y => `<option value="${y}" ${y === season ? 'selected' : ''}>${y}</option>`).join('')}
-        </select>
-      </div>
-      <a class="btn ghost small" href="#/compare">Ir para Comparação →</a>
-    </div>
-
-    ${subNav([
-      { label: "Classificação", href: `#/liga/${leagueId}/${season}`, active: true },
-      { label: "Jogos", href: `#/liga/${leagueId}/${season}/jogos` },
-      { label: "Rankings", href: `#/liga/${leagueId}/${season}/artilheiros` },
-    ])}
+    ${leagueHeader(league, leagueId, season, "table")}
 
     <div class="league-desktop-layout has-insights">
       <aside class="league-round-column" id="league-round-panel" aria-label="Jogos da rodada"></aside>
@@ -336,9 +355,7 @@ async function renderLeague(leagueId, season) {
     </div>
   `;
 
-  document.getElementById("season-select").addEventListener("change", (e) => {
-    location.hash = `#/liga/${leagueId}/${e.target.value}`;
-  });
+  bindLeagueSeasonSelect(document, leagueId);
 
   document.getElementById("table-filters").addEventListener("click", (e) => {
     const btn = e.target.closest(".table-filter-btn");
@@ -739,18 +756,10 @@ async function renderLeagueFixtures(leagueId, season) {
   const document = view.document;
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "", isCup: false };
   app.innerHTML = `
-    ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league.name, href: `#/liga/${leagueId}/${season}` }, { label: "Jogos", href: "" }])}
-    <div class="page-head">
-      <p class="page-eyebrow">${escapeHtml(league.country)}</p>
-      <h1 class="page-title">${escapeHtml(league.name)}</h1>
-    </div>
-    ${subNav([
-      { label: "Classificação", href: `#/liga/${leagueId}/${season}` },
-      { label: "Jogos", href: `#/liga/${leagueId}/${season}/jogos`, active: true },
-      { label: "Rankings", href: `#/liga/${leagueId}/${season}/artilheiros` },
-    ])}
+    ${leagueHeader(league, leagueId, season, "fixtures")}
     <div id="fx-content">${skeletonTable()}</div>
   `;
+  bindLeagueSeasonSelect(document, leagueId);
 
   const content = document.getElementById("fx-content");
   try {
@@ -948,18 +957,10 @@ async function renderLeagueTopStats(leagueId, season) {
   const document = view.document;
   const league = LEAGUES.find(l => l.id === leagueId) || { id: leagueId, name: "Liga", country: "" };
   app.innerHTML = `
-    ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league.name, href: `#/liga/${leagueId}/${season}` }, { label: "Rankings", href: "" }])}
-    <div class="page-head">
-      <p class="page-eyebrow">${escapeHtml(league.country)}</p>
-      <h1 class="page-title">${escapeHtml(league.name)}</h1>
-    </div>
-    ${subNav([
-      { label: "Classificação", href: `#/liga/${leagueId}/${season}` },
-      { label: "Jogos", href: `#/liga/${leagueId}/${season}/jogos` },
-      { label: "Rankings", href: `#/liga/${leagueId}/${season}/artilheiros`, active: true },
-    ])}
+    ${leagueHeader(league, leagueId, season, "rankings")}
     <div id="top-content">${skeletonTable()}</div>
   `;
+  bindLeagueSeasonSelect(document, leagueId);
 
   const content = document.getElementById("top-content");
   try {

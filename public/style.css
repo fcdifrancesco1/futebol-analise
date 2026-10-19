@@ -592,31 +592,6 @@ input:checked + .slider:before { transform: translateX(20px); background-color: 
   font-weight: 600;
 }
 
-.season-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.season-row-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  color: var(--chalk-dim);
-}
-.season-row select {
-  background: var(--pitch-card);
-  border: 1px solid var(--line-strong);
-  color: var(--chalk);
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-}
-
 .table-filter-group {
   display: flex;
   gap: 6px;
