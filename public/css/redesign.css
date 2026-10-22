@@ -197,7 +197,7 @@ body { padding-bottom: 0; }
 .day-main { min-width: 0; }
 .day-sidebar { padding-top: 4px; min-width: 0; }
 /* Classificação acompanha a rolagem; se a tabela for mais alta que a tela, rola por dentro */
-.day-sidebar { position: sticky; top: 92px; max-height: calc(100vh - 108px); overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain; }
+.day-sidebar { position: sticky; top: 92px; }
 .day-rail-card p { color: var(--chalk-dim); font-size: 11px; line-height: 1.55; }
 .day-rail-card a { color: var(--gold); font-size: 11px; font-weight: 700; text-decoration: none; }
 
@@ -233,15 +233,15 @@ body { padding-bottom: 0; }
 .day-standings-table td.team a:hover span { color: var(--gold); }
 .day-standings-table td.team img { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
 .day-standings-table td.team span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
-.day-standings-dots { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
-.day-standings-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--pitch-border); }
-.day-standings-dots span.active { background: var(--gold); }
-.day-standings-progress { height: 3px; margin-top: 8px; border-radius: 2px; background: var(--pitch-border); overflow: hidden; }
-.day-standings-progress span { display: block; height: 100%; background: var(--gold); transform-origin: left; animation: day-standings-progress 15s linear forwards; }
-.day-standings-card.is-paused .day-standings-progress span { animation-play-state: paused; }
+/* Temporizador invisível da troca automática (pausa com mouse/foco/botão) */
+.day-standings-timer { height: 0; overflow: hidden; }
+.day-standings-timer span { display: block; height: 1px; animation: day-standings-progress 15s linear forwards; }
+.day-standings-card.is-paused .day-standings-timer span { animation-play-state: paused; }
 @keyframes day-standings-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-/* Movimento reduzido: a barra fica invisível, mas segue contando o tempo da troca */
-@media (prefers-reduced-motion: reduce) { .day-standings-progress { opacity: 0; } }
+/* Altura das linhas ajustada por fitDayStandings para caber na tela */
+.day-standings-card[style*="--ds-row"] .day-standings-table tbody tr { height: var(--ds-row); }
+.day-standings-card[style*="--ds-row"] .day-standings-table tbody td { padding-top: 0; padding-bottom: 0; }
+.day-standings-card[style*="--ds-row"] .day-standings-table td.team img { width: min(22px, calc(var(--ds-row) - 6px)); height: min(22px, calc(var(--ds-row) - 6px)); }
 .day-standings-empty { margin: 6px 0; }
 .day-intro { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-bottom: 23px; }
 .day-intro .page-eyebrow { margin: 0; font: 600 10px var(--font-mono); letter-spacing: .09em; }

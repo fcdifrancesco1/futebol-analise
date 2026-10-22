@@ -273,9 +273,6 @@ function dayStandingsZone(description) {
 function renderDayStandingsSlide(slide, rows, movement = null) {
   const comp = slide.comp;
   const groupLabel = slide.groupName && slide.groupCount > 1 ? `<span class="day-standings-group">${escapeHtml(slide.groupName)}</span>` : "";
-  const dots = dayStandings.slides.length > 1
-    ? `<div class="day-standings-dots" aria-hidden="true">${dayStandings.slides.map((_, i) => `<span class="${i === dayStandings.index ? "active" : ""}"></span>`).join("")}</div>`
-    : "";
   return `
     <a class="day-standings-title" href="#/liga/${comp.id}/${comp.season}" title="Ver classificação completa">
       <img src="${comp.logo || ""}" alt="" loading="lazy" data-image-fallback="hide">
@@ -302,8 +299,7 @@ function renderDayStandingsSlide(slide, rows, movement = null) {
         }).join("")}
       </tbody>
     </table>
-    ${dots}
-    ${dayStandings.slides.length > 1 ? '<div class="day-standings-progress" aria-hidden="true"><span></span></div>' : ""}`;
+    ${dayStandings.slides.length > 1 ? '<div class="day-standings-timer" aria-hidden="true"><span></span></div>' : ""}`;
 }
 
 async function showDayStandingsSlide(index) {
@@ -350,13 +346,32 @@ async function showDayStandingsSlide(index) {
   body.innerHTML = renderDayStandingsSlide(slide, rows, movement);
   const card = dayStandingsEl("day-standings");
   card?.classList.toggle("is-paused", dayStandings.userPaused || dayStandings.hoverPaused);
-  // A barra de progresso (animação CSS de 15s) comanda a troca: pausar a barra
-  // (mouse em cima, foco ou botão de pausa) pausa a rotação sem dessincronizar.
-  const bar = body.querySelector(".day-standings-progress span");
+  fitDayStandings();
+  // Um temporizador invisível (animação CSS de 15s) comanda a troca: pausar a
+  // animação (mouse em cima, foco ou botão de pausa) pausa a rotação sem dessincronizar.
+  const bar = body.querySelector(".day-standings-timer span");
   bar?.addEventListener("animationend", () => {
     if (requestId === dayStandings.requestId && dayStandingsEl("day-standings-body")) showDayStandingsSlide(dayStandings.index + 1);
   }, { once: true });
 }
+
+// Sem barra de rolagem: ajusta a altura das linhas para a tabela caber na tela.
+// Se nem com linhas mínimas couber (tela muito baixa), a coluna fixa pelo rodapé.
+const DAY_STANDINGS_TOP = 92;
+function fitDayStandings() {
+  const card = dayStandingsEl("day-standings");
+  const aside = card?.closest(".day-sidebar");
+  const tbody = card?.querySelector(".day-standings-table tbody");
+  if (!card || !aside || !tbody || !tbody.rows.length || aside.offsetParent === null) return;
+  card.style.removeProperty("--ds-row");
+  const view = globalThis.innerHeight || 800;
+  const fixed = card.offsetHeight - tbody.offsetHeight;
+  const row = Math.floor((view - DAY_STANDINGS_TOP - 16 - fixed) / tbody.rows.length);
+  card.style.setProperty("--ds-row", Math.max(22, Math.min(35, row)) + "px");
+  const extra = aside.offsetHeight - (view - DAY_STANDINGS_TOP - 16);
+  aside.style.top = extra > 0 ? (DAY_STANDINGS_TOP - extra) + "px" : "";
+}
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") window.addEventListener("resize", () => fitDayStandings());
 
 function setupDayStandings(fixtures, doc = globalThis.document) {
   // Usa o document da tela (o mesmo de fetchAndRenderDayMatches); sem tela, não faz nada.
