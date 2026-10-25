@@ -26,14 +26,15 @@ function leagueZoneInfo(description) {
   }
   if (/round of 16|1\/8/i.test(d)) return { kind: "top", label: "Oitavas de final" };
   if (/1\/16/i.test(d)) return { kind: "qual", label: "Playoff das oitavas" };
-  if (/libertadores/i.test(d)) return { kind: qual ? "qual" : "top", label: qual ? "Pré-Libertadores" : "Libertadores" };
-  if (/sudamericana|sul-americana/i.test(d)) return { kind: "cont2", label: "Sul-Americana" };
+  // Cada competição continental tem sua cor (ucl/uel/uecl/lib/sula); a fase de qualificação usa um tom mais claro
+  if (/libertadores/i.test(d)) return { kind: qual ? "lib-q" : "lib", label: qual ? "Pré-Libertadores" : "Libertadores" };
+  if (/sudamericana|sul-americana/i.test(d)) return { kind: "sula", label: "Sul-Americana" };
   if (/afc champions league 2/i.test(d)) return { kind: "cont2", label: "AFC Champions League 2" };
   if (/afc champions league/i.test(d)) return { kind: qual ? "qual" : "top", label: q("AFC Champions League") };
   if (/gulf/i.test(d)) return { kind: "cont3", label: "Liga dos Campeões do Golfo" };
-  if (/champions league/i.test(d)) return { kind: qual ? "qual" : "top", label: q("Champions League") };
-  if (/europa league/i.test(d)) return { kind: "cont2", label: q("Europa League") };
-  if (/conference league/i.test(d)) return { kind: "cont3", label: q("Conference League") };
+  if (/champions league/i.test(d)) return { kind: qual ? "ucl-q" : "ucl", label: q("Champions League") };
+  if (/europa league/i.test(d)) return { kind: qual ? "uel-q" : "uel", label: q("Europa League") };
+  if (/conference league/i.test(d)) return { kind: qual ? "uecl-q" : "uecl", label: q("Conference League") };
   if (/promotion/i.test(d)) return { kind: qual ? "qual" : "promo", label: qual ? "Playoff de acesso" : "Acesso" };
   if (qual) return { kind: "qual", label: /play-?off/i.test(d) ? "Playoffs" : "Qualificação" };
   return { kind: "other", label: d };

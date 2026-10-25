@@ -283,9 +283,12 @@ function renderDayStandingsSlide(slide, rows, movement = null) {
       <tbody>
         ${rows.map(t => {
           const zone = dayStandingsZone(t.description);
+          // Cor da competição (Champions, Libertadores...) quando league-insights.js está carregado
+          const compKind = zone === "up" && typeof leagueZoneInfo === "function" ? leagueZoneInfo(t.description)?.kind : null;
+          const compZone = compKind === "other" ? null : compKind;
           const gd = Number(t.goalsDiff) || 0;
           return `
-          <tr class="${zone ? `zone-${zone}` : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
+          <tr class="${zone ? `zone-${zone}` : ""}${compZone ? ` zone-${compZone}` : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
             <td class="pos">${t.rank ?? "-"}</td>
             <td class="move">${dayStandingsMoveHtml(movement?.get(t.team?.id) ?? 0)}</td>
             <td class="team"><a href="#/time/${t.team?.id}/${comp.id}/${comp.season}"><img src="${t.team?.logo || ""}" alt="" loading="lazy" data-image-fallback="hide"><span>${escapeHtml(formatTeamName(t.team?.name || ""))}</span></a></td>

@@ -157,8 +157,18 @@ body { padding-bottom: 0; }
 .standings-table td.dist-cell { white-space: nowrap; }
 .league-dist { font: 600 11px var(--font-mono); color: var(--chalk-dim); }
 .league-dist.down { color: var(--terracotta); font-weight: 700; }
-.standings-table tbody tr[class*="zone-"] .pos-cell { box-shadow: inset 3px 0 var(--zone-color, transparent); }
+.standings-table tbody tr[class*="zone-"] .pos-cell { box-shadow: inset 4px 0 var(--zone-color, transparent); color: var(--zone-color, inherit); font-weight: 800; }
 .zone-top { --zone-color: var(--gold); }
+/* Competições continentais: cor própria por torneio, tom claro na qualificação */
+.zone-ucl { --zone-color: #3b82f6; }
+.zone-ucl-q { --zone-color: #93c5fd; }
+.zone-uel { --zone-color: #f97316; }
+.zone-uel-q { --zone-color: #fdba74; }
+.zone-uecl { --zone-color: #22c55e; }
+.zone-uecl-q { --zone-color: #86efac; }
+.zone-lib { --zone-color: #eab308; }
+.zone-lib-q { --zone-color: #fde68a; }
+.zone-sula { --zone-color: #06b6d4; }
 .zone-qual { --zone-color: #8fd3c8; }
 .zone-cont2 { --zone-color: #4ea8ff; }
 .zone-cont3 { --zone-color: #a78bfa; }
@@ -220,7 +230,7 @@ body { padding-bottom: 0; }
 .day-standings-table td { padding: 6px 5px; text-align: center; color: var(--chalk-dim); border-bottom: 1px solid rgba(255, 255, 255, .04); }
 .day-standings-table th.team, .day-standings-table td.team { text-align: left; width: 100%; }
 .day-standings-table td.pos { width: 28px; color: var(--chalk-muted); font-weight: 700; box-shadow: inset 3px 0 transparent; }
-.day-standings-table tr.zone-up td.pos { box-shadow: inset 3px 0 var(--gold); color: var(--chalk); }
+.day-standings-table tr.zone-up td.pos { box-shadow: inset 3px 0 var(--zone-color, var(--gold)); color: var(--chalk); }
 .day-standings-table tr.zone-down td.pos { box-shadow: inset 3px 0 var(--terracotta); color: var(--chalk); }
 .day-standings-table th.move, .day-standings-table td.move { width: 30px; padding-left: 0; padding-right: 2px; }
 .day-standings-move { display: inline-flex; align-items: center; justify-content: center; gap: 1px; font-size: 10px; font-weight: 800; line-height: 1; }

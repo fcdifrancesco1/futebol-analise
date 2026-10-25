@@ -11,10 +11,13 @@ const plain = v => JSON.parse(JSON.stringify(v));
 
 test('zone descriptions from the API are translated and classified', () => {
   const z = d => plain(ctx.leagueZoneInfo(d));
-  assert.deepEqual(z('Promotion - Champions League (League phase)'), { kind: 'top', label: 'Champions League' });
-  assert.deepEqual(z('Promotion - Conference League (Qualification)'), { kind: 'cont3', label: 'Conference League (qualificação)' });
-  assert.deepEqual(z('Promotion - Copa Libertadores (Group Stage)'), { kind: 'top', label: 'Libertadores' });
-  assert.deepEqual(z('Promotion - Copa Libertadores (Qualification)'), { kind: 'qual', label: 'Pré-Libertadores' });
+  assert.deepEqual(z('Promotion - Champions League (League phase)'), { kind: 'ucl', label: 'Champions League' });
+  assert.deepEqual(z('Promotion - Europa League (League phase)'), { kind: 'uel', label: 'Europa League' });
+  assert.deepEqual(z('Promotion - Conference League (League phase)'), { kind: 'uecl', label: 'Conference League' });
+  assert.deepEqual(z('Promotion - Conference League (Qualification)'), { kind: 'uecl-q', label: 'Conference League (qualificação)' });
+  assert.deepEqual(z('Promotion - Copa Libertadores (Group Stage)'), { kind: 'lib', label: 'Libertadores' });
+  assert.deepEqual(z('Promotion - Copa Libertadores (Qualification)'), { kind: 'lib-q', label: 'Pré-Libertadores' });
+  assert.deepEqual(z('Promotion - Copa Sudamericana (Group Stage)'), { kind: 'sula', label: 'Sul-Americana' });
   assert.deepEqual(z('Promotion - AFC Champions League 2'), { kind: 'cont2', label: 'AFC Champions League 2' });
   assert.deepEqual(z('Relegation Playoffs'), { kind: 'downpo', label: 'Playoff de rebaixamento' });
   assert.deepEqual(z('Liga Portugal (Relegation)'), { kind: 'downpo', label: 'Playoff de rebaixamento' });
