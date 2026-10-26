@@ -122,17 +122,6 @@ function renderDaySpotlight(fixtures) {
     </article>`;
 }
 
-function renderDayTicker(fixtures) {
-  if (!fixtures.length) return '';
-  const sorted = [...fixtures].sort((a, b) => Number(getMatchStatusCategory(b.fixture).isLive) - Number(getMatchStatusCategory(a.fixture).isLive) || new Date(a.fixture.date) - new Date(b.fixture.date));
-  return `<span class="day-ticker-label">PLACAR RÁPIDO</span>${sorted.slice(0, 6).map(f => {
-    const status = getMatchStatusCategory(f.fixture);
-    const score = status.isLive || status.isFinished ? `${f.goals?.home ?? '—'}–${f.goals?.away ?? '—'}` : '×';
-    const label = status.isLive ? `● ${status.label}` : status.isFinished ? 'ENC.' : status.isPostponed ? status.label : new Date(f.fixture.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    return `<a class="day-ticker-game" href="#/jogo/${f.fixture.id}"><small>${escapeHtml(label)}</small><span>${escapeHtml(f.teams.home.name)}</span><strong>${escapeHtml(score)}</strong><span>${escapeHtml(f.teams.away.name)}</span></a>`;
-  }).join('')}`;
-}
-
 function isFixtureFinished(fav, liveMatch = null) {
   if (!fav && !liveMatch) return false;
 
@@ -561,11 +550,6 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
       const cat = getMatchStatusCategory(f.fixture);
       return cat.isScheduled || cat.isPostponed;
     }).length;
-    const ticker = window.document.getElementById('day-ticker');
-    if (ticker) {
-      ticker.hidden = relevant.length === 0;
-      ticker.querySelector('#day-ticker-inner').innerHTML = renderDayTicker(relevant);
-    }
     document.getElementById('day-count').textContent = `${relevant.length} ${relevant.length === 1 ? 'PARTIDA' : 'PARTIDAS'}`;
     // Jogos seguidos que já terminaram saem da lista (e dos alertas) com base nos resultados do dia.
     if (typeof cleanFinishedFavoriteFixtures === 'function') cleanFinishedFavoriteFixtures(relevant);

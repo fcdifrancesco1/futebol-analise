@@ -161,50 +161,11 @@ test('day spotlight uses a real fixture and does not invent match statistics',()
   assert.doesNotMatch(html,/finaliza[cç][oõ]es|posse/i);
 });
 
-test('day ticker links to real fixtures and is empty without fixtures',()=>{
-  const index=fs.readFileSync('public/index.html','utf8');
-  const entries=[...index.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m=>m[1].split('?')[0]);
-  const window={addEventListener(){},localStorage:{getItem(){return 'null'}},sessionStorage:{getItem(){return '{}'}}};
-  const document={getElementById(){return {}},readyState:'loading',addEventListener(){}};
-  const context=vm.createContext({window,document,AbortController,URLSearchParams,fetch:()=>{},console});
-  for(const entry of entries) vm.runInContext(fs.readFileSync('public/'+entry.replace(/^\//,''),'utf8'),context,{filename:entry});
-  context.fixtures=[{
-    fixture:{id:789,date:'2099-10-10T20:00:00',status:{short:'NS',long:'Not Started'}},
-    league:{id:71,name:'Brasileirão Série A'},
-    teams:{home:{id:1,name:'Cruzeiro',logo:'/home.png'},away:{id:2,name:'Palmeiras',logo:'/away.png'}},
-    goals:{home:null,away:null}
-  }];
-  const html=vm.runInContext('renderDayTicker(fixtures)',context);
-  assert.match(html,/href="#\/jogo\/789"/);
-  assert.match(html,/Cruzeiro/);
-  assert.match(html,/Palmeiras/);
-  assert.equal(vm.runInContext('renderDayTicker([])',context),'');
-});
-
-test('day ticker identifies postponed matches instead of showing kickoff time',()=>{
-  const index=fs.readFileSync('public/index.html','utf8');
-  const entries=[...index.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m=>m[1].split('?')[0]);
-  const window={addEventListener(){},localStorage:{getItem(){return 'null'}},sessionStorage:{getItem(){return '{}'}}};
-  const document={getElementById(){return {}},readyState:'loading',addEventListener(){}};
-  const context=vm.createContext({window,document,AbortController,URLSearchParams,fetch:()=>{},console});
-  for(const entry of entries) vm.runInContext(fs.readFileSync('public/'+entry.replace(/^\//,''),'utf8'),context,{filename:entry});
-  context.fixtures=[{
-    fixture:{id:790,date:'2099-10-10T20:00:00',status:{short:'PST',long:'Match Postponed'}},
-    league:{id:71,name:'Brasileirão Série A'},
-    teams:{home:{id:1,name:'Cruzeiro'},away:{id:2,name:'Palmeiras'}},
-    goals:{home:null,away:null}
-  }];
-  const html=vm.runInContext('renderDayTicker(fixtures)',context);
-  assert.match(html,/Adiado/i);
-  assert.doesNotMatch(html,/20:00/);
-});
-
 test('older day response cannot overwrite the latest day render',async()=>{
   const pending=[];
   const content={writes:0,_html:'',set innerHTML(value){this.writes++;this._html=value;},get innerHTML(){return this._html;}};
   const elements={
     'day-matches-content':content,
-    'day-ticker':{hidden:false,querySelector(){return {innerHTML:''};}},
     'day-count':{},'day-spotlight':{},'day-visible-count':{}
   };
   const root={};
@@ -232,7 +193,7 @@ test('older day response cannot overwrite the latest day render',async()=>{
   assert.equal(content.writes,1);
 });
 
-test('live spotlight and ticker do not invent scores when the provider omits goals',()=>{
+test('live spotlight does not invent scores when the provider omits goals',()=>{
   const index=fs.readFileSync('public/index.html','utf8');
   const entries=[...index.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m=>m[1].split('?')[0]);
   const window={addEventListener(){},localStorage:{getItem(){return 'null'}},sessionStorage:{getItem(){return '{}'}}};
@@ -248,7 +209,6 @@ test('live spotlight and ticker do not invent scores when the provider omits goa
   const spotlight=vm.runInContext('renderDaySpotlight(fixtures)',context);
   assert.match(spotlight,/— : —/);
   assert.doesNotMatch(spotlight,/<img src=""/);
-  assert.match(vm.runInContext('renderDayTicker(fixtures)',context),/—–—/);
 });
 
 test('fixture goal extraction handles own goals and recovers scorers from player statistics when events lag', () => {

@@ -10,8 +10,6 @@ function setActiveTab(name) {
 
 async function router() {
   document.querySelectorAll('.desktop-more, .mobile-more').forEach(menu => { menu.open = false; });
-  const ticker = document.getElementById('day-ticker');
-  if (ticker) ticker.hidden = true;
   document.querySelectorAll('#onboarding-modal-backdrop, #player-match-modal-backdrop, #squad-picker-backdrop').forEach(modal => modal.remove());
   const notificationModal = document.getElementById('notif-modal-backdrop');
   if (notificationModal) { notificationModal.hidden = true; notificationModal.style.display = 'none'; }
