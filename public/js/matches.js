@@ -637,7 +637,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                 const statusBadge = statusInfo.badgeHtml;
 
                 const scoreDisplay = (isFinished || isLive)
-                  ? `<span class="fixture-score ${isLive ? 'live-score' : ''}">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>`
+                  ? `<span class="fixture-score ${isLive ? 'live-score' : ''}">${scoreWithPenaltiesHtml(f, 0)}</span>`
                   : `<span class="fixture-score" style="color:var(--chalk-dim);font-size:0.85rem;">vs</span>`;
 
                 return `
@@ -789,7 +789,7 @@ async function fetchLiveMatches(isForced = false) {
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
                     <div class="fixture-score-col">
-                      <span class="fixture-score live-score">${f.goals.home ?? 0} : ${f.goals.away ?? 0}</span>
+                      <span class="fixture-score live-score">${scoreWithPenaltiesHtml(f, 0)}</span>
                     </div>
                     <div class="fixture-team-item">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">

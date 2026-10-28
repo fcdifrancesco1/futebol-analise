@@ -935,7 +935,7 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                         <img src="${f.teams.home.logo}" alt="" loading="lazy">
                       </div>
 
-                      <span class="fixture-score">${played ? `${f.goals.home ?? "-"} : ${f.goals.away ?? "-"}` : "vs"}</span>
+                      <span class="fixture-score">${played ? scoreWithPenaltiesHtml(f) : "vs"}</span>
 
                       <div class="fixture-team-item">
                         <img src="${f.teams.away.logo}" alt="" loading="lazy">

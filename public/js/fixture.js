@@ -118,6 +118,26 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     let homeGoals = events.filter(e => isGoalForTeam(e, fx.teams.home, fx.teams.away, playerTeamIds));
     let awayGoals = events.filter(e => isGoalForTeam(e, fx.teams.away, fx.teams.home, playerTeamIds));
 
+    // Cobranças convertidas na disputa de pênaltis não contam no placar (fx.goals).
+    const hasShootout = Boolean(penaltyShootoutScore(fx));
+    const splitShootout = (goals, regulationGoals) => {
+      if (!hasShootout) return [goals, []];
+      const flagged = goals.filter(e => /shootout/i.test(e.comments || ""));
+      let regular = goals.filter(e => !flagged.includes(e));
+      let shootout = flagged;
+      // Sem o comentário da API: as cobranças são os gols que excedem o placar, no fim da lista.
+      const expected = Number(regulationGoals || 0);
+      if (!flagged.length && regular.length > expected) {
+        const sorted = sortByMatchTime(regular);
+        regular = sorted.slice(0, expected);
+        shootout = sorted.slice(expected);
+      }
+      return [regular, shootout.map(e => ({ ...e, isShootout: true }))];
+    };
+    let homeShootout, awayShootout;
+    [homeGoals, homeShootout] = splitShootout(homeGoals, fx.goals?.home);
+    [awayGoals, awayShootout] = splitShootout(awayGoals, fx.goals?.away);
+
     // Se o placar da partida tiver mais gols que os eventos registrados (delay ou súmula pendente da API)
     const recoverMissingGoals = (currentGoals, team, fixturePlayers, expectedGoals) => {
       const needed = Number(expectedGoals || 0);
@@ -258,7 +278,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           </div>
 
           <div class="hero-score-col">
-            <div class="hero-score-numbers">${fx.goals.home ?? "-"} : ${fx.goals.away ?? "-"}</div>
+            <div class="hero-score-numbers">${scoreWithPenaltiesHtml(fx)}</div>
             <div class="hero-status-pill">${statusText}</div>
             ${isFinished ? `
               <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${fx.teams.home.name} x ${fx.teams.away.name} ${fx.league?.name || ''}`)}" 
@@ -281,6 +301,10 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         </div>
 
         ${renderHeroGoals(homeHeroItems, awayHeroItems)}
+        ${(homeShootout.length || awayShootout.length) ? `
+          <div class="hero-shootout-divider"><span>Disputa de pênaltis</span></div>
+          ${renderHeroGoals(sortByMatchTime(homeShootout), sortByMatchTime(awayShootout))}
+        ` : ""}
       </div>
 
       <!-- Estatísticas da Partida (Pré-Jogo ou Ao Vivo) -->
@@ -1113,7 +1137,8 @@ function sortByMatchTime(items) {
 
 function heroGoalItemHtml(g, side = "") {
   const playerName = g.player?.name || "Gol";
-  const hasTime = g.time && g.time.elapsed != null && g.time.elapsed !== "-";
+  // Na disputa de pênaltis o minuto registrado pela API não significa nada.
+  const hasTime = !g.isShootout && g.time && g.time.elapsed != null && g.time.elapsed !== "-";
   const timeStr = hasTime ? `${g.time.elapsed}${g.time.extra ? `+${g.time.extra}` : ""}'` : "";
   const sideClass = side ? ` side-${side}` : "";
 
@@ -1133,7 +1158,7 @@ function heroGoalItemHtml(g, side = "") {
   const rawAssist = g.assist?.name;
   const hasAssist = !isOwnGoal && !isPen && rawAssist && String(rawAssist).trim() && String(rawAssist).trim().toLowerCase() !== "null" && String(rawAssist).trim().toLowerCase() !== playerName.toLowerCase();
   const assistHtml = hasAssist ? ` <span class="assist-name">(${escapeHtml(String(rawAssist).trim())})</span>` : "";
-  const tagStr = `${timeStr}${isPen ? " (P)" : isOwnGoal ? " (GC)" : ""}`;
+  const tagStr = g.isShootout ? "" : `${timeStr}${isPen ? " (P)" : isOwnGoal ? " (GC)" : ""}`;
   return `
     <div class="hero-goal-item${sideClass}">
       <span class="hero-goal-icon">⚽</span>

@@ -1,3 +1,19 @@
+// Placar da disputa de pênaltis (score.penalty), ou null se não houve disputa.
+function penaltyShootoutScore(f) {
+  const pen = f?.score?.penalty;
+  if (!pen || pen.home == null || pen.away == null) return null;
+  return { home: pen.home, away: pen.away };
+}
+
+// "2 (4) : (3) 2" quando houve pênaltis; "2 : 2" caso contrário.
+function scoreWithPenaltiesHtml(f, fallback = "-") {
+  const home = f?.goals?.home ?? fallback;
+  const away = f?.goals?.away ?? fallback;
+  const pen = penaltyShootoutScore(f);
+  if (!pen) return `${home} : ${away}`;
+  return `${home} <span class="pen-score">(${pen.home})</span> : <span class="pen-score">(${pen.away})</span> ${away}`;
+}
+
 function formatLiveMatchTime(status, events = null) {
   if (!status) return "";
   const short = String(status.short || "").toUpperCase();

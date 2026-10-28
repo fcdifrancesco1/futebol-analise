@@ -375,3 +375,10 @@ body { padding-bottom: 0; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+/* Disputa de pênaltis: placar entre parênteses e gols separados por uma linha */
+.pen-score { font-size: 0.62em; font-weight: 600; letter-spacing: 0; color: var(--chalk-dim); vertical-align: middle; }
+.fixture-score { white-space: nowrap; }
+.hero-shootout-divider { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--chalk-dim); font: 600 10px var(--font-mono); letter-spacing: 1px; text-transform: uppercase; }
+.hero-shootout-divider::before, .hero-shootout-divider::after { content: ""; flex: 1; height: 1px; background: rgba(255, 255, 255, 0.16); }
+.hero-shootout-divider + .hero-goals-section { margin-top: 8px; padding-top: 0; border-top: 0; }
