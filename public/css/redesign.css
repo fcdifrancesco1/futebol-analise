@@ -382,3 +382,8 @@ body { padding-bottom: 0; }
 .hero-shootout-divider { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--chalk-dim); font: 600 10px var(--font-mono); letter-spacing: 1px; text-transform: uppercase; }
 .hero-shootout-divider::before, .hero-shootout-divider::after { content: ""; flex: 1; height: 1px; background: rgba(255, 255, 255, 0.16); }
 .hero-shootout-divider + .hero-goals-section { margin-top: 8px; padding-top: 0; border-top: 0; }
+
+/* Classificação ao vivo: time em campo destacado e selo no título */
+.day-standings-live { margin-left: auto; color: #ef4444; font: 700 10px var(--font-mono); letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
+.day-standings-table tr.is-live td.team span::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: #ef4444; vertical-align: middle; }
+.day-standings-table tr.is-live td.pts { color: #ef4444; }

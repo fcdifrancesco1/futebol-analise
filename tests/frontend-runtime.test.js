@@ -526,3 +526,34 @@ test('day standings movement compares the table before the last round played', (
   assert.match(ctx.moveHtml(-1), /down[\s\S]*▼<small>1/);
   assert.match(ctx.moveHtml(0), /same[\s\S]*–/);
 });
+
+test('day standings add live and just-finished scores missing from the official table', () => {
+  const leaguesSrc = fs.readFileSync('public/js/leagues.js', 'utf8');
+  const matchesSrc = fs.readFileSync('public/js/matches.js', 'utf8');
+  // Status simplificado: 1H/2H ao vivo, FT encerrado (a regra real está em shared-ui.js).
+  const getMatchStatusCategory = f => ({ isLive: ['1H', '2H'].includes(f.status.short), isFinished: f.status.short === 'FT' });
+  const ctx = vm.createContext({ console, Date, Math, Number, String, Set, Map, Array, Object, structuredClone, FINISHED_STATUS, getMatchStatusCategory, document: { getElementById: () => null }, window: {} });
+  vm.runInContext(leaguesSrc.slice(leaguesSrc.indexOf('function sortStandingsByLeagueRules'), leaguesSrc.indexOf('function renderStandingsTable'))
+    + '\n' + matchesSrc.slice(matchesSrc.indexOf('function dayStandingsLive'), matchesSrc.indexOf('function dayStandingsMoveHtml'))
+    + '\nthis.live = dayStandingsLive;', ctx);
+  const update = '2026-10-29T12:00:00+00:00';
+  const row = (id, name, rank, points, win) => ({ rank, points, goalsDiff: 0, update, team: { id, name }, all: { played: 32, win, draw: 0, lose: 0, goals: { for: 40, against: 40 } }, home: { played: 16, win: 0, draw: 0, lose: 0, goals: { for: 0, against: 0 } }, away: { played: 16, win: 0, draw: 0, lose: 0, goals: { for: 0, against: 0 } } });
+  const rows = [row(1, 'Cruzeiro', 1, 54, 16), row(2, 'Atletico-MG', 2, 54, 16), row(3, 'Vasco', 3, 50, 14), row(4, 'Flamengo', 4, 49, 14)];
+  const now = Math.floor(Date.now() / 1000);
+  const fx = (id, home, away, gh, ga, short, ts, league = 71) => ({ league: { id: league }, fixture: { id, timestamp: ts, date: new Date(ts * 1000).toISOString(), status: { short } }, teams: { home: { id: home }, away: { id: away } }, goals: { home: gh, away: ga } });
+  const fixtures = [
+    fx(10, 2, 1, 1, 0, '2H', now - 3600),                  // ao vivo: Atletico vence Cruzeiro
+    fx(11, 4, 3, 2, 0, 'FT', now - 2 * 3600),             // terminou depois do update oficial
+    fx(12, 3, 4, 5, 0, 'FT', Date.parse(update) / 1000 - 4 * 3600), // já está na tabela oficial
+    fx(13, 1, 3, 3, 0, '2H', now - 3600, 73)               // outra competição (Copa do Brasil)
+  ];
+  const result = ctx.live(rows, fixtures, 71);
+  assert.equal(result.rows.map(t => t.team.name).join(), 'Atletico-MG,Cruzeiro,Flamengo,Vasco');
+  const atl = result.rows[0];
+  assert.equal(atl.points, 57); assert.equal(atl.all.played, 33); assert.equal(atl.goalsDiff, 1); assert.equal(atl.rank, 1);
+  assert.equal(result.rows[2].points, 52);
+  assert.equal([...result.playing].sort().join(), '1,2');
+  assert.equal(result.movement.get(2), 1); assert.equal(result.movement.get(1), -1);
+  assert.equal(rows[1].points, 54, 'tabela oficial não é alterada');
+  assert.equal(ctx.live(rows, [fixtures[2]], 71), null);
+});

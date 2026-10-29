@@ -199,7 +199,7 @@ if (typeof window !== 'undefined') {
 // sem tabela são puladas; fases de grupos viram um slide por grupo.
 const DAY_STANDINGS_FALLBACK = [71, 39, 140];
 const DAY_STANDINGS_MAX_SLIDES = 12;
-const dayStandings = { key: "", slides: [], index: 0, userPaused: false, hoverPaused: false, requestId: 0, doc: null };
+const dayStandings = { key: "", fixtures: [], slides: [], index: 0, userPaused: false, hoverPaused: false, requestId: 0, doc: null };
 
 // O document da tela lança erro quando a tela já foi trocada; aqui isso vira null.
 function dayStandingsEl(id) {
@@ -246,6 +246,46 @@ function dayStandingsMovement(rows, fixtures, leagueId) {
   return new Map(official.map((t, i) => [t.team.id, prevPos.has(t.team.id) ? prevPos.get(t.team.id) - i : 0]));
 }
 
+// Tabela "ao vivo": soma o placar atual dos jogos em andamento do campeonato à tabela
+// oficial (a API só atualiza a classificação depois do apito final) e reordena com o
+// motor de desempate da página da liga. Retorna null quando não há jogo ao vivo.
+function dayStandingsLive(rows, fixtures, leagueId, finished = []) {
+  const updatedAt = new Map(rows.map(t => [t.team?.id, Date.parse(t.update)]));
+  // Jogo encerrado há pouco ainda fora da tabela oficial: terminou (início + ~2h) depois do
+  // "update" da linha do time. Sem "update", só os jogos em andamento entram.
+  const notInOfficial = f => (f.fixture?.timestamp || 0) * 1000 + 2 * 3600000 > updatedAt.get(f.teams.home.id);
+  const live = (fixtures || []).filter(f => {
+    if (f.league?.id !== leagueId || !updatedAt.has(f.teams?.home?.id) || !updatedAt.has(f.teams?.away?.id)) return false;
+    if (!Number.isFinite(f.goals?.home) || !Number.isFinite(f.goals?.away)) return false;
+    const status = getMatchStatusCategory(f.fixture);
+    return status.isLive || (status.isFinished && notInOfficial(f));
+  });
+  if (!live.length || typeof sortStandingsByLeagueRules !== "function") return null;
+  const table = structuredClone(rows);
+  const byId = new Map(table.map(t => [t.team.id, t]));
+  const add = (t, side, gf, ga) => {
+    const res = gf > ga ? "win" : gf === ga ? "draw" : "lose";
+    for (const s of [t.all ??= {}, t[side] ??= {}]) {
+      s.played = (s.played || 0) + 1;
+      s[res] = (s[res] || 0) + 1;
+      s.goals = { for: (s.goals?.for || 0) + gf, against: (s.goals?.against || 0) + ga };
+    }
+    t.points = (t.points || 0) + (res === "win" ? 3 : res === "draw" ? 1 : 0);
+    t.goalsDiff = (Number(t.goalsDiff) || 0) + gf - ga;
+  };
+  live.forEach(f => {
+    add(byId.get(f.teams.home.id), "home", f.goals.home, f.goals.away);
+    add(byId.get(f.teams.away.id), "away", f.goals.away, f.goals.home);
+  });
+  const sorted = sortStandingsByLeagueRules(table, leagueId, finished, "all");
+  const officialRank = new Map(rows.map((t, i) => [t.team.id, t.rank ?? i + 1]));
+  sorted.forEach((t, i) => { t.rank = i + 1; });
+  const playing = new Set(live.filter(f => getMatchStatusCategory(f.fixture).isLive).flatMap(f => [f.teams.home.id, f.teams.away.id]));
+  // A seta passa a comparar com a posição oficial: quanto o time sobe ou cai com os jogos em andamento.
+  const movement = new Map(sorted.map(t => [t.team.id, officialRank.get(t.team.id) - t.rank]));
+  return { rows: sorted, playing, movement };
+}
+
 function dayStandingsMoveHtml(delta) {
   if (delta > 0) return `<span class="day-standings-move up" title="Subiu ${delta} ${delta === 1 ? "posição" : "posições"} desde a rodada anterior">▲<small>${delta}</small></span>`;
   if (delta < 0) return `<span class="day-standings-move down" title="Caiu ${-delta} ${delta === -1 ? "posição" : "posições"} desde a rodada anterior">▼<small>${-delta}</small></span>`;
@@ -259,13 +299,14 @@ function dayStandingsZone(description) {
   return "up";
 }
 
-function renderDayStandingsSlide(slide, rows, movement = null) {
+function renderDayStandingsSlide(slide, rows, movement = null, playing = null) {
   const comp = slide.comp;
   const groupLabel = slide.groupName && slide.groupCount > 1 ? `<span class="day-standings-group">${escapeHtml(slide.groupName)}</span>` : "";
   return `
     <a class="day-standings-title" href="#/liga/${comp.id}/${comp.season}" title="Ver classificação completa">
       <img src="${comp.logo || ""}" alt="" loading="lazy" data-image-fallback="hide">
       <span><strong>${escapeHtml(comp.name)}</strong>${groupLabel}</span>
+      ${playing?.size ? '<span class="day-standings-live" title="Tabela com o placar atual dos jogos em andamento; setas comparam com a tabela oficial">● Ao vivo</span>' : ""}
     </a>
     <table class="day-standings-table">
       <thead><tr><th scope="col">#</th><th scope="col" class="move" aria-label="Variação desde a rodada anterior"></th><th scope="col" class="team">Time</th><th scope="col" title="Pontos">P</th><th scope="col" title="Jogos">J</th><th scope="col" title="Vitórias">V</th><th scope="col" title="Empates">E</th><th scope="col" title="Derrotas">D</th><th scope="col" title="Saldo de gols">SG</th></tr></thead>
@@ -277,7 +318,7 @@ function renderDayStandingsSlide(slide, rows, movement = null) {
           const compZone = compKind === "other" ? null : compKind;
           const gd = Number(t.goalsDiff) || 0;
           return `
-          <tr class="${zone ? `zone-${zone}` : ""}${compZone ? ` zone-${compZone}` : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
+          <tr class="${zone ? `zone-${zone}` : ""}${compZone ? ` zone-${compZone}` : ""}${playing?.has(t.team?.id) ? " is-live" : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
             <td class="pos">${t.rank ?? "-"}</td>
             <td class="move">${dayStandingsMoveHtml(movement?.get(t.team?.id) ?? 0)}</td>
             <td class="team"><a href="#/time/${t.team?.id}/${comp.id}/${comp.season}"><img src="${t.team?.logo || ""}" alt="" loading="lazy" data-image-fallback="hide"><span>${escapeHtml(formatTeamName(t.team?.name || ""))}</span></a></td>
@@ -335,7 +376,12 @@ async function showDayStandingsSlide(index) {
 
   let movement = null;
   try { movement = dayStandingsMovement(rows, seasonFixtures, slide.comp.id); } catch { movement = null; }
-  body.innerHTML = renderDayStandingsSlide(slide, rows, movement);
+  let live = null;
+  try {
+    const finished = (seasonFixtures || []).filter(f => FINISHED_STATUS.includes(f.fixture?.status?.short));
+    live = dayStandingsLive(rows, dayStandings.fixtures, slide.comp.id, finished);
+  } catch { live = null; }
+  body.innerHTML = live ? renderDayStandingsSlide(slide, live.rows, live.movement, live.playing) : renderDayStandingsSlide(slide, rows, movement);
   const card = dayStandingsEl("day-standings");
   card?.classList.toggle("is-paused", dayStandings.userPaused || dayStandings.hoverPaused);
   fitDayStandings();
@@ -369,12 +415,20 @@ function setupDayStandings(fixtures, doc = globalThis.document) {
   // Usa o document da tela (o mesmo de fetchAndRenderDayMatches); sem tela, não faz nada.
   if (!doc) return;
   dayStandings.doc = doc;
+  dayStandings.fixtures = fixtures || [];
   const card = dayStandingsEl("day-standings");
   if (!card) return;
   const comps = dayStandingsCompetitions(fixtures);
   const key = comps.map(c => `${c.id}:${c.season}`).join(",");
-  // Atualizações de placar não reiniciam a rotação se os campeonatos são os mesmos.
-  if (key === dayStandings.key && card.dataset.ready === "1") return;
+  // Atualizações de placar não reiniciam a rotação se os campeonatos são os mesmos: o placar
+  // novo entra na próxima troca de slide. Parada (pausa, mouse em cima ou slide único), a
+  // tabela é redesenhada aqui para seguir o placar ao vivo.
+  if (key === dayStandings.key && card.dataset.ready === "1") {
+    const stopped = dayStandings.userPaused || dayStandings.hoverPaused || dayStandings.slides.length === 1;
+    const compId = dayStandings.slides[dayStandings.index]?.comp?.id;
+    if (stopped && dayStandings.fixtures.some(f => f.league?.id === compId && getMatchStatusCategory(f.fixture).isLive)) showDayStandingsSlide(dayStandings.index);
+    return;
+  }
   dayStandings.key = key;
   dayStandings.slides = comps.slice(0, DAY_STANDINGS_MAX_SLIDES).map(comp => ({ comp, group: null }));
   dayStandings.index = 0;
