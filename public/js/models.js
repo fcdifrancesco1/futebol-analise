@@ -1,4 +1,8 @@
 // Heuristic scores for comparison, not calibrated match probabilities.
+
+// Status de partida encerrada com placar válido (usado por várias telas).
+const FINISHED_STATUS = ["FT", "AET", "PEN"];
+
 function finiteAverage(value, fallback = 1) {
   const n = parseFloat(value);
   return Number.isFinite(n) ? n : fallback;
@@ -6,7 +10,7 @@ function finiteAverage(value, fallback = 1) {
 
 function recentHeadToHead(h2h, teamAId, teamBId) {
   return (Array.isArray(h2h) ? h2h : []).filter(f =>
-    ["FT", "AET", "PEN"].includes(f.fixture?.status?.short) &&
+    FINISHED_STATUS.includes(f.fixture?.status?.short) &&
     ((f.teams?.home?.id === teamAId && f.teams?.away?.id === teamBId) ||
      (f.teams?.home?.id === teamBId && f.teams?.away?.id === teamAId)) &&
     Number.isFinite(f.goals?.home) && Number.isFinite(f.goals?.away)
@@ -389,4 +393,4 @@ const PlayerRatingEngine = {
 };
 
 
-if (typeof module !== 'undefined') module.exports = { computeProbability, buildJustifications, PlayerRatingEngine, recentHeadToHead, finiteAverage };
+if (typeof module !== 'undefined') module.exports = { FINISHED_STATUS, computeProbability, buildJustifications, PlayerRatingEngine, recentHeadToHead, finiteAverage };

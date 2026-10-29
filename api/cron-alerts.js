@@ -57,7 +57,9 @@ module.exports = async (req, res) => {
             if (!follows(sub, fx)) { fixtureCursor = fx.fixture.id; continue; }
             const fixtureId = fx.fixture.id; const status = fx.fixture.status.short;
             if (!details.has(fixtureId)) {
-              const lineups = ['NS','TBD','1H'].includes(status) ? await football('fixtures/lineups?fixture=' + fixtureId) : [];
+              // Escalações saem ~1h antes do jogo; consultar antes disso só gasta a cota diária.
+              const nearKickoff = Number(fx.fixture.timestamp) * 1000 - Date.now() < 60 * 60 * 1000;
+              const lineups = ['NS','TBD','1H'].includes(status) && nearKickoff ? await football('fixtures/lineups?fixture=' + fixtureId) : [];
               const events = ['1H','2H','ET','P','LIVE'].includes(status) ? await football('fixtures/events?fixture=' + fixtureId) : [];
               details.set(fixtureId, payloads(fx, events, lineups));
             }

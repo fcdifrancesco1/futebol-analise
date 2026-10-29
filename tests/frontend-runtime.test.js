@@ -2,7 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const {PlayerRatingEngine}=require('../public/js/models.js');
+const {PlayerRatingEngine,FINISHED_STATUS}=require('../public/js/models.js');
 test('every declared entry script loads in HTML order with malformed stored preferences',()=>{
   const index=fs.readFileSync('public/index.html','utf8');
   const entries=[...index.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m=>m[1].split('?')[0]);
@@ -213,12 +213,11 @@ test('live spotlight does not invent scores when the provider omits goals',()=>{
 
 test('fixture goal extraction handles own goals and recovers scorers from player statistics when events lag', () => {
   const fixtureSrc = fs.readFileSync('public/js/fixture.js', 'utf8');
-  // Extrai a lógica das funções auxiliares de fixture.js
-  const isGoalForTeamStr = fixtureSrc.match(/const isGoalForTeam = \([\s\S]*?\n    \};/)[0];
+  // Regra de gol compartilhada (goal-rules.js) e recuperação de gols de fixture.js
   const recoverMissingGoalsStr = fixtureSrc.match(/const recoverMissingGoals = \([\s\S]*?\n    \};/)[0];
 
   const fnContext = vm.createContext({});
-  vm.runInContext(`${isGoalForTeamStr}\nthis.isGoalForTeam = isGoalForTeam;\n${recoverMissingGoalsStr}\nthis.recoverMissingGoals = recoverMissingGoals;`, fnContext);
+  vm.runInContext(`${fs.readFileSync('public/js/goal-rules.js', 'utf8')}\nthis.isGoalForTeam = isGoalForTeam;\n${recoverMissingGoalsStr}\nthis.recoverMissingGoals = recoverMissingGoals;`, fnContext);
 
   const homeTeam = { id: 20, name: 'Australia' };
   const awayTeam = { id: 6, name: 'Brazil' };
@@ -243,7 +242,7 @@ test('fixture goal extraction handles own goals and recovers scorers from player
     time: { elapsed: 80 }
   };
   // Sabendo que o jogador 102 é da Austrália, o gol contra vai para o Brasil.
-  const roster = new Map([['102', '20']]);
+  const roster = id => new Map([['102', '20']]).get(String(id));
   assert.equal(fnContext.isGoalForTeam(ownGoalAustralia, awayTeam, homeTeam, roster), true);
   assert.equal(fnContext.isGoalForTeam(ownGoalAustralia, homeTeam, awayTeam, roster), false);
 
@@ -256,7 +255,7 @@ test('fixture goal extraction handles own goals and recovers scorers from player
   assert.equal(fnContext.isGoalForTeam(kaioJorgeOG, bragantino, cruzeiro), true);
   assert.equal(fnContext.isGoalForTeam(kaioJorgeOG, cruzeiro, bragantino), false);
   // Sabendo que Kaio Jorge é do Cruzeiro: mesmo resultado.
-  const kaioRoster = new Map([['10008', '135']]);
+  const kaioRoster = id => new Map([['10008', '135']]).get(String(id));
   assert.equal(fnContext.isGoalForTeam(kaioJorgeOG, bragantino, cruzeiro, kaioRoster), true);
   assert.equal(fnContext.isGoalForTeam(kaioJorgeOG, cruzeiro, bragantino, kaioRoster), false);
 
@@ -494,7 +493,7 @@ test('day standings movement compares the table before the last round played', (
   const matchesSrc = fs.readFileSync('public/js/matches.js', 'utf8');
   const start = matchesSrc.indexOf('function dayStandingsRoundNumber');
   const end = matchesSrc.indexOf('function dayStandingsZone');
-  const ctx = vm.createContext({ console, Date, Math, Number, String, Set, Map, Array, Object, document: { getElementById: () => null }, window: {} });
+  const ctx = vm.createContext({ console, Date, Math, Number, String, Set, Map, Array, Object, FINISHED_STATUS, document: { getElementById: () => null }, window: {} });
   // Só o motor de tabela de leagues.js (sem rotas/DOM)
   const engineStart = leaguesSrc.indexOf('function sortStandingsByLeagueRules');
   const engineEnd = leaguesSrc.indexOf('function renderStandingsTable');

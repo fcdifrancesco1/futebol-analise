@@ -23,19 +23,6 @@ function createApiClient({ fetch: fetcher, storage, now = Date.now, onUpdate = (
     cache.delete(key);
     try { storage?.removeItem(key); } catch { /* unavailable storage */ }
   }
-  function invalidateAll() {
-    cache.clear();
-    try {
-      if (storage && typeof storage.length === 'number') {
-        const toRemove = [];
-        for (let i = 0; i < storage.length; i++) {
-          const k = storage.key(i);
-          if (k && k.startsWith('ap_cache_')) toRemove.push(k);
-        }
-        toRemove.forEach(k => storage.removeItem(k));
-      }
-    } catch { /* storage cleanup */ }
-  }
   async function get(endpoint, params = {}, ttlMinutes = 15, signal) {
     check(signal);
     const key = cacheKey(endpoint, params);
@@ -78,6 +65,6 @@ function createApiClient({ fetch: fetcher, storage, now = Date.now, onUpdate = (
     pending.set(key,{promise,signal});
     try { return await promise; } finally { if (pending.get(key)?.promise === promise) pending.delete(key); }
   }
-  return {get,invalidate,invalidateAll,cache};
+  return {get,invalidate,cache};
 }
 if (typeof module !== 'undefined') module.exports={createApiClient,cacheKey,cacheQuery,safeReadStorage};

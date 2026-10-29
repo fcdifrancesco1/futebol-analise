@@ -9,7 +9,6 @@
     "dev": "node --env-file-if-exists=.env.local scripts/dev.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.112.4",
     "web-push": "3.6.7"
   },
   "engines": {

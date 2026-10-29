@@ -22,7 +22,7 @@ async function renderTeam(teamId, leagueId, season) {
     }
 
     const t = stats.team;
-    const finishedSeason = Array.isArray(teamSeasonFixtures) ? teamSeasonFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short)) : [];
+    const finishedSeason = Array.isArray(teamSeasonFixtures) ? teamSeasonFixtures.filter(f => FINISHED_STATUS.includes(f.fixture?.status?.short)) : [];
 
     let totalPlayed = stats.fixtures?.played?.total || 0;
     let totalWins = stats.fixtures?.wins?.total || 0;

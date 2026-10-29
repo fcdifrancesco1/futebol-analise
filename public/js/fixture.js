@@ -82,47 +82,29 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       statusText = `<span style="color:#F59E0B;font-weight:700;">● ${statusInfo.label}</span>`;
     }
 
-    // A API-Football registra o gol contra no time BENEFICIADO (ex.: Kaio Jorge, do
-    // Cruzeiro, vem com team = RB Bragantino). Quando o time real do jogador é
-    // conhecido (escalação, estatísticas ou outros eventos), o beneficiado é o adversário dele.
-    const isGoalForTeam = (e, targetTeam, otherTeam, playerTeamIds = null) => {
-      if (e.type !== "Goal" || e.detail === "Missed Penalty") return false;
-      const isOwnGoal = e.detail === "Own Goal" || (e.comments && /own goal/i.test(e.comments));
-      const targetId = targetTeam?.id != null ? String(targetTeam.id) : "";
-      const otherId = otherTeam?.id != null ? String(otherTeam.id) : "";
-      const eventTeamId = e.team?.id != null ? String(e.team.id) : "";
-      const eventTeamName = String(e.team?.name || "").toLowerCase().trim();
-      const targetName = String(targetTeam?.name || "").toLowerCase().trim();
-
-      const isTargetTeam = Boolean((targetId && eventTeamId === targetId) || (targetName && eventTeamName === targetName));
-      if (!isOwnGoal) return isTargetTeam;
-
-      const playerTeam = e.player?.id != null && playerTeamIds ? playerTeamIds.get(String(e.player.id)) : null;
-      if (playerTeam && (playerTeam === targetId || playerTeam === otherId)) return playerTeam === otherId;
-      return isTargetTeam;
-    };
-
-    // Time real de cada jogador: eventos pelo próprio time, depois escalação e estatísticas por jogador.
+    // Time real de cada jogador (gol contra, ver goal-rules.js): eventos pelo próprio time,
+    // depois escalação e estatísticas por jogador.
     const playerTeamIds = new Map();
     const setPlayerTeam = (playerId, teamId) => {
       if (playerId != null && teamId != null) playerTeamIds.set(String(playerId), String(teamId));
     };
     events.forEach(e => {
-      if (e.detail === "Own Goal" || (e.comments && /own goal/i.test(e.comments))) return;
+      if (isOwnGoalEvent(e)) return;
       setPlayerTeam(e.player?.id, e.team?.id);
       setPlayerTeam(e.assist?.id, e.team?.id);
     });
     lineupsArr.forEach(l => [...(l.startXI || []), ...(l.substitutes || [])].forEach(x => setPlayerTeam(x.player?.id, l.team?.id)));
     fixturePlayersArr.forEach(b => (b.players || []).forEach(x => setPlayerTeam(x.player?.id, b.team?.id)));
 
-    let homeGoals = events.filter(e => isGoalForTeam(e, fx.teams.home, fx.teams.away, playerTeamIds));
-    let awayGoals = events.filter(e => isGoalForTeam(e, fx.teams.away, fx.teams.home, playerTeamIds));
+    const playerTeamOf = id => playerTeamIds.get(String(id));
+    let homeGoals = events.filter(e => isGoalForTeam(e, fx.teams.home, fx.teams.away, playerTeamOf));
+    let awayGoals = events.filter(e => isGoalForTeam(e, fx.teams.away, fx.teams.home, playerTeamOf));
 
     // Cobranças convertidas na disputa de pênaltis não contam no placar (fx.goals).
     const hasShootout = Boolean(penaltyShootoutScore(fx));
     const splitShootout = (goals, regulationGoals) => {
       if (!hasShootout) return [goals, []];
-      const flagged = goals.filter(e => /shootout/i.test(e.comments || ""));
+      const flagged = goals.filter(isShootoutKick);
       let regular = goals.filter(e => !flagged.includes(e));
       let shootout = flagged;
       // Sem o comentário da API: as cobranças são os gols que excedem o placar, no fim da lista.
@@ -908,7 +890,7 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
     const min = e.time?.elapsed ?? 0;
     if (e.type === "Goal" && e.detail !== "Missed Penalty") {
       const pid = e.player?.id;
-      const isOwnGoal = (e.detail === "Own Goal" || (e.comments && /own goal/i.test(e.comments)));
+      const isOwnGoal = isOwnGoalEvent(e);
       if (pid) {
         playerEventsMap[pid] = playerEventsMap[pid] || { goals: 0, ownGoals: 0, yellows: 0, reds: 0 };
         if (isOwnGoal) {

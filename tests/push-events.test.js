@@ -180,3 +180,17 @@ test('minute corrections by the API do not create a second alert for the same re
   assert.deepEqual(goalTags([kane(72, 1)]), ['goal-1635742-p184-n1']);
   assert.deepEqual(goalTags([kane(54), kane(74)]), ['goal-1635742-p184-n2']);
 });
+
+test('penalty shootout kicks never become goal alerts or change the score', () => {
+  const city = { id: 50, name: 'Manchester City' }, brighton = { id: 51, name: 'Brighton' };
+  const kick = (team, name, extra) => ({ type: 'Goal', detail: 'Penalty', comments: 'Penalty Shootout', team, player: { id: extra, name }, time: { elapsed: 120, extra } });
+  const events = [
+    { type: 'Goal', detail: 'Normal Goal', team: city, player: { id: 9, name: 'Foden' }, time: { elapsed: 40 } },
+    { type: 'Goal', detail: 'Normal Goal', team: brighton, player: { id: 8, name: 'Rutter' }, time: { elapsed: 47 } },
+    kick(city, 'Doku', 1), kick(brighton, 'Groß', 2), kick(city, 'Cherki', 3)
+  ];
+  const fx = { fixture: { id: 7, status: { short: 'P', elapsed: 120 } }, teams: { home: city, away: brighton }, goals: { home: 1, away: 1 } };
+  assert.deepEqual(payloads(fx, events, []).filter(item => item.kind === 'goals'), []);
+  const ended = payloads({ ...fx, fixture: { id: 7, status: { short: 'PEN', elapsed: 120 } } }, events, []);
+  assert.equal(ended.find(item => item.kind === 'fulltime').payload.body, 'Manchester City 1 x 1 Brighton');
+});

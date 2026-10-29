@@ -66,7 +66,7 @@ function renderHome() {
 
 function computeTopCleanSheets(fixtures) {
   if (!Array.isArray(fixtures) || !fixtures.length) return [];
-  const finished = fixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short));
+  const finished = fixtures.filter(f => FINISHED_STATUS.includes(f.fixture?.status?.short));
   if (!finished.length) return [];
 
   const map = new Map();
@@ -405,7 +405,7 @@ async function renderStandingsFromCache(leagueId, season) {
       return;
     }
 
-    const finishedFixtures = allFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.fixture?.status?.short));
+    const finishedFixtures = allFixtures.filter(f => FINISHED_STATUS.includes(f.fixture?.status?.short));
 
     let tablesToRender = officialStandings;
 

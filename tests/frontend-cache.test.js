@@ -62,8 +62,4 @@ test('forced refresh with ttl zero updates cache and storage with latest data', 
   const res3 = await api.get('fixtures', { live: 'all' }, 5);
   assert.equal(calls, 2);
   assert.equal(res3[0].callId, 2);
-
-  // Invalidate all clears storage keys
-  api.invalidateAll();
-  assert.equal(store.size, 0);
 });

@@ -233,7 +233,7 @@ function dayStandingsRoundNumber(round) {
 function dayStandingsMovement(rows, fixtures, leagueId) {
   if (typeof computeTableFromFixtures !== "function" || !Array.isArray(fixtures)) return null;
   const ids = new Set(rows.map(t => t.team?.id));
-  const finished = fixtures.filter(f => ["FT", "AET", "PEN"].includes(f.fixture?.status?.short)
+  const finished = fixtures.filter(f => FINISHED_STATUS.includes(f.fixture?.status?.short)
     && ids.has(f.teams?.home?.id) && ids.has(f.teams?.away?.id)
     && dayStandingsRoundNumber(f.league?.round) != null);
   if (!finished.length) return null;

@@ -1,1 +1,0 @@
-Deno.serve(() => new Response(JSON.stringify({ error: 'Retired. Use the authenticated /api/cron-alerts route scheduled only by Supabase Cron.' }), { status: 410, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } }));
