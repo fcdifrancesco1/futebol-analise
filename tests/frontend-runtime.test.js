@@ -552,7 +552,7 @@ test('day standings add live and just-finished scores missing from the official 
   const atl = result.rows[0];
   assert.equal(atl.points, 57); assert.equal(atl.all.played, 33); assert.equal(atl.goalsDiff, 1); assert.equal(atl.rank, 1);
   assert.equal(result.rows[2].points, 52);
-  assert.equal([...result.playing].sort().join(), '1,2');
+  assert.equal(result.playing.get(2), 'win'); assert.equal(result.playing.get(1), 'lose'); assert.equal(result.playing.size, 2);
   assert.equal(result.movement.get(2), 1); assert.equal(result.movement.get(1), -1);
   assert.equal(rows[1].points, 54, 'tabela oficial não é alterada');
   assert.equal(ctx.live(rows, [fixtures[2]], 71), null);

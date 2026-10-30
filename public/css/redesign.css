@@ -386,4 +386,7 @@ body { padding-bottom: 0; }
 /* Classificação ao vivo: time em campo destacado e selo no título */
 .day-standings-live { margin-left: auto; color: #ef4444; font: 700 10px var(--font-mono); letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
 .day-standings-table tr.is-live td.team span::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: #ef4444; vertical-align: middle; }
-.day-standings-table tr.is-live td.pts { color: #ef4444; }
+/* Pontos do time em campo: verde ganhando, amarelo empatando, vermelho perdendo */
+.day-standings-table tr.live-win td.pts { color: #22c55e; }
+.day-standings-table tr.live-draw td.pts { color: #eab308; }
+.day-standings-table tr.live-lose td.pts { color: #ef4444; }

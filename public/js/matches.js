@@ -280,7 +280,12 @@ function dayStandingsLive(rows, fixtures, leagueId, finished = []) {
   const sorted = sortStandingsByLeagueRules(table, leagueId, finished, "all");
   const officialRank = new Map(rows.map((t, i) => [t.team.id, t.rank ?? i + 1]));
   sorted.forEach((t, i) => { t.rank = i + 1; });
-  const playing = new Set(live.filter(f => getMatchStatusCategory(f.fixture).isLive).flatMap(f => [f.teams.home.id, f.teams.away.id]));
+  // Times em campo -> situação no placar atual ("win", "draw" ou "lose"), para a cor dos pontos.
+  const result = (gf, ga) => gf > ga ? "win" : gf === ga ? "draw" : "lose";
+  const playing = new Map(live.filter(f => getMatchStatusCategory(f.fixture).isLive).flatMap(f => [
+    [f.teams.home.id, result(f.goals.home, f.goals.away)],
+    [f.teams.away.id, result(f.goals.away, f.goals.home)]
+  ]));
   // A seta passa a comparar com a posição oficial: quanto o time sobe ou cai com os jogos em andamento.
   const movement = new Map(sorted.map(t => [t.team.id, officialRank.get(t.team.id) - t.rank]));
   return { rows: sorted, playing, movement };
@@ -318,7 +323,7 @@ function renderDayStandingsSlide(slide, rows, movement = null, playing = null) {
           const compZone = compKind === "other" ? null : compKind;
           const gd = Number(t.goalsDiff) || 0;
           return `
-          <tr class="${zone ? `zone-${zone}` : ""}${compZone ? ` zone-${compZone}` : ""}${playing?.has(t.team?.id) ? " is-live" : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
+          <tr class="${zone ? `zone-${zone}` : ""}${compZone ? ` zone-${compZone}` : ""}${playing?.has(t.team?.id) ? ` is-live live-${playing.get(t.team.id)}` : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
             <td class="pos">${t.rank ?? "-"}</td>
             <td class="move">${dayStandingsMoveHtml(movement?.get(t.team?.id) ?? 0)}</td>
             <td class="team"><a href="#/time/${t.team?.id}/${comp.id}/${comp.season}"><img src="${t.team?.logo || ""}" alt="" loading="lazy" data-image-fallback="hide"><span>${escapeHtml(formatTeamName(t.team?.name || ""))}</span></a></td>
