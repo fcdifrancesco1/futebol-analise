@@ -279,7 +279,10 @@ function dayStandingsLive(rows, fixtures, leagueId, finished = []) {
   });
   const sorted = sortStandingsByLeagueRules(table, leagueId, finished, "all");
   const officialRank = new Map(rows.map((t, i) => [t.team.id, t.rank ?? i + 1]));
-  sorted.forEach((t, i) => { t.rank = i + 1; });
+  // A zona (Champions, rebaixamento...) é da POSIÇÃO: a API manda a descrição no time,
+  // então quem muda de lugar ao vivo herda a descrição da posição oficial que ocupa.
+  const byOfficialPos = [...rows].sort((x, y) => (x.rank ?? 0) - (y.rank ?? 0));
+  sorted.forEach((t, i) => { t.rank = i + 1; t.description = byOfficialPos[i]?.description ?? null; });
   // Times em campo -> situação no placar atual ("win", "draw" ou "lose"), para a cor dos pontos.
   const result = (gf, ga) => gf > ga ? "win" : gf === ga ? "draw" : "lose";
   const playing = new Map(live.filter(f => getMatchStatusCategory(f.fixture).isLive).flatMap(f => [

@@ -538,7 +538,7 @@ test('day standings add live and just-finished scores missing from the official 
     + '\nthis.live = dayStandingsLive;', ctx);
   const update = '2026-10-29T12:00:00+00:00';
   const row = (id, name, rank, points, win) => ({ rank, points, goalsDiff: 0, update, team: { id, name }, all: { played: 32, win, draw: 0, lose: 0, goals: { for: 40, against: 40 } }, home: { played: 16, win: 0, draw: 0, lose: 0, goals: { for: 0, against: 0 } }, away: { played: 16, win: 0, draw: 0, lose: 0, goals: { for: 0, against: 0 } } });
-  const rows = [row(1, 'Cruzeiro', 1, 54, 16), row(2, 'Atletico-MG', 2, 54, 16), row(3, 'Vasco', 3, 50, 14), row(4, 'Flamengo', 4, 49, 14)];
+  const rows = [{ ...row(1, 'Cruzeiro', 1, 54, 16), description: 'Libertadores' }, row(2, 'Atletico-MG', 2, 54, 16), row(3, 'Vasco', 3, 50, 14), row(4, 'Flamengo', 4, 49, 14)];
   const now = Math.floor(Date.now() / 1000);
   const fx = (id, home, away, gh, ga, short, ts, league = 71) => ({ league: { id: league }, fixture: { id, timestamp: ts, date: new Date(ts * 1000).toISOString(), status: { short } }, teams: { home: { id: home }, away: { id: away } }, goals: { home: gh, away: ga } });
   const fixtures = [
@@ -555,5 +555,7 @@ test('day standings add live and just-finished scores missing from the official 
   assert.equal(result.playing.get(2), 'win'); assert.equal(result.playing.get(1), 'lose'); assert.equal(result.playing.size, 2);
   assert.equal(result.movement.get(2), 1); assert.equal(result.movement.get(1), -1);
   assert.equal(rows[1].points, 54, 'tabela oficial não é alterada');
+  // Zona segue a posição: o 1º ao vivo herda a descrição do 1º oficial.
+  assert.equal(result.rows[0].description, 'Libertadores'); assert.equal(result.rows[1].description, null);
   assert.equal(ctx.live(rows, [fixtures[2]], 71), null);
 });
