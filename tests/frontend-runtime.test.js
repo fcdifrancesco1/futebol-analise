@@ -166,7 +166,7 @@ test('older day response cannot overwrite the latest day render',async()=>{
   const content={writes:0,_html:'',set innerHTML(value){this.writes++;this._html=value;},get innerHTML(){return this._html;}};
   const elements={
     'day-matches-content':content,
-    'day-count':{},'day-spotlight':{},'day-visible-count':{}
+    'day-spotlight':{},'day-visible-count':{}
   };
   const root={};
   const document={getElementById(id){return id==='route-view' ? root : elements[id];}};

@@ -496,7 +496,7 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
       </aside>
 
       <section class="day-main" aria-label="Jogos do dia">
-        <div class="day-intro"><div><p class="page-eyebrow">${escapeHtml(dateInfo.full)}</p><h1 class="page-title">${dateInfo.isToday ? 'Hoje em campo.' : 'Jogos em campo.'}</h1><p class="page-sub">Placar, horário e competição: o essencial primeiro.</p></div><span class="day-count" id="day-count" aria-live="polite"></span></div>
+        <h1 class="sr-only">Jogos do dia, ${escapeHtml(dateInfo.full)}</h1>
         <div class="day-selector-bar">
           <div class="day-nav-actions" role="group" aria-label="Selecionar data">
             <button class="day-nav-btn" id="btn-prev-day" data-date="${prevDate}">Anterior <small>${prevDate.slice(8)}/${prevDate.slice(5, 7)}</small></button>
@@ -612,7 +612,6 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
       const cat = getMatchStatusCategory(f.fixture);
       return cat.isScheduled || cat.isPostponed;
     }).length;
-    document.getElementById('day-count').textContent = `${relevant.length} ${relevant.length === 1 ? 'PARTIDA' : 'PARTIDAS'}`;
     // Jogos seguidos que já terminaram saem da lista (e dos alertas) com base nos resultados do dia.
     if (typeof cleanFinishedFavoriteFixtures === 'function') cleanFinishedFavoriteFixtures(relevant);
 

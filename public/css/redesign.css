@@ -243,11 +243,6 @@ body { padding-bottom: 0; }
 .day-standings-card[style*="--ds-row"] .day-standings-table tbody td { padding-top: 0; padding-bottom: 0; }
 .day-standings-card[style*="--ds-row"] .day-standings-table td.team img { width: min(22px, calc(var(--ds-row) - 6px)); height: min(22px, calc(var(--ds-row) - 6px)); }
 .day-standings-empty { margin: 6px 0; }
-.day-intro { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-bottom: 23px; }
-.day-intro .page-eyebrow { margin: 0; font: 600 10px var(--font-mono); letter-spacing: .09em; }
-.day-intro .page-title { margin: 6px 0 5px; font: 700 clamp(42px, 4.4vw, 64px)/.95 var(--font-display); letter-spacing: -.01em; }
-.day-intro .page-sub { font-size: 12px; }
-.day-count { padding-bottom: 4px; white-space: nowrap; color: var(--chalk-dim); font: 600 10px var(--font-mono); }
 /* Desktop: datas à esquerda e "Escolher data" + Atualizar à direita, numa linha só */
 .day-selector-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 9px; margin-bottom: 12px; padding: 6px; background: var(--pitch-card); border: 1px solid var(--pitch-border); border-radius: 12px; }
 .day-nav-actions { display: flex; width: auto; gap: 5px; }
@@ -337,13 +332,9 @@ body { padding-bottom: 0; }
   .league-head-logo { width: 42px; height: 42px; padding: 5px; border-radius: 10px; }
   .league-head .page-title { font-size: 22px; }
   .day-layout { display: block; }
-  .day-intro { margin-bottom: 18px; }
-  .day-intro .page-title { font-size: 44px; }
-  .day-intro .page-sub { max-width: 250px; line-height: 1.45; }
   .day-selector-bar { display: grid; justify-content: stretch; } /* sem isso a coluna encolhe e os botões ocupavam metade da largura */
   .day-nav-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
   .day-current-display { grid-row: auto; padding-bottom: 5px; }
-  .day-count { display: none; }
   .day-filter-row { margin-bottom: 12px; }
   .day-timezone { display: none; }
   .day-spotlight-main { padding: 20px 14px; gap: 7px; }
@@ -390,3 +381,6 @@ body { padding-bottom: 0; }
 .day-standings-table tr.live-win td.pts { color: #22c55e; }
 .day-standings-table tr.live-draw td.pts { color: #eab308; }
 .day-standings-table tr.live-lose td.pts { color: #ef4444; }
+
+/* Título só para leitores de tela (a página de jogos do dia não mostra cabeçalho visível) */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
