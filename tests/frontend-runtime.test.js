@@ -473,7 +473,7 @@ test('day standings carousel picks the day competitions in LEAGUES order, with f
   const start = src.indexOf('const DAY_STANDINGS_FALLBACK');
   const end = src.indexOf('function renderDayStandingsSlide');
   const ctx = vm.createContext({
-    LEAGUES: [{ id: 71, name: 'Brasileirão Série A', calendarYear: true }, { id: 72, name: 'Brasileirão Série B', calendarYear: true }, { id: 140, name: 'La Liga' }, { id: 39, name: 'Premier League' }],
+    LEAGUES: [{ id: 71, name: 'Brasileirão Série A', calendarYear: true }, { id: 72, name: 'Brasileirão Série B', calendarYear: true }, { id: 140, name: 'La Liga' }, { id: 39, name: 'Premier League' }, { id: 135, name: 'Serie A' }, { id: 61, name: 'Ligue 1' }, { id: 78, name: 'Bundesliga' }],
     defaultSeasonFor: league => (league?.calendarYear ? 2026 : 2026)
   });
   vm.runInContext(src.slice(start, end) + '\nthis.comps = dayStandingsCompetitions; this.zone = dayStandingsZone;', ctx);
@@ -481,7 +481,7 @@ test('day standings carousel picks the day competitions in LEAGUES order, with f
   // Ordem do projeto (Série A antes da Premier), sem repetir e ignorando ligas fora de LEAGUES
   assert.deepEqual(JSON.parse(JSON.stringify(ctx.comps([fx(39), fx(71), fx(39), fx(999)]).map(c => `${c.id}:${c.name}`))), ['71:Brasileirão Série A', '39:Premier League']);
   // Sem jogos no dia: campeonatos principais
-  assert.deepEqual(JSON.parse(JSON.stringify(ctx.comps([]).map(c => c.id))), [71, 39, 140]);
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.comps([]).map(c => c.id))), [71, 140, 39, 135, 61, 78]);
   // Zonas: rebaixamento em vermelho, classificação/promoção em destaque, meio da tabela neutro
   assert.equal(ctx.zone('Relegation - Serie B'), 'down');
   assert.equal(ctx.zone('Promotion - Libertadores'), 'up');

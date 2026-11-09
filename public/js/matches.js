@@ -197,9 +197,10 @@ if (typeof window !== 'undefined') {
 // Gira entre os campeonatos com jogos no dia (ordem de LEAGUES) a cada 15s. Cada
 // tabela só é buscada quando entra na tela (cache de 15 min em apiGet). Copas
 // sem tabela são puladas; fases de grupos viram um slide por grupo.
-const DAY_STANDINGS_FALLBACK = [71, 39, 140];
+// Principais ligas: aparecem quando nenhum campeonato do dia tem tabela (dia só de copa).
+const DAY_STANDINGS_FALLBACK = [71, 140, 39, 135, 61, 78];
 const DAY_STANDINGS_MAX_SLIDES = 12;
-const dayStandings = { key: "", fixtures: [], slides: [], index: 0, userPaused: false, hoverPaused: false, requestId: 0, doc: null };
+const dayStandings = { key: "", fixtures: [], usingFallback: false, slides: [], index: 0, userPaused: false, hoverPaused: false, requestId: 0, doc: null };
 
 // O document da tela lança erro quando a tela já foi trocada; aqui isso vira null.
 function dayStandingsEl(id) {
@@ -213,7 +214,10 @@ function dayStandingsCompetitions(fixtures) {
     if (id != null && !byId.has(id)) byId.set(id, { id, season: f.league.season, logo: f.league.logo, apiName: f.league.name });
   });
   const ordered = LEAGUES.filter(l => byId.has(l.id)).map(l => ({ ...byId.get(l.id), name: l.name }));
-  if (ordered.length) return ordered;
+  return ordered.length ? ordered : dayStandingsFallback();
+}
+
+function dayStandingsFallback() {
   return DAY_STANDINGS_FALLBACK.map(id => {
     const league = LEAGUES.find(l => l.id === id);
     return { id, season: defaultSeasonFor(league), logo: `https://media.api-sports.io/football/leagues/${id}.png`, name: league?.name || "" };
@@ -366,6 +370,11 @@ async function showDayStandingsSlide(index) {
   // Sem tabela (copa em mata-mata): remove o slide e segue para o próximo.
   if (!groups.length) {
     dayStandings.slides.splice(dayStandings.index, 1);
+    if (!dayStandings.slides.length && !dayStandings.usingFallback) {
+      dayStandings.usingFallback = true;
+      dayStandings.slides = dayStandingsFallback().map(comp => ({ comp, group: null }));
+      return showDayStandingsSlide(0);
+    }
     if (!dayStandings.slides.length) {
       body.innerHTML = `<p class="day-standings-empty">Sem classificação disponível para os campeonatos de hoje.</p>`;
       return;
@@ -438,6 +447,7 @@ function setupDayStandings(fixtures, doc = globalThis.document) {
     return;
   }
   dayStandings.key = key;
+  dayStandings.usingFallback = false;
   dayStandings.slides = comps.slice(0, DAY_STANDINGS_MAX_SLIDES).map(comp => ({ comp, group: null }));
   dayStandings.index = 0;
   if (card.dataset.bound !== "1") { dayStandings.userPaused = false; dayStandings.hoverPaused = false; }
