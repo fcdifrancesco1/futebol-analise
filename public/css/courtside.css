@@ -266,10 +266,15 @@ tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; 
 a.fixture-card-compact.match-colors, a.fixture-card-compact.match-colors:hover { padding: 0 0 10px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .18); border-radius: 9px; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
   background: linear-gradient(90deg, rgba(0, 0, 0, .2), rgba(0, 0, 0, .55) 50%, rgba(0, 0, 0, .2)), linear-gradient(90deg, var(--h1) 0 50%, var(--a1) 50% 100%); }
 a.fixture-card-compact.match-colors:hover { filter: brightness(1.15); }
-.fixture-card-compact.match-colors .fixture-card-topbar { margin-bottom: 10px; padding: 7px 14px; background: rgba(0, 0, 0, .35); border-bottom-color: rgba(255, 255, 255, .1); }
+/* cabeçalho (competição e data) na cor padrão dos cartões, sem as cores dos clubes, para destacar */
+.fixture-card-compact.match-colors .fixture-card-topbar { margin-bottom: 10px; padding: 7px 14px; background: #162036; border-bottom: 1px solid var(--pitch-border); text-shadow: none; }
 .fixture-card-compact.match-colors .fixture-card-league { color: rgba(255, 255, 255, .85); }
 .fixture-card-compact.match-colors .fixture-card-date-badge { color: #ffc94d; background: rgba(0, 0, 0, .4); border-color: rgba(255, 255, 255, .15); text-shadow: none; }
 .fixture-card-compact.match-colors .fixture-card-matchup { padding: 0 14px; }
 .fixture-card-compact.match-colors .fixture-team-item { color: #fff; font-weight: 800; text-transform: uppercase; font-size: 13px; }
 .fixture-card-compact.match-colors .fixture-team-item img { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); }
 .fixture-card-compact.match-colors .fixture-score { color: #fff !important; background: rgba(0, 0, 0, .45); border: 0; border-radius: 6px; font-family: var(--font-display); text-shadow: none; }
+
+/* botão Melhores Momentos sólido (antes translúcido), legível sobre qualquer cor de clube */
+.btn-fixture-highlights-pill { background: #dc2626; color: #fff; border-color: #ef4444; text-shadow: none; }
+.btn-fixture-highlights-pill:hover { background: #ef4444; color: #fff; }
