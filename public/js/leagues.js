@@ -150,7 +150,7 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
       </div>
 
       ${scorerLeader ? `
-        <a class="sidebar-leader-hero gold" href="#/jogador/${scorerLeader.player?.id}/${scorerLeader.statistics?.[0]?.team?.id || 0}/${leagueId}/${season}" title="Ver perfil de ${escapeHtml(scorerLeader.player?.name || '')}">
+        <a class="sidebar-leader-hero gold" style="${teamColorVars(scorerLeader.statistics?.[0]?.team?.id)}" href="#/jogador/${scorerLeader.player?.id}/${scorerLeader.statistics?.[0]?.team?.id || 0}/${leagueId}/${season}" title="Ver perfil de ${escapeHtml(scorerLeader.player?.name || '')}">
           <div class="sidebar-leader-badge gold">👑 1º LUGAR · ARTILHEIRO</div>
           <div class="sidebar-leader-body">
             <div class="sidebar-leader-avatar-wrap gold">
@@ -174,7 +174,7 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
             const p = item.player || {};
             const s = item.statistics?.[0] || {};
             return `
-              <a class="sidebar-rank-row" href="#/jogador/${p.id}/${s.team?.id || 0}/${leagueId}/${season}" title="Ver estatísticas">
+              <a class="sidebar-rank-row" style="${teamColorVars(s.team?.id)}" href="#/jogador/${p.id}/${s.team?.id || 0}/${leagueId}/${season}" title="Ver estatísticas">
                 <span class="sidebar-rank-num">${idx + 2}</span>
                 <img class="sidebar-rank-thumb" src="${p.photo}" alt="" loading="lazy">
                 <div class="sidebar-rank-details">
@@ -197,7 +197,7 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
       </div>
 
       ${assistLeader ? `
-        <a class="sidebar-leader-hero cyan" href="#/jogador/${assistLeader.player?.id}/${assistLeader.statistics?.[0]?.team?.id || 0}/${leagueId}/${season}" title="Ver perfil de ${escapeHtml(assistLeader.player?.name || '')}">
+        <a class="sidebar-leader-hero cyan" style="${teamColorVars(assistLeader.statistics?.[0]?.team?.id)}" href="#/jogador/${assistLeader.player?.id}/${assistLeader.statistics?.[0]?.team?.id || 0}/${leagueId}/${season}" title="Ver perfil de ${escapeHtml(assistLeader.player?.name || '')}">
           <div class="sidebar-leader-badge cyan">👟 1º LUGAR · ASSISTÊNCIAS</div>
           <div class="sidebar-leader-body">
             <div class="sidebar-leader-avatar-wrap cyan">
@@ -221,7 +221,7 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
             const p = item.player || {};
             const s = item.statistics?.[0] || {};
             return `
-              <a class="sidebar-rank-row" href="#/jogador/${p.id}/${s.team?.id || 0}/${leagueId}/${season}" title="Ver estatísticas">
+              <a class="sidebar-rank-row" style="${teamColorVars(s.team?.id)}" href="#/jogador/${p.id}/${s.team?.id || 0}/${leagueId}/${season}" title="Ver estatísticas">
                 <span class="sidebar-rank-num">${idx + 2}</span>
                 <img class="sidebar-rank-thumb" src="${p.photo}" alt="" loading="lazy">
                 <div class="sidebar-rank-details">
@@ -243,7 +243,7 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
       </div>
 
       ${csLeader ? `
-        <a class="sidebar-leader-hero green" href="#/time/${csLeader.id}/${leagueId}/${season}" title="Ver estatísticas do ${escapeHtml(csLeader.name || '')}">
+        <a class="sidebar-leader-hero green" style="${teamColorVars(csLeader.id)}" href="#/time/${csLeader.id}/${leagueId}/${season}" title="Ver estatísticas do ${escapeHtml(csLeader.name || '')}">
           <div class="sidebar-leader-badge green">🧤 1º LUGAR · DEFESA MENOS VAZADA</div>
           <div class="sidebar-leader-body">
             <div class="sidebar-leader-avatar-wrap green">
@@ -265,7 +265,7 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
         <div class="sidebar-rank-list">
           ${csOthers.map((item, idx) => {
             return `
-              <a class="sidebar-rank-row" href="#/time/${item.id}/${leagueId}/${season}" title="Ver time">
+              <a class="sidebar-rank-row" style="${teamColorVars(item.id)}" href="#/time/${item.id}/${leagueId}/${season}" title="Ver time">
                 <span class="sidebar-rank-num">${idx + 2}</span>
                 <img class="sidebar-rank-thumb" src="${item.logo}" alt="" loading="lazy" style="border-radius:4px;object-fit:contain;">
                 <div class="sidebar-rank-details">
@@ -702,7 +702,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
     ).join("");
 
     return `
-      <tr data-team-id="${row.team.id}" data-league-id="${leagueId}" data-season="${season}"${zone ? ` class="zone-${zone.kind}" title="${escapeHtml(zone.label)}"` : ""}>
+      <tr data-team-id="${row.team.id}" data-league-id="${leagueId}" data-season="${season}" style="${teamColorVars(row.team.id)}" class="club-bar${zone ? ` zone-${zone.kind}` : ""}"${zone ? ` title="${escapeHtml(zone.label)}"` : ""}>
         <td class="pos-cell">${idx + 1}</td>
         ${showMove ? `<td class="move-cell">${dayStandingsMoveHtml(extras.movement.get(row.team.id) ?? 0)}</td>` : ""}
         <td class="team-cell">
@@ -924,7 +924,7 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                             : `<span class="fixture-date">${date}<br>${time}</span>`));
 
                   return `
-                    <a class="fixture-row match-fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para ver estatísticas da partida">
+                    <a class="fixture-row match-fixture-row match-colors" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}" href="#/jogo/${f.fixture.id}" title="Clique para ver estatísticas da partida">
                       <div class="fixture-date-col">
                         ${dateDisplay}
                         ${legBadge}
@@ -997,7 +997,7 @@ function renderTopList(list, metricFn, leagueId, season, rateFn = null) {
            </span>`
         : `<span style="font-family:var(--font-mono);color:var(--gold);font-weight:700;">${metricFn(s)}</span>`;
       return `
-        <a class="fixture-row" href="#/jogador/${p.id}/${s.team.id}/${leagueId}/${season}" style="grid-template-columns:30px 40px 1fr auto;" title="Ver estatísticas do jogador">
+        <a class="fixture-row club-row" href="#/jogador/${p.id}/${s.team.id}/${leagueId}/${season}" style="${teamColorVars(s.team.id)};grid-template-columns:30px 40px 1fr auto;" title="Ver estatísticas do jogador">
           <span style="font-family:var(--font-mono);font-weight:700;color:var(--chalk-dim);">${i + 1}</span>
           <img src="${p.photo}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
           <div>

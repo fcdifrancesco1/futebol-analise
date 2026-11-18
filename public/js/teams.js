@@ -91,7 +91,7 @@ async function renderTeam(teamId, leagueId, season) {
     content.innerHTML = `
       ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league?.name || "Liga", href: `#/liga/${leagueId}/${season}` }, { label: t.name, href: "" }])}
       
-      <div class="team-header" style="display:flex;align-items:center;gap:16px;margin-bottom:20px;background:var(--pitch-card);border:1px solid var(--pitch-border);padding:16px;border-radius:var(--radius-lg);flex-wrap:wrap;">
+      <div class="team-header club-hero" style="${teamColorVars(teamId)};display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;border-radius:var(--radius-lg);flex-wrap:wrap;">
         <img src="${t.logo}" alt="" style="width:64px;height:64px;object-fit:contain;">
         <div>
           <p class="page-eyebrow">${escapeHtml(league?.name || "")} · ${season}</p>
@@ -358,7 +358,7 @@ async function renderSquad(teamId, leagueId, season) {
 
     content.innerHTML = `
       ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: squad.team.name, href: `#/time/${teamId}/${leagueId}/${season}` }, { label: "Elenco", href: "" }])}
-      <div class="team-header" style="display:flex;align-items:center;gap:16px;margin-bottom:20px;background:var(--pitch-card);border:1px solid var(--pitch-border);padding:16px;border-radius:var(--radius-lg);">
+      <div class="team-header club-hero" style="${teamColorVars(teamId)};display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;border-radius:var(--radius-lg);">
         <img src="${squad.team.logo}" alt="" style="width:54px;height:54px;object-fit:contain;">
         <div>
           <p class="page-eyebrow">${escapeHtml(league?.name || "")}</p>

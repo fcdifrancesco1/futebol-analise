@@ -1,0 +1,177 @@
+/* Visual "Courtside" (projetos nba-stats e nfl-stats) aplicado ao FutStats.
+   Carregado por último: troca as variáveis de cor e fonte e pinta times, partidas e líderes
+   nas cores dos clubes (js/team-colors.js). Mantém a logo e a imagem de fundo do app. */
+:root {
+  --bg-app: #070b14;
+  --pitch-card: rgba(16, 24, 40, .94);
+  --pitch-card-elevated: #162036;
+  --pitch-border: #1a2540;
+  --line-faint: #1a2540;
+  --line-strong: #233150;
+  --chalk: #eef2fa;
+  --chalk-dim: #8d9abb;
+  --chalk-muted: #5e6b8a;
+  --gold: #f5b301;
+  --gold-soft: rgba(245, 179, 1, .14);
+  --gold-border: rgba(245, 179, 1, .42);
+  --terracotta: #ff3b4e;
+  --terracotta-soft: rgba(255, 59, 78, .15);
+  --glass-bg: rgba(16, 24, 40, .94);
+  --glass-border: #1a2540;
+  --league-header-bg: linear-gradient(180deg, #1d2a45, #162036);
+  --league-header-ink: #eef2fa;
+  --league-header-ink-dim: #8d9abb;
+  --cs-pitch: #0f7a45;
+  --cs-pitch-2: #19b36b;
+  --cs-shadow: 0 10px 30px -12px rgba(0, 0, 0, .6);
+  --font-display: 'Oswald', 'Arial Narrow', sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Inter', system-ui, sans-serif;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --radius-lg: 18px;
+}
+body { font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+
+/* ---------- topo: logo oficial, abas em cápsula e faixa tricolor ---------- */
+/* sem backdrop-filter: o redesign.css o tirou do topo fixo (deslocava o topo ao rolar) */
+.topbar { background: rgba(7, 11, 20, .92); border-bottom: 1px solid var(--pitch-border); }
+.topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; opacity: .9; pointer-events: none;
+  background: linear-gradient(90deg, var(--cs-pitch) 0 33%, #fff 33% 34%, var(--gold) 34% 67%, #fff 67% 68%, #1f55c4 68%); }
+.brand-name { font-family: 'Barlow Condensed', Impact, sans-serif; color: #eef4f1; }
+.brand-name span { color: #63d8c5; }
+.desktop-nav { align-self: center; align-items: center; gap: 4px; padding: 4px; background: #101828; border: 1px solid var(--pitch-border); border-radius: 999px; }
+.desktop-nav .tab { padding: 8px 16px; border: 0; border-radius: 999px; color: var(--chalk-dim); font: 600 13px var(--font-body); }
+.desktop-nav .tab:hover { color: var(--chalk); }
+.desktop-nav .tab.active { color: #fff; border: 0; background: linear-gradient(135deg, var(--cs-pitch), var(--cs-pitch-2)); box-shadow: 0 4px 14px -4px rgba(25, 179, 107, .7); }
+.desktop-more { font: 600 13px var(--font-body); }
+.desktop-more summary { padding: 8px 14px; border-radius: 999px; }
+.desktop-more.active summary { color: #fff; background: linear-gradient(135deg, var(--cs-pitch), var(--cs-pitch-2)); }
+.more-links { top: 46px; }
+.fav-team-header-btn, .btn-notification-bell, .quota-pill { border-radius: 999px; background: #101828; border-color: var(--pitch-border); }
+.bottom-nav-item.active, .mobile-more.active summary { color: var(--gold); }
+
+/* ---------- títulos: Oswald em maiúsculas com barra colorida ---------- */
+.page-title, .section-title, .day-section-head h2 { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.section-title, .day-section-head h2 { display: flex; align-items: center; gap: 10px; font-size: 22px; }
+.section-title::before, .day-section-head h2::before { content: ''; flex: none; width: 4px; height: 20px; border-radius: 2px; background: linear-gradient(var(--gold), var(--cs-pitch-2)); }
+.page-eyebrow { font-family: var(--font-body); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.page-sub { color: var(--chalk-dim); }
+
+/* ---------- cartões ---------- */
+.card, .day-rail-card, .sidebar-stat-card, .country-card, .stat-card-modern, .day-main .league-matches-group, .day-selector-bar {
+  background: linear-gradient(180deg, #101828, #0b1120); border: 1px solid var(--pitch-border); box-shadow: var(--cs-shadow); }
+
+/* cabeçalho de campeonato (era prateado): escuro, com nome em Oswald */
+.league-matches-header, .day-main .league-matches-header, .day-rail-card a.day-standings-title { border-color: var(--pitch-border); box-shadow: none; }
+.league-matches-header-title, .day-standings-title strong { font-family: var(--font-display); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.day-main .league-matches-header-title { font-size: 15px; }
+.league-matches-header .league-matches-header-left:hover span, .day-standings-title:hover strong { color: var(--gold); }
+
+/* botões e filtros em cápsula; ativo em dourado como no nba-stats */
+.day-nav-btn, .matches-day-filter-btn, .table-filter-btn, .player-mode-btn { border-radius: 999px; }
+.day-nav-btn.active, .matches-day-filter-btn.active, .table-filter-btn.active, .player-mode-btn.active { background: var(--gold); color: #1a1200; border-color: var(--gold); }
+.btn { border-radius: 999px; }
+
+/* ---------- partidas: linha meio a meio nas cores principais dos dois clubes ---------- */
+/* O horário sai da grade (fica por cima, à esquerda) para o placar ficar no centro exato. */
+a.fixture-row.match-colors, .day-main a.fixture-row.match-colors {
+  position: relative; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); margin: 4px 8px; padding: 8px 12px; border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, .18); color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+  background: linear-gradient(90deg, rgba(0, 0, 0, .2), rgba(0, 0, 0, .55) 50%, rgba(0, 0, 0, .2)), linear-gradient(90deg, var(--h1) 0 50%, var(--a1) 50% 100%);
+  transition: filter .15s, transform .15s; }
+a.fixture-row.match-colors:hover, .day-main a.fixture-row.match-colors:hover { filter: brightness(1.15); transform: translateY(-1px);
+  background: linear-gradient(90deg, rgba(0, 0, 0, .2), rgba(0, 0, 0, .55) 50%, rgba(0, 0, 0, .2)), linear-gradient(90deg, var(--h1) 0 50%, var(--a1) 50% 100%); }
+.day-main a.fixture-row.match-colors:first-child { margin-top: 8px; }
+.day-main .fixture-list > a.fixture-row.match-colors:last-child { margin-bottom: 8px; }
+a.fixture-row.match-colors .fixture-date-col { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); }
+a.fixture-row.match-colors .fixture-date, a.fixture-row.match-colors .fixture-date-col * { color: rgba(255, 255, 255, .88) !important; }
+a.fixture-row.match-colors .fixture-team-item { color: #fff; font-weight: 800; text-transform: uppercase; font-size: 12.5px; }
+a.fixture-row.match-colors .fixture-team-item.right { padding-left: 64px; }
+a.fixture-row.match-colors .fixture-score { color: #fff; background: rgba(0, 0, 0, .45); border: 0; border-radius: 6px; padding: 2px 10px; font-family: var(--font-display); text-shadow: none; }
+a.fixture-row.match-colors .fixture-team-item img { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); }
+
+/* ---------- classificação: cada time numa barra nas cores do clube ---------- */
+.standings-table, .day-standings-table { border-collapse: separate; border-spacing: 0 4px; }
+.standings-table th, .day-standings-table th { background: transparent; border-bottom: 0; font: 700 10.5px var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--chalk-muted); }
+tr.club-bar { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); transition: filter .15s;
+  background: linear-gradient(90deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .5)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); }
+.standings-table tbody tr.club-bar:hover { filter: brightness(1.15); background: linear-gradient(90deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .5)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); }
+tr.club-bar td, .day-standings-table tr.club-bar td { border-bottom: 0; color: #fff; }
+tr.club-bar td:first-child { border-radius: 6px 0 0 6px; }
+tr.club-bar td:last-child { border-radius: 0 6px 6px 0; }
+tr.club-bar .team-cell span, .day-rail-card .day-standings-table tr.club-bar td.team a { color: #fff; font-weight: 800; text-transform: uppercase; }
+tr.club-bar td img { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); }
+.standings-table tr.club-bar td:nth-last-child(-n+1) strong, .day-standings-table tr.club-bar td.pts { font-family: var(--font-display); font-size: 1.25em; }
+.day-standings-table td.team a:hover span { color: #fff; text-decoration: underline; }
+/* setas e números de zona sobre a barra colorida */
+tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; border-radius: 5px; background: rgba(0, 0, 0, .45); text-shadow: none; }
+.standings-table tbody tr.club-bar[class*="zone-"] .pos-cell { color: #fff; }
+/* placar ao vivo: a cor (vence/empata/perde) vai num selo escuro para aparecer sobre qualquer cor de clube */
+.day-standings-table tr.is-live.club-bar td.pts { text-shadow: none; }
+.day-standings-table tr.live-win.club-bar td.pts, .day-standings-table tr.live-draw.club-bar td.pts, .day-standings-table tr.live-lose.club-bar td.pts { background: rgba(0, 0, 0, .55); border-radius: 0 6px 6px 0; }
+.day-standings-table tr.live-win.club-bar td.pts { color: #4ade80; }
+.day-standings-table tr.live-draw.club-bar td.pts { color: #fde047; }
+.day-standings-table tr.live-lose.club-bar td.pts { color: #fca5a5; }
+
+/* ---------- destaque do dia e cabeçalho da partida meio a meio nas cores dos clubes ---------- */
+.match-hero { color: #fff; border: 1px solid rgba(255, 255, 255, .14);
+  background: linear-gradient(90deg, rgba(0, 0, 0, .25), rgba(0, 0, 0, .45) 50%, rgba(0, 0, 0, .25)), linear-gradient(90deg, var(--h1) 0 50%, var(--a1) 50% 100%); }
+.day-spotlight.match-hero { background: linear-gradient(90deg, rgba(0, 0, 0, .25), rgba(0, 0, 0, .45) 50%, rgba(0, 0, 0, .25)), linear-gradient(90deg, var(--h1) 0 50%, var(--a1) 50% 100%); }
+.day-spotlight.match-hero .day-spotlight-head, .day-spotlight.match-hero .day-spotlight-foot { background: rgba(0, 0, 0, .35); border-color: rgba(255, 255, 255, .12); color: rgba(255, 255, 255, .85); }
+.day-spotlight.match-hero .day-spotlight-status { color: rgba(255, 255, 255, .85); }
+.day-spotlight.match-hero .day-spotlight-status.is-live { color: #ffb3bb; }
+.day-spotlight.match-hero .day-spotlight-main, .day-spotlight.match-hero .day-spotlight-main:hover { background: transparent; color: #fff; }
+.day-spotlight.match-hero .day-spotlight-team strong { font: 700 24px/1.05 var(--font-display); text-transform: uppercase; text-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+.day-spotlight.match-hero .day-spotlight-team img { width: 64px; height: 64px; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .5)); }
+.day-spotlight.match-hero .day-spotlight-score strong { text-shadow: 0 4px 18px rgba(0, 0, 0, .4); }
+.day-spotlight.match-hero .day-spotlight-score small { color: rgba(255, 255, 255, .8); }
+.day-spotlight.match-hero .day-spotlight-foot { color: var(--gold); }
+.fixture-hero.match-hero { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.fixture-hero.match-hero .hero-team-name { font-family: var(--font-display); font-size: 22px; text-transform: uppercase; color: #fff; text-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+.fixture-hero.match-hero .hero-score-numbers { font-family: var(--font-display); font-size: 56px; color: #fff; text-shadow: 0 4px 18px rgba(0, 0, 0, .4); }
+.fixture-hero.match-hero .hero-team-logo { filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .5)); }
+.fixture-hero.match-hero .hero-goals-section { border-top-color: rgba(255, 255, 255, .15); }
+.fixture-hero.match-hero .player-name, .fixture-hero.match-hero .hero-shootout-divider { color: #fff; }
+.fixture-hero.match-hero .hero-shootout-divider::before, .fixture-hero.match-hero .hero-shootout-divider::after { background: rgba(255, 255, 255, .3); }
+
+/* ---------- times e jogadores: cabeçalho nas cores do clube ---------- */
+.club-hero { color: #fff; border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 16px 40px -18px rgba(10, 20, 40, .55); backdrop-filter: none; -webkit-backdrop-filter: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, .12), rgba(0, 0, 0, .55)), linear-gradient(100deg, var(--c1) 0%, var(--c1) 42%, var(--c2) 100%); }
+.club-hero .page-title { color: #fff; font-size: clamp(30px, 3.4vw, 46px); text-shadow: 0 3px 0 rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .5); }
+.club-hero .page-eyebrow { color: rgba(255, 255, 255, .85); }
+.club-hero img { filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .5)); }
+.club-hero .player-avatar-large { width: 110px; height: 110px; border: 4px solid rgba(255, 255, 255, .4); box-shadow: 0 10px 24px rgba(0, 0, 0, .45); }
+.club-hero .player-hero-meta span { padding: 6px 12px; border-radius: 999px; background: rgba(0, 0, 0, .3); border: 1px solid rgba(255, 255, 255, .16); color: #fff; font-weight: 600; }
+.club-hero .player-rating-badge { background: rgba(0, 0, 0, .3); border-color: rgba(255, 255, 255, .2); }
+.club-hero .player-rating-badge .rating-num { font-family: var(--font-display); color: var(--gold); }
+.club-hero .btn { background: rgba(0, 0, 0, .3); border-color: rgba(255, 255, 255, .3); color: #fff; }
+
+/* ---------- líderes (artilharia, assistências, sem sofrer gols) nas cores dos times ---------- */
+.sidebar-leader-hero[style*="--c1"], .sidebar-leader-hero[style*="--c1"]:hover { color: #fff; border: 1px solid rgba(255, 255, 255, .2); text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+  background: radial-gradient(90% 90% at 30% 20%, color-mix(in srgb, var(--c1) 70%, #1a1f2b) 0%, #0a0d14 90%); }
+.sidebar-leader-hero[style*="--c1"] .sidebar-leader-avatar-wrap img { border: 3px solid rgba(255, 255, 255, .45); border-radius: 50%; }
+.sidebar-leader-hero[style*="--c1"] .sidebar-leader-name { font-family: var(--font-display); font-size: 20px; text-transform: uppercase; color: #fff; }
+.sidebar-leader-hero[style*="--c1"] .sidebar-leader-team { color: rgba(255, 255, 255, .8); }
+.sidebar-leader-hero[style*="--c1"] .sidebar-stat-pill { background: rgba(0, 0, 0, .45); color: #fff; border-color: rgba(255, 255, 255, .2); }
+.sidebar-leader-hero[style*="--c1"] .sidebar-stat-pill strong { font-family: var(--font-display); }
+.sidebar-rank-row[style*="--c1"], a.fixture-row.club-row { margin-top: 5px; color: #fff; border: 1px solid rgba(255, 255, 255, .2); border-radius: 6px; text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+  background: linear-gradient(90deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .5)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); transition: filter .15s, transform .15s; }
+.sidebar-rank-row[style*="--c1"]:hover, a.fixture-row.club-row:hover { filter: brightness(1.15); transform: translateX(3px);
+  background: linear-gradient(90deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .5)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); }
+.sidebar-rank-row[style*="--c1"] *, a.fixture-row.club-row * { color: #fff !important; }
+.sidebar-rank-row[style*="--c1"] .sidebar-rank-thumb, a.fixture-row.club-row img { border: 2px solid rgba(255, 255, 255, .45); border-radius: 50%; }
+.sidebar-rank-row[style*="--c1"] .sidebar-rank-name, a.fixture-row.club-row > div > div:first-child { font-weight: 800; text-transform: uppercase; }
+
+@media (max-width: 760px) {
+  .standings-table tr.club-bar td.team-cell { background: var(--c1); }
+  /* celular: horário volta para uma linha própria em cima, placar continua no centro */
+  a.fixture-row.match-colors, .day-main a.fixture-row.match-colors { grid-template-areas: "status status status" "home score away"; margin: 4px 6px; }
+  a.fixture-row.match-colors .fixture-date-col { grid-area: status; position: static; transform: none; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, .15); }
+  a.fixture-row.match-colors .fixture-team-item.right { grid-area: home; padding-left: 0; }
+  a.fixture-row.match-colors .fixture-team-item:not(.right) { grid-area: away; }
+  a.fixture-row.match-colors .fixture-score-col, a.fixture-row.match-colors > .fixture-score { grid-area: score; }
+  a.fixture-row.match-colors .fixture-team-item { font-size: 11px; }
+  .day-spotlight.match-hero .day-spotlight-team strong { font-size: 17px; }
+  .day-spotlight.match-hero .day-spotlight-team img { width: 44px; height: 44px; }
+}

@@ -111,7 +111,7 @@ function renderDaySpotlight(fixtures) {
   const score = hasScore ? `${featured.goals?.home ?? '—'} : ${featured.goals?.away ?? '—'}` : '×';
   const statusText = status.isLive ? `● ${status.label} AO VIVO` : status.isFinished ? 'Encerrado' : status.isPostponed ? status.label : `${kickoff} · A começar`;
   return `
-    <article class="day-spotlight" aria-label="Partida em destaque">
+    <article class="day-spotlight match-hero" style="${matchColorVars(featured.teams.home.id, featured.teams.away.id)}" aria-label="Partida em destaque">
       <div class="day-spotlight-head"><span>${escapeHtml(featured.league?.name || 'Partida')} · ${escapeHtml(formatRoundName(featured.league?.round || ''))}</span><span class="day-spotlight-status ${status.isLive ? 'is-live' : ''}">${escapeHtml(statusText)}</span></div>
       <a class="day-spotlight-main" href="#/jogo/${featured.fixture.id}">
         <div class="day-spotlight-team">${featured.teams.home.logo ? `<img src="${sanitizeUrl(featured.teams.home.logo)}" alt="" loading="lazy">` : ''}<strong>${escapeHtml(featured.teams.home.name)}</strong></div>
@@ -330,7 +330,7 @@ function renderDayStandingsSlide(slide, rows, movement = null, playing = null) {
           const compZone = compKind === "other" ? null : compKind;
           const gd = Number(t.goalsDiff) || 0;
           return `
-          <tr class="${zone ? `zone-${zone}` : ""}${compZone ? ` zone-${compZone}` : ""}${playing?.has(t.team?.id) ? ` is-live live-${playing.get(t.team.id)}` : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
+          <tr style="${teamColorVars(t.team?.id)}" class="club-bar${zone ? ` zone-${zone}` : ""}${compZone ? ` zone-${compZone}` : ""}${playing?.has(t.team?.id) ? ` is-live live-${playing.get(t.team.id)}` : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
             <td class="pos">${t.rank ?? "-"}</td>
             <td class="move">${dayStandingsMoveHtml(movement?.get(t.team?.id) ?? 0)}</td>
             <td class="team"><a href="#/time/${t.team?.id}/${comp.id}/${comp.season}"><img src="${t.team?.logo || ""}" alt="" loading="lazy" data-image-fallback="hide"><span>${escapeHtml(formatTeamName(t.team?.name || ""))}</span></a></td>
@@ -712,7 +712,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                   : `<span class="fixture-score" style="color:var(--chalk-dim);font-size:0.85rem;">vs</span>`;
 
                 return `
-                  <a class="fixture-row match-fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir estatísticas do confronto">
+                  <a class="fixture-row match-fixture-row match-colors" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}" href="#/jogo/${f.fixture.id}" title="Clique para abrir estatísticas do confronto">
                     <div class="fixture-date-col">
                       ${statusBadge}
                     </div>
@@ -851,7 +851,7 @@ async function fetchLiveMatches(isForced = false) {
                 const timeDisplay = statusInfo.label;
 
                 return `
-                  <a class="fixture-row match-fixture-row" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
+                  <a class="fixture-row match-fixture-row match-colors" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
                     <div class="fixture-date-col">
                       <span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${timeDisplay}</span>
                     </div>

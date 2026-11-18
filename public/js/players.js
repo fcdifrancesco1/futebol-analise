@@ -886,7 +886,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           { label: p.name, href: "" }
         ])}
 
-        <div class="player-hero">
+        <div class="player-hero club-hero" style="${teamColorVars(teamId || s.team?.id)}">
           <div class="player-hero-main-row">
             <div class="player-hero-avatar-wrap">
               <img class="player-avatar-large" src="${p.photo}" alt="" data-image-fallback="hide">

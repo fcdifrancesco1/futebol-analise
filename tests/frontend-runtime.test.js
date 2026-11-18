@@ -384,6 +384,7 @@ test('day spotlight prioritizes favorite teams, prominent competitions and compl
   const matchesSrc = fs.readFileSync('public/js/matches.js', 'utf8');
   const context = vm.createContext({
     state: { favoriteFixtures: [] },
+    matchColorVars: require('../public/js/team-colors.js').matchColorVars,
     escapeHtml: s => s,
     sanitizeUrl: u => u,
     formatRoundName: r => r,

@@ -252,7 +252,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
            visitante). Mobile: coluna única, na ordem do DOM. -->
       <div class="fixture-layout">
       <!-- Placar Principal Simétrico -->
-      <div class="fixture-hero">
+      <div class="fixture-hero match-hero" style="${matchColorVars(fx.teams.home.id, fx.teams.away.id)}">
         <div class="fixture-hero-main">
           <div class="hero-team-col home">
             <img src="${fx.teams.home.logo}" alt="" class="hero-team-logo" loading="lazy">

@@ -1,3 +1,6 @@
+// Bolão e Sua Escalação estão desativados por enquanto: o código continua, mas as rotas voltam para os jogos do dia.
+const DISABLED_ROUTES = ["bolao", "minha-escalacao"];
+
 function parseHash() {
   return location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
 }
@@ -28,6 +31,7 @@ async function router() {
   }
 
   const parts = parseHash();
+  if (DISABLED_ROUTES.includes(parts[0])) { location.replace("#/"); return; }
   window.scrollTo(0, 0);
   updateCompareBadge();
 

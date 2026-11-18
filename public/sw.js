@@ -1,5 +1,5 @@
 // Same-origin application shell only; API, user data and remote images never enter this cache.
-const CACHE_NAME = "futstats-cache-v124";
+const CACHE_NAME = "futstats-cache-v125";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
@@ -7,11 +7,13 @@ const ASSETS_TO_CACHE = [
   "/css/features.css",
   "/css/accessibility.css",
   "/css/redesign.css",
+  "/css/courtside.css",
   "/app.js",
   "/js/cache.js",
   "/js/models.js",
   "/js/core.js",
   "/js/notifications.js",
+  "/js/team-colors.js",
   "/js/goal-rules.js",
   "/js/shared-ui.js",
   "/js/favorite-team.js",

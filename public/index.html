@@ -15,11 +15,12 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=112">
   <link rel="stylesheet" href="/css/features.css?v=105">
   <link rel="stylesheet" href="/css/accessibility.css?v=105">
   <link rel="stylesheet" href="/css/redesign.css?v=118">
+  <link rel="stylesheet" href="/css/courtside.css?v=1">
 </head>
 <body>
   <div class="app-wrapper">
@@ -35,8 +36,7 @@
           <button class="tab active" data-nav="today">Jogos do Dia</button>
           <button class="tab" data-nav="live">Ao Vivo <span class="live-indicator"></span></button>
           <button class="tab" data-nav="home">Ligas & Copas</button>
-          <button class="tab" data-nav="bolao">Bolão</button>
-          <details class="desktop-more"><summary>Mais</summary><div class="more-links"><a href="#/minha-escalacao">Sua Escalação</a><a href="#/meu-time">Seu Time</a></div></details>
+          <details class="desktop-more"><summary>Mais</summary><div class="more-links"><a href="#/meu-time">Seu Time</a></div></details>
         </nav>
 
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -72,7 +72,7 @@
         <span class="bottom-nav-icon">🏆</span>
         <span class="bottom-nav-label">Ligas</span>
       </button>
-      <details class="mobile-more"><summary><span class="bottom-nav-icon">☰</span><span class="bottom-nav-label">Mais</span></summary><div class="mobile-more-links"><a href="#/minha-escalacao" aria-label="Abrir sua escalação">Sua Escalação</a><a href="#/meu-time" aria-label="Abrir seu time">Seu Time</a><a href="#/bolao" aria-label="Abrir bolão">Bolão</a></div></details>
+      <details class="mobile-more"><summary><span class="bottom-nav-icon">☰</span><span class="bottom-nav-label">Mais</span></summary><div class="mobile-more-links"><a href="#/meu-time" aria-label="Abrir seu time">Seu Time</a></div></details>
     </nav>
   </div>
 
@@ -144,20 +144,21 @@
   <script defer src="/js/models.js?v=106"></script>
   <script defer src="/js/core.js?v=105"></script>
   <script defer src="/js/notifications.js?v=110"></script>
+  <script defer src="/js/team-colors.js?v=1"></script>
   <script defer src="/js/goal-rules.js?v=1"></script>
   <script defer src="/js/shared-ui.js?v=106"></script>
   <script defer src="/js/favorite-team.js?v=105"></script>
-  <script defer src="/js/leagues.js?v=108"></script>
+  <script defer src="/js/leagues.js?v=109"></script>
   <script defer src="/js/league-insights.js?v=2"></script>
-  <script defer src="/js/players.js?v=105"></script>
-  <script defer src="/js/teams.js?v=106"></script>
-  <script defer src="/js/matches.js?v=122"></script>
-  <script defer src="/js/fixture.js?v=113"></script>
+  <script defer src="/js/players.js?v=106"></script>
+  <script defer src="/js/teams.js?v=107"></script>
+  <script defer src="/js/matches.js?v=123"></script>
+  <script defer src="/js/fixture.js?v=114"></script>
   <script defer src="/js/comparison.js?v=105"></script>
   <script defer src="/js/lineups.js?v=105"></script>
   <script defer src="/js/broadcast.js?v=105"></script>
   <script defer src="/js/accessibility.js?v=105"></script>
   <script defer src="/js/bolao.js?v=105"></script>
-  <script defer src="/app.js?v=107"></script>
+  <script defer src="/app.js?v=108"></script>
 </body>
 </html>

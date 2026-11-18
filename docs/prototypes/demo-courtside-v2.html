@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FutStats — demo Courtside v2</title>
+<meta name="theme-color" content="#070b14">
+<!-- media.api-sports.io recusa imagens com referer de outro site (o app usa o mesmo cabeçalho) -->
+<meta name="referrer" content="no-referrer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Demo v2: visual "Courtside" (nba-stats e nfl-stats) mantendo a logo e a imagem de fundo do FutStats.
+     Arquivo isolado com dados de exemplo; não é usado pelo site. Imagens do app vêm de ../../public/. -->
+<style>
+:root {
+  --bg: #070b14; --bg-2: #0b1120; --surface: #101828; --surface-2: #162036; --surface-3: #1d2a45;
+  --border: #233150; --border-soft: #1a2540; --text: #eef2fa; --muted: #8d9abb; --dim: #5e6b8a;
+  --pitch: #0f7a45; --pitch-2: #19b36b; --gold: #f5b301; --gold-2: #ffc94d;
+  --win: #34d399; --draw: #facc15; --loss: #f87171; --live: #ff3b4e;
+  --radius: 14px; --shadow: 0 10px 30px -12px rgba(0, 0, 0, .6);
+  --font-display: 'Oswald', 'Arial Narrow', sans-serif; --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; }
+/* fundo oficial do FutStats (fundo.jpeg) sob o véu escuro do app */
+body { margin: 0; font-family: var(--font); color: var(--text); font-size: 14px; min-height: 100vh; -webkit-font-smoothing: antialiased;
+  background: linear-gradient(180deg, rgba(6, 14, 24, .70) 0%, rgba(4, 9, 17, .80) 100%), url('../../public/fundo.jpeg') center / cover no-repeat fixed, var(--bg); }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+img { display: block; }
+.container { padding: 0 28px 48px; }
+
+/* topo */
+.topbar { position: sticky; top: 0; z-index: 50; background: rgba(7, 11, 20, .72); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border-soft); }
+.topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; opacity: .9;
+  background: linear-gradient(90deg, var(--pitch) 0 33%, #fff 33% 34%, var(--gold) 34% 67%, #fff 67% 68%, #1f55c4 68%); }
+.topbar-inner { padding: 0 28px; height: 64px; display: flex; align-items: center; gap: 28px; }
+/* logo oficial: escudo + "Fut" branco e "Stats" verde-água em Barlow Condensed */
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand img { width: 36px; height: 36px; border-radius: 9px; object-fit: cover; }
+.brand-name { color: #eef4f1; font: 800 29px/1 'Barlow Condensed', Impact, sans-serif; letter-spacing: .01em; }
+.brand-name span { color: #63d8c5; }
+.tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border-soft); padding: 4px; border-radius: 999px; }
+.tabs a { padding: 8px 18px; border-radius: 999px; font-weight: 600; color: var(--muted); font-size: 13.5px; white-space: nowrap; transition: .15s; }
+.tabs a:hover { color: var(--text); }
+.tabs a.active { background: linear-gradient(135deg, var(--pitch), var(--pitch-2)); color: #fff; box-shadow: 0 4px 14px -4px rgba(25, 179, 107, .7); }
+.live-pill { margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: rgba(255, 59, 78, .12); color: #ffb3bb; border: 1px solid rgba(255, 59, 78, .35); font-weight: 600; font-size: 12.5px; }
+.demo-tag { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); border: 1px solid rgba(245, 179, 1, .4); padding: 4px 10px; border-radius: 999px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live); animation: pulse 1.6s infinite; flex: none; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 59, 78, .7); } 70% { box-shadow: 0 0 0 8px rgba(255, 59, 78, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 59, 78, 0); } }
+
+/* seções */
+.section { margin-top: 28px; }
+.section-head { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+.section-head h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; letter-spacing: .04em; text-transform: uppercase; margin: 0; display: flex; align-items: center; gap: 10px; }
+.section-head h2::before { content: ''; width: 4px; height: 20px; border-radius: 2px; background: linear-gradient(var(--gold), var(--pitch-2)); }
+.section-head .sub { color: var(--muted); font-weight: 600; }
+.spacer { flex: 1; }
+.card { background: linear-gradient(180deg, var(--surface), var(--bg-2)); border: 1px solid var(--border-soft); border-radius: var(--radius); box-shadow: var(--shadow); }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+.seg button { border: 0; background: transparent; padding: 7px 16px; border-radius: 999px; color: var(--muted); font-weight: 600; font-size: 13px; }
+.seg button.on { background: var(--gold); color: #1a1200; }
+.btn-icon { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); display: grid; place-items: center; font-size: 16px; }
+.date-label { min-width: 210px; text-align: center; font-weight: 700; }
+
+/* faixa de placares */
+.ticker { display: flex; overflow: hidden; }
+.score-strip { flex: 1; display: flex; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--gold) var(--surface-2); }
+.tk-arrow { flex: none; width: 34px; border: 0; background: var(--surface-2); color: var(--muted); font-size: 22px; }
+.game-card { flex: 0 0 245px; position: relative; padding: 10px 14px 8px; border-right: 1px solid var(--border-soft); transition: background .15s; }
+.game-card:hover { background: rgba(255, 255, 255, .035); }
+.game-card.live { background: linear-gradient(180deg, rgba(255, 59, 78, .08), transparent 60%); }
+.game-card.live::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: var(--live); }
+.gc-status { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+.gc-status .st-live { color: var(--live); display: flex; align-items: center; gap: 6px; }
+.gc-status .st-final { color: var(--text); }
+.gc-team { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 2px 0; }
+.gc-team img { width: 24px; height: 24px; object-fit: contain; }
+.gc-team .nm { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-team .sc { font-family: var(--font-display); font-size: 20px; font-weight: 600; min-width: 34px; text-align: right; }
+.gc-team .pen { font-size: 12px; color: var(--muted); margin-right: 4px; }
+.gc-team.lose .nm, .gc-team.lose .sc { color: var(--muted); }
+.gc-team.win .sc::after { content: '◂'; font-size: 13px; color: var(--gold); margin-left: 4px; vertical-align: 3px; }
+.gc-foot { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-soft); font-size: 11.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* destaque do jogo (hero nas cores dos dois times) */
+.hero { position: relative; overflow: hidden; border-radius: 20px; border: 1px solid var(--border-soft); color: #fff;
+  background: linear-gradient(90deg, rgba(0, 0, 0, .25), rgba(0, 0, 0, .35) 50%, rgba(0, 0, 0, .25)), linear-gradient(100deg, var(--h1) 0%, var(--h1) 38%, var(--a1) 62%, var(--a1) 100%); }
+.hero::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .025) 0 60px, transparent 60px 120px); pointer-events: none; }
+.hero-content { position: relative; z-index: 1; padding: 26px 32px; }
+.matchup { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; }
+.mu-team { display: flex; align-items: center; gap: 18px; }
+.mu-team.away { flex-direction: row-reverse; text-align: right; }
+.mu-team img { width: 92px; height: 92px; object-fit: contain; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .5)); }
+.mu-team .tname { font-family: var(--font-display); font-size: 30px; font-weight: 700; text-transform: uppercase; line-height: 1.05; text-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+.mu-team .trec { color: rgba(255, 255, 255, .75); font-size: 13px; margin-top: 4px; }
+.mu-team .big { font-family: var(--font-display); font-size: 72px; font-weight: 700; line-height: 1; margin: 0 6px; text-shadow: 0 4px 18px rgba(0, 0, 0, .4); }
+.mu-center { text-align: center; min-width: 170px; }
+.mu-center .status { font-family: var(--font-display); font-size: 20px; letter-spacing: .06em; text-transform: uppercase; color: #ffd0d5; display: inline-flex; gap: 8px; align-items: center; }
+.mu-center .sub { color: rgba(255, 255, 255, .75); font-size: 13px; margin-top: 6px; }
+.scorers { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .15); font-size: 13px; }
+.scorers div:last-child { text-align: right; }
+.scorers b { font-weight: 700; } .scorers span { color: var(--gold-2); font-weight: 700; margin-left: 6px; }
+
+/* jogos por competição */
+.comp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 500px), 1fr)); gap: 18px; align-items: start; }
+.comp-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px 10px; }
+.comp-head img { width: 34px; height: 34px; object-fit: contain; }
+.comp-head h3 { margin: 0; font-family: var(--font-display); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; font-size: 17px; }
+.comp-head .rd { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 600; }
+.match-list { list-style: none; margin: 0; padding: 0 12px 12px; display: grid; gap: 6px; }
+.match { display: grid; grid-template-columns: 58px minmax(0, 1fr) 64px minmax(0, 1fr); align-items: center; gap: 8px; padding: 8px 10px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border-soft); transition: .15s; }
+.match:hover { border-color: var(--border); background: var(--surface-3); }
+/* partida meio a meio nas cores principais dos clubes: corte seco no centro, sem degradê.
+   O horário sai da grade (fica por cima, no canto esquerdo) para o placar ficar no centro exato da linha. */
+.match.colors { --mid: 50%; position: relative; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); color: #fff; border-color: rgba(255, 255, 255, .2); text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+  background: linear-gradient(90deg, rgba(0, 0, 0, .2), rgba(0, 0, 0, .55) var(--mid), rgba(0, 0, 0, .2)), linear-gradient(90deg, var(--h1) 0 var(--mid), var(--a1) var(--mid) 100%); transition: filter .15s, transform .15s; }
+.match.colors:hover { filter: brightness(1.15); transform: translateY(-1px); background: linear-gradient(90deg, rgba(0, 0, 0, .2), rgba(0, 0, 0, .55) var(--mid), rgba(0, 0, 0, .2)), linear-gradient(90deg, var(--h1) 0 var(--mid), var(--a1) var(--mid) 100%); }
+.match.colors .tm { font-weight: 800; text-transform: uppercase; font-size: 13px; }
+.match.colors .when { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: rgba(255, 255, 255, .85); }
+.match.colors .tm.h { padding-left: 46px; } /* não encosta no horário */
+.match.colors .when.live { color: #ffb3bb; }
+.match.colors .res { padding: 2px 0; border-radius: 6px; background: rgba(0, 0, 0, .45); text-shadow: none; }
+.match.colors .res.ns { color: rgba(255, 255, 255, .7); }
+.match .when { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.match .when.live { color: var(--live); }
+.match .tm { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+.match .tm span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.match .tm.h { justify-content: flex-end; text-align: right; }
+.match .tm img { width: 22px; height: 22px; object-fit: contain; flex: none; }
+.match .res { font-family: var(--font-display); font-size: 19px; font-weight: 600; text-align: center; }
+.match .res.ns { font-family: var(--font); font-size: 12px; color: var(--dim); font-weight: 700; }
+
+/* barras nas cores do time (classificação, líderes, jogos do jogador) */
+.bar { color: #fff; position: relative; display: grid; align-items: center; gap: 8px; height: 38px; padding: 0 12px 0 8px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .22);
+  background: linear-gradient(90deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .5)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); transition: transform .15s, filter .15s; }
+.bar:hover { transform: translateX(3px); filter: brightness(1.15); }
+.bar-rk { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, .8); text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.bar-logo { width: 44px; height: 44px; object-fit: contain; margin: -4px 0; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); }
+.bar-name { font-weight: 800; font-size: 15px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); }
+.bar-val { font-family: var(--font-display); font-weight: 700; font-size: 24px; text-align: right; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); font-variant-numeric: tabular-nums; }
+.tb-list { list-style: none; margin: 0; padding: 4px 12px 14px; display: grid; gap: 5px; }
+.tb-row, .tb-head { grid-template-columns: 22px 44px minmax(0, 1fr) auto 56px; }
+.tb-head { display: grid; align-items: center; gap: 8px; padding: 0 12px 4px 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.tb-head .bar-val { font-family: inherit; font-size: inherit; text-shadow: none; }
+.tb-cols { display: flex; font-size: 13px; font-weight: 700; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); font-variant-numeric: tabular-nums; }
+.tb-cols > span { width: 42px; text-align: center; }
+.tb-head .tb-cols { font-size: 10.5px; text-shadow: none; }
+.form { display: flex; gap: 3px; justify-content: center; width: 112px !important; }
+.form i { width: 18px; height: 18px; border-radius: 4px; font-style: normal; font-size: 10px; display: grid; place-items: center; text-shadow: none; color: #0b1120; font-weight: 800; }
+.form .V { background: var(--win); } .form .E { background: var(--draw); } .form .D { background: var(--loss); }
+.mv { display: inline-block; min-width: 30px; padding: 1px 5px; border-radius: 5px; background: rgba(0, 0, 0, .45); font-size: 11.5px; text-shadow: none; }
+.mv.up { color: #86efac; } .mv.down { color: #fca5a5; } .mv.eq { color: rgba(255, 255, 255, .55); }
+.tb-cut { display: flex; align-items: center; gap: 10px; margin: 6px 2px 1px; font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.tb-cut::after { content: ''; flex: 1; border-top: 2px solid currentColor; opacity: .7; }
+.tb-cut.lib { color: #60a5fa; } .tb-cut.pre { color: #93c5fd; } .tb-cut.sula { color: #22d3ee; } .tb-cut.z { color: var(--loss); }
+.tb-cut.z::after { border-top-style: dashed; }
+.stand-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; }
+.conf-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px 8px; }
+.conf-head img { width: 54px; height: 54px; object-fit: contain; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, .5)); }
+.conf-head h3 { margin: 0; font-family: var(--font-display); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; font-size: 20px; }
+.conf-head .sub { color: var(--muted); font-size: 12.5px; font-weight: 600; }
+
+/* cartões de líderes */
+.lb-card { position: relative; display: flex; flex-direction: column; border-radius: 18px; overflow: hidden; background: #0a0d14; border: 1px solid var(--border-soft); box-shadow: var(--shadow); }
+.lb-card + .lb-card { margin-top: 18px; }
+.lb-hero { position: relative; height: 230px; overflow: hidden; background: radial-gradient(90% 80% at 50% 25%, color-mix(in srgb, var(--c1) 60%, #1a1f2b) 0%, #0a0d14 75%); }
+.lb-photo { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); height: 96px; width: auto; filter: drop-shadow(0 10px 24px rgba(0, 0, 0, .6)); }
+.lb-hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(10, 13, 20, .85) 82%, #0a0d14 100%); }
+.lb-title { position: absolute; left: 0; right: 0; bottom: 6px; z-index: 1; margin: 0; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: 40px; line-height: .95; text-transform: uppercase; text-shadow: 0 3px 0 rgba(0, 0, 0, .35), 0 8px 24px rgba(0, 0, 0, .7); }
+.lb-row { grid-template-columns: 18px 44px minmax(0, 1fr) auto; }
+/* líderes com foto: a do primeiro grande no topo, as demais pequenas em cada linha (com o escudo do time) */
+.lb-face { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); width: 118px; height: 118px; border-radius: 50%; object-fit: cover; border: 4px solid rgba(255, 255, 255, .4); box-shadow: 0 10px 24px rgba(0, 0, 0, .55); z-index: 1; }
+.lb-face-team { position: absolute; left: calc(50% + 34px); top: 104px; width: 34px; height: 34px; object-fit: contain; z-index: 2; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .6)); }
+.lb-avatar { position: relative; width: 34px; height: 34px; justify-self: center; }
+.lb-avatar > img:first-child { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255, 255, 255, .45); }
+.lb-avatar > img + img { position: absolute; right: -7px; bottom: -4px; width: 18px; height: 18px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .7)); }
+.lb-row .bar-name { font-size: 14px; }
+
+/* página do jogador */
+.player-hero { position: relative; overflow: hidden; border-radius: 20px; margin-top: 24px; color: #fff; border: 1px solid rgba(255, 255, 255, .12);
+  background: linear-gradient(90deg, rgba(0, 0, 0, .12), rgba(0, 0, 0, .55)), linear-gradient(100deg, var(--c1) 0%, var(--c1) 42%, var(--c2) 100%); }
+.player-hero .hero-content { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: end; gap: 28px; padding: 26px 32px 0; }
+/* fotos da API vêm em quadrado com fundo branco: recorte redondo com aro */
+.headshot { width: 210px; height: 210px; margin-bottom: 26px; border-radius: 50%; object-fit: cover; border: 5px solid rgba(255, 255, 255, .35); box-shadow: 0 12px 30px rgba(0, 0, 0, .45); }
+.pinfo { padding-bottom: 28px; min-width: 0; }
+.team-link { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 8px; color: rgba(255, 255, 255, .85); }
+.team-link img { width: 28px; height: 28px; }
+.player-hero h1 { font-family: var(--font-display); font-size: 52px; margin: 0; letter-spacing: .02em; line-height: 1; font-weight: 700; text-transform: uppercase; text-shadow: 0 3px 0 rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .5); }
+.hero-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.chip { background: rgba(0, 0, 0, .3); border: 1px solid rgba(255, 255, 255, .16); padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.chip b { color: var(--gold-2); }
+.honors { align-self: center; justify-self: center; display: flex; align-items: center; gap: 26px; padding: 18px 24px; border-radius: 18px; background: rgba(0, 0, 0, .28); border: 1px solid rgba(255, 255, 255, .12); backdrop-filter: blur(6px); }
+.hon-titles { display: flex; align-items: center; gap: 14px; padding-right: 26px; border-right: 1px solid rgba(255, 255, 255, .14); }
+.hon-num { font-family: var(--font-display); font-size: 60px; font-weight: 700; line-height: .95; color: var(--gold); }
+.hon-lbl { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(255, 255, 255, .8); }
+.hon-chips { display: flex; flex-wrap: wrap; gap: 6px; width: 290px; max-width: 100%; margin-top: 8px; }
+.aw { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); }
+.aw.major { background: rgba(245, 179, 1, .16); border-color: rgba(245, 179, 1, .45); color: #ffe7a3; }
+.jersey-big { font-family: var(--font-display); font-size: 130px; font-weight: 700; opacity: .25; line-height: .9; padding-bottom: 18px; }
+.season-strip { display: grid; grid-template-columns: repeat(6, 1fr); margin-top: 18px; }
+.season-strip > div { position: relative; padding: 16px; text-align: center; border-right: 1px solid var(--border-soft); }
+.season-strip > div::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, var(--c1), var(--c2)); }
+.season-strip > div:last-child { border-right: 0; }
+.season-strip .k { font-size: 11px; color: var(--muted); letter-spacing: .1em; font-weight: 700; text-transform: uppercase; }
+.season-strip .v { font-family: var(--font-display); font-size: 36px; font-weight: 600; }
+.season-strip .c { font-size: 11.5px; color: var(--dim); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+.panel { padding: 16px 18px; }
+.pg-row { grid-template-columns: 46px 44px minmax(0, 1fr) 62px 74px; }
+.pg-row .d { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, .8); }
+.pg-row .rs { font-family: var(--font-display); font-size: 17px; font-weight: 700; text-align: center; padding: 1px 0; border-radius: 5px; background: rgba(0, 0, 0, .45); text-shadow: none; }
+.pg-row .rs.V { color: #86efac; } .pg-row .rs.E { color: #fde68a; } .pg-row .rs.D { color: #fca5a5; }
+.pg-row .ga { font-size: 13px; font-weight: 800; text-align: right; }
+table.tbl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tbl th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); font-weight: 600; padding: 9px 8px; text-align: right; border-bottom: 1px solid var(--border-soft); }
+.tbl td { padding: 9px 8px; text-align: right; border-bottom: 1px solid var(--border-soft); }
+.tbl .l { text-align: left; }
+.tbl tbody tr:hover { background: rgba(255, 255, 255, .03); }
+.tbl .team-cell { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.tbl .team-cell img { width: 22px; height: 22px; object-fit: contain; }
+.tbl td.hl { font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--gold-2); }
+.bar-meter { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.bar-meter i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--c1), var(--c2)); }
+.attr { display: grid; grid-template-columns: 140px 1fr 44px; align-items: center; gap: 12px; padding: 7px 0; font-size: 13px; }
+.attr b { text-align: right; font-family: var(--font-display); font-size: 17px; }
+.footer { text-align: center; color: var(--dim); font-size: 12px; padding: 24px; border-top: 1px solid var(--border-soft); margin-top: 40px; }
+img.miss { visibility: hidden; }
+
+@media (max-width: 1750px) { .jersey-big { display: none; } .player-hero .hero-content { grid-template-columns: auto auto minmax(0, 1fr); } }
+@media (max-width: 1200px) { .stand-layout, .grid-2 { grid-template-columns: 1fr; } .tb-cols .hide-md { display: none; } }
+@media (max-width: 900px) {
+  .player-hero .hero-content { grid-template-columns: 1fr; } .honors { justify-self: stretch; margin-bottom: 20px; flex-wrap: wrap; }
+  .season-strip { grid-template-columns: repeat(3, 1fr); } .matchup { grid-template-columns: 1fr; text-align: center; }
+  .mu-team, .mu-team.away { flex-direction: column; text-align: center; } .scorers { grid-template-columns: 1fr; } .scorers div:last-child { text-align: left; }
+}
+@media (max-width: 640px) {
+  .headshot { width: 150px; height: 150px; }
+  .container { padding: 0 16px 40px; } .topbar-inner { padding: 0 16px; gap: 12px; }
+  .brand-name, .live-pill, .demo-tag { display: none; } .tabs { overflow-x: auto; scrollbar-width: none; } .tabs a { padding: 7px 12px; }
+  .comp-grid { grid-template-columns: 1fr; } .tb-row, .tb-head { grid-template-columns: 18px 34px minmax(0, 1fr) auto 46px; }
+  .tb-row .bar-logo { width: 34px; height: 34px; margin: 0; } .tb-cols > span { width: 34px; } .tb-cols .hide-sm { display: none; }
+  .bar-name { font-size: 12.5px; } .bar-val { font-size: 20px; } .player-hero h1 { font-size: 36px; }
+  .hero-content, .player-hero .hero-content { padding: 20px; } .mu-team .big { font-size: 52px; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#/jogos">
+      <img src="../../public/icon-192.png" alt="" width="36" height="36">
+      <span class="brand-name">Fut<span>Stats</span></span>
+    </a>
+    <nav class="tabs" aria-label="Navegação principal">
+      <a href="#/jogos" data-tab="jogos">Jogos</a>
+      <a href="#/classificacao" data-tab="classificacao">Classificação</a>
+      <a href="#/jogador" data-tab="jogador">Jogador</a>
+    </nav>
+    <div class="live-pill"><span class="dot"></span>2 ao vivo</div>
+    <span class="demo-tag">Demo de layout</span>
+  </div>
+</header>
+<main class="container" id="app"></main>
+<footer class="footer">Demo v2 do visual "Courtside" com a logo e o fundo do FutStats · dados de exemplo</footer>
+
+<script>
+const logo = id => `https://media.api-sports.io/football/teams/${id}.png`;
+const leagueLogo = id => `https://media.api-sports.io/football/leagues/${id}.png`;
+// Times do Brasileirão: id da API-Football e cores (primária, secundária) para as barras.
+const T = {
+  fla: { id: 127, n: 'Flamengo', c1: '#c8102e', c2: '#1a1a1a' }, pal: { id: 121, n: 'Palmeiras', c1: '#006437', c2: '#0a2e1c' },
+  cru: { id: 135, n: 'Cruzeiro', c1: '#0038a8', c2: '#00174d' }, cap: { id: 134, n: 'Athletico-PR', c1: '#c8102e', c2: '#2a0a0f' },
+  flu: { id: 124, n: 'Fluminense', c1: '#8a1538', c2: '#00613c' }, bah: { id: 118, n: 'Bahia', c1: '#0057b8', c2: '#c8102e' },
+  cam: { id: 1062, n: 'Atlético-MG', c1: '#2b2b2b', c2: '#6b6b6b' }, san: { id: 128, n: 'Santos', c1: '#2b2b2b', c2: '#7a7a7a' },
+  rbb: { id: 794, n: 'RB Bragantino', c1: '#c8102e', c2: '#3a3a3a' }, spf: { id: 126, n: 'São Paulo', c1: '#d50a0a', c2: '#1a1a1a' },
+  bot: { id: 120, n: 'Botafogo', c1: '#2b2b2b', c2: '#5a5a5a' }, cfc: { id: 147, n: 'Coritiba', c1: '#00704a', c2: '#0b2e22' },
+  vas: { id: 133, n: 'Vasco da Gama', c1: '#2b2b2b', c2: '#6b6b6b' }, vit: { id: 136, n: 'Vitória', c1: '#c8102e', c2: '#1a1a1a' },
+  mir: { id: 7848, n: 'Mirassol', c1: '#d4a600', c2: '#0b6b3a' }, int: { id: 119, n: 'Internacional', c1: '#d50a0a', c2: '#7a0000' },
+  gre: { id: 130, n: 'Grêmio', c1: '#0d80bf', c2: '#0b1b2e' }, cor: { id: 131, n: 'Corinthians', c1: '#2b2b2b', c2: '#5a5a5a' },
+  rem: { id: 1198, n: 'Remo', c1: '#0b2a6f', c2: '#06163d' }, cha: { id: 132, n: 'Chapecoense', c1: '#00843d', c2: '#003d1c' },
+  mci: { id: 50, n: 'Manchester City', c1: '#6cabdd', c2: '#1c2c5b' }, ars: { id: 42, n: 'Arsenal', c1: '#db0007', c2: '#7a0004' },
+  liv: { id: 40, n: 'Liverpool', c1: '#c8102e', c2: '#6e0a17' }, che: { id: 49, n: 'Chelsea', c1: '#034694', c2: '#0a1f44' },
+  rma: { id: 541, n: 'Real Madrid', c1: '#3b3b8f', c2: '#febe10' }, bar: { id: 529, n: 'Barcelona', c1: '#a50044', c2: '#004d98' },
+};
+// Sem acesso ao site de imagens (ex.: página local), tenta uma cópia em media/football/ ao lado do arquivo.
+const img = (src, cls = '') => `<img class="${cls}" src="${src}" alt="" loading="lazy" onerror="if(!this.dataset.local&&this.src.includes('api-sports.io')){this.dataset.local=1;this.src='media/'+this.src.split('api-sports.io/')[1]}else this.classList.add('miss')">`;
+const vars = t => `--c1:${t.c1};--c2:${t.c2}`;
+
+// ---------- dados de exemplo ----------
+const games = [
+  { lg: 71, comp: 'Brasileirão Série A', rd: 'Rodada 33', h: 'cam', a: 'cru', hs: 2, as: 1, st: 'live', min: "67'", foot: 'Mineirão · clássico mineiro',
+    goals: { h: [['Hulk', "23'"], ['Rony', "58'"]], a: [['Kaio Jorge', "41'"]] } },
+  { lg: 71, comp: 'Brasileirão Série A', rd: 'Rodada 33', h: 'vas', a: 'fla', hs: 0, as: 0, st: 'live', min: "12'", foot: 'São Januário' },
+  { lg: 71, comp: 'Brasileirão Série A', rd: 'Rodada 33', h: 'pal', a: 'san', hs: 3, as: 1, st: 'ft', foot: 'Allianz Parque' },
+  { lg: 71, comp: 'Brasileirão Série A', rd: 'Rodada 33', h: 'gre', a: 'cap', st: 'ns', time: '21:30', foot: 'Arena do Grêmio' },
+  { lg: 71, comp: 'Brasileirão Série A', rd: 'Rodada 33', h: 'spf', a: 'int', st: 'ns', time: '21:30', foot: 'MorumBIS' },
+  { lg: 39, comp: 'Premier League', rd: 'Rodada 12', h: 'mci', a: 'liv', hs: 2, as: 2, st: 'ft', foot: 'Etihad Stadium' },
+  { lg: 39, comp: 'Premier League', rd: 'Rodada 12', h: 'ars', a: 'che', hs: 1, as: 0, st: 'ft', foot: 'Emirates Stadium' },
+  { lg: 140, comp: 'La Liga', rd: 'Rodada 13', h: 'rma', a: 'bar', st: 'ns', time: '17:00', foot: 'Santiago Bernabéu · El Clásico' },
+];
+// [time, J, V, E, D, GP, GC, forma (últimos 5), variação]
+const table = [
+  ['fla', 32, 21, 7, 4, 62, 25, 'VVEVV', 0], ['pal', 33, 20, 10, 3, 58, 24, 'VEVVV', 0], ['cru', 32, 16, 6, 10, 47, 42, 'DVVEV', 0],
+  ['cap', 32, 15, 9, 8, 44, 32, 'EVVDV', 0], ['flu', 33, 15, 9, 9, 43, 33, 'VDEVE', 0], ['bah', 33, 14, 11, 8, 41, 35, 'VEEVD', 1],
+  ['cam', 32, 14, 8, 10, 40, 34, 'VVDVV', -1], ['san', 33, 12, 11, 10, 39, 37, 'DEVDE', 0], ['rbb', 33, 12, 8, 13, 38, 34, 'VDVEV', 1],
+  ['spf', 33, 12, 7, 14, 35, 35, 'DDVEV', -1], ['bot', 33, 10, 9, 14, 33, 41, 'EDVDE', 0], ['cfc', 32, 10, 9, 13, 31, 43, 'VEDDE', 0],
+  ['vas', 31, 10, 8, 13, 34, 40, 'DVEDV', 0], ['vit', 32, 10, 8, 14, 30, 41, 'EDDVV', 0], ['mir', 32, 9, 10, 13, 32, 40, 'EEVDD', 0],
+  ['int', 33, 8, 11, 14, 31, 36, 'DEDEV', 0], ['gre', 32, 8, 10, 14, 29, 38, 'EDVDD', 0], ['cor', 32, 8, 9, 15, 30, 38, 'DDEVD', 0],
+  ['rem', 33, 6, 11, 16, 27, 42, 'DEDDE', 0], ['cha', 32, 4, 9, 19, 22, 56, 'DDDED', 0],
+];
+const cuts = { 0: ['lib', 'Libertadores'], 4: ['pre', 'Pré-Libertadores'], 6: ['sula', 'Sul-Americana'], 16: ['z', 'Rebaixamento'] };
+// Líderes reais do Brasileirão 2026 (API-Football, players/topscorers e topassists): [nome, time, total, id do jogador]
+const scorers = [['Viveros', 'cap', 21, 13198], ['Pedro', 'fla', 20, 10321], ['Gabriel Barbosa', 'san', 15, 10174], ['Kaio Jorge', 'cru', 14, 10008], ['Samuel Lino', 'fla', 12, 126936]];
+const assists = [['Josué', 'cfc', 11, 2150], ['Andreas Pereira', 'pal', 10, 899], ['Samuel Lino', 'fla', 9, 126936], ['Carrascal', 'fla', 9, 5994], ['José López', 'pal', 7, 295513]];
+const photo = id => `https://media.api-sports.io/football/players/${id}.png`;
+function leaderCard(title, list) {
+  const [, k, , id] = list[0], t = T[k];
+  return `<div class="lb-card" style="${vars(t)}"><div class="lb-hero" style="height:205px">${img(photo(id), 'lb-face')}${img(logo(t.id), 'lb-face-team')}<h3 class="lb-title">${title}</h3></div>
+    <ul class="tb-list">${list.map(([n, tk, v, pid], i) => `<li class="bar lb-row" style="${vars(T[tk])}"><span class="bar-rk">${i + 1}</span><span class="lb-avatar">${img(photo(pid))}${img(logo(T[tk].id))}</span><span class="bar-name">${n}</span><span class="bar-val">${v}</span></li>`).join('')}</ul></div>`;
+}
+const player = {
+  name: 'Neymar Jr', photo: 'https://media.api-sports.io/football/players/276.png', team: 'san', num: 10,
+  chips: [['Posição', 'Atacante'], ['Idade', '34'], ['Nacionalidade', 'Brasil'], ['Pé', 'Direito'], ['Altura', '1,75 m']],
+  titles: 28, awards: [['Ligue 1', '5×', true], ['Champions League', '1×', true], ['Copa América'], ['Olimpíada', 'ouro', true], ['Libertadores', '1×'], ['Bola de Prata', '2×']],
+  season: [['Jogos', 24, '19 como titular'], ['Gols', 12, '0,50 por jogo'], ['Assist.', 8, 'líder do time'], ['Nota', '7,6', 'média da temporada'], ['Minutos', '1.874', "78' por jogo"], ['Cartões', '5 / 0', 'amarelos / verm.']],
+  last: [['15/11', 'vas', 'E', '1 x 1', '1G'], ['09/11', 'cor', 'V', '2 x 0', '1G 1A'], ['02/11', 'pal', 'D', '1 x 3', '—'], ['26/10', 'bah', 'V', '3 x 1', '2G'], ['19/10', 'gre', 'V', '2 x 1', '1A']],
+  attrs: [['Finalizações/jogo', 3.4, 5], ['Dribles certos/jogo', 2.9, 4], ['Passes decisivos/jogo', 2.6, 4], ['Precisão de passe', 84, 100]],
+  history: [['2026', 'san', 'Brasileirão', 24, 12, 8, '7,6'], ['2025', 'san', 'Brasileirão', 21, 9, 5, '7,3'], ['2024/25', 'san', 'Paulistão', 12, 3, 3, '7,1']],
+};
+
+// ---------- páginas ----------
+function gameCard(g) {
+  const h = T[g.h], a = T[g.a];
+  const done = g.st !== 'ns';
+  const side = (t, s, o) => `<div class="gc-team ${g.st === 'ft' ? (s > o ? 'win' : s < o ? 'lose' : '') : ''}">${img(logo(t.id))}<div class="nm">${t.n}</div><div class="sc">${done ? s : ''}</div></div>`;
+  const status = g.st === 'live' ? `<span class="st-live"><span class="dot"></span>${g.min}</span>` : g.st === 'ft' ? '<span class="st-final">Encerrado</span>' : `<span>${g.time}</span>`;
+  return `<a class="game-card ${g.st === 'live' ? 'live' : ''}" href="#/jogos"><div class="gc-status">${status}<span>${g.comp}</span></div>${side(h, g.hs, g.as)}${side(a, g.as, g.hs)}<div class="gc-foot">${g.foot}</div></a>`;
+}
+function pageJogos() {
+  const f = games[0], h = T[f.h], a = T[f.a];
+  const byComp = [...new Set(games.map(g => g.comp))].map(c => games.filter(g => g.comp === c));
+  return `
+  <section class="section">
+    <div class="section-head"><h2>Placares</h2><span class="sub">Hoje · 18 de novembro</span><span class="spacer"></span>
+      <button class="btn-icon">‹</button><span class="date-label">Quarta, 18 de novembro</span><button class="btn-icon">›</button></div>
+    <div class="card ticker"><button class="tk-arrow">‹</button><div class="score-strip">${games.map(gameCard).join('')}</div><button class="tk-arrow">›</button></div>
+  </section>
+  <section class="section">
+    <div class="section-head"><h2>Em destaque</h2><span class="sub">${f.comp} · ${f.rd}</span></div>
+    <div class="hero" style="--h1:${h.c1};--a1:${a.c1}"><div class="hero-content">
+      <div class="matchup">
+        <div class="mu-team">${img(logo(h.id))}<div><div class="tname">${h.n}</div><div class="trec">7º · 50 pts</div></div><div class="big">${f.hs}</div></div>
+        <div class="mu-center"><div class="status"><span class="dot"></span>Ao vivo · ${f.min}</div><div class="sub">${f.foot}</div></div>
+        <div class="mu-team away">${img(logo(a.id))}<div><div class="tname">${a.n}</div><div class="trec">3º · 54 pts</div></div><div class="big">${f.as}</div></div>
+      </div>
+      <div class="scorers"><div>${f.goals.h.map(([p, m]) => `⚽ <b>${p}</b><span>${m}</span>`).join('<br>')}</div><div>${f.goals.a.map(([p, m]) => `<b>${p}</b><span>${m}</span> ⚽`).join('<br>')}</div></div>
+    </div></div>
+  </section>
+  <section class="section">
+    <div class="section-head"><h2>Partidas</h2><span class="sub">${games.length} jogos</span><span class="spacer"></span>
+      <div class="seg"><button class="on">Todos</button><button>Ao vivo</button><button>Próximos</button><button>Resultados</button></div></div>
+    <div class="comp-grid">${byComp.map(list => `
+      <div class="card"><div class="comp-head">${img(leagueLogo(list[0].lg))}<h3>${list[0].comp}</h3><span class="rd">${list[0].rd}</span></div>
+        <ul class="match-list">${list.map(g => `
+          <li class="match colors" style="--h1:${T[g.h].c1};--h2:${T[g.h].c2};--a1:${T[g.a].c1};--a2:${T[g.a].c2}"><span class="when ${g.st === 'live' ? 'live' : ''}">${g.st === 'live' ? '● ' + g.min : g.st === 'ft' ? 'FIM' : g.time}</span>
+            <span class="tm h"><span>${T[g.h].n}</span>${img(logo(T[g.h].id))}</span>
+            <span class="res ${g.st === 'ns' ? 'ns' : ''}">${g.st === 'ns' ? 'VS' : `${g.hs} : ${g.as}`}</span>
+            <span class="tm">${img(logo(T[g.a].id))}<span>${T[g.a].n}</span></span></li>`).join('')}
+        </ul></div>`).join('')}
+    </div>
+  </section>`;
+}
+function pageClassificacao() {
+  const head = `<div class="tb-head"><span>#</span><span></span><span>Time</span><span class="tb-cols"><span>J</span><span>V</span><span class="hide-sm">E</span><span class="hide-sm">D</span><span class="hide-md">SG</span><span class="hide-md form">Últimos 5</span><span>±</span></span><span class="bar-val">Pts</span></div>`;
+  const rows = table.map(([k, j, v, e, d, gp, gc, form, mv], i) => {
+    const t = T[k], sg = gp - gc;
+    const cut = cuts[i] ? `<div class="tb-cut ${cuts[i][0]}">${cuts[i][1]}</div>` : '';
+    return `${cut}<li class="bar tb-row" style="${vars(t)}"><span class="bar-rk">${i + 1}</span>${img(logo(t.id), 'bar-logo')}<span class="bar-name">${t.n}</span>
+      <span class="tb-cols"><span>${j}</span><span>${v}</span><span class="hide-sm">${e}</span><span class="hide-sm">${d}</span><span class="hide-md">${sg > 0 ? '+' + sg : sg}</span>
+      <span class="hide-md form">${[...form].map(r => `<i class="${r}">${r}</i>`).join('')}</span>
+      <span><span class="mv ${mv > 0 ? 'up' : mv < 0 ? 'down' : 'eq'}">${mv > 0 ? '▲' + mv : mv < 0 ? '▼' + -mv : '–'}</span></span></span>
+      <span class="bar-val">${v * 3 + e}</span></li>`;
+  }).join('');
+  return `
+  <section class="section">
+    <div class="section-head"><h2>Classificação</h2><span class="sub">Temporada 2026</span><span class="spacer"></span>
+      <div class="seg"><button class="on">Geral</button><button>Mandante</button><button>Visitante</button></div></div>
+    <div class="stand-layout">
+      <div class="card"><div class="conf-head">${img(leagueLogo(71))}<div><h3>Brasileirão Série A</h3><div class="sub">Rodada 33 de 38 · 2 jogos ao vivo</div></div></div>
+        ${head}<ul class="tb-list">${rows}</ul></div>
+      <div>
+        ${leaderCard('Artilharia', scorers)}
+        ${leaderCard('Assistências', assists)}
+        <div class="lb-card" style="${vars(T.pal)}"><div class="lb-hero" style="height:150px">${img(logo(T.pal.id), 'lb-photo')}<h3 class="lb-title">Melhor defesa</h3></div>
+          <ul class="tb-list">${[...table].sort((x, y) => x[6] - y[6]).slice(0, 5).map((r, i) => `<li class="bar lb-row" style="${vars(T[r[0]])}"><span class="bar-rk">${i + 1}</span>${img(logo(T[r[0]].id), 'bar-logo')}<span class="bar-name">${T[r[0]].n}</span><span class="bar-val">${r[6]}</span></li>`).join('')}</ul></div>
+      </div>
+    </div>
+  </section>`;
+}
+function pageJogador() {
+  const p = player, t = T[p.team];
+  return `
+  <div class="player-hero" style="${vars(t)}"><div class="hero-content">
+    ${img(p.photo, 'headshot')}
+    <div class="pinfo"><a class="team-link" href="#/classificacao">${img(logo(t.id))}${t.n} · Brasileirão</a><h1>${p.name}</h1>
+      <div class="hero-meta">${p.chips.map(([k, v]) => `<span class="chip">${k} <b>${v}</b></span>`).join('')}</div></div>
+    <div class="honors"><div class="hon-titles"><div><div class="hon-num">${p.titles}</div><div class="hon-lbl">Títulos na carreira</div></div></div>
+      <div><div class="hon-lbl">Principais conquistas</div><div class="hon-chips">${p.awards.map(([n, x, major]) => `<span class="aw ${major ? 'major' : ''}">${n}${x ? ` <b>${x}</b>` : ''}</span>`).join('')}</div></div></div>
+    <div class="jersey-big">#${p.num}</div>
+  </div></div>
+  <div class="card season-strip" style="${vars(t)}">${p.season.map(([k, v, c]) => `<div><div class="k">${k}</div><div class="v">${v}</div><div class="c">${c}</div></div>`).join('')}</div>
+  <div class="grid-2 section">
+    <div class="card panel"><div class="section-head"><h2>Últimos jogos</h2></div>
+      <ul class="tb-list" style="padding:0">${p.last.map(([d, opp, r, sc, ga]) => { const o = T[opp]; return `<li class="bar pg-row" style="${vars(o)}"><span class="d">${d}</span>${img(logo(o.id), 'bar-logo')}<span class="bar-name">${o.n}</span><span class="rs ${r}">${sc}</span><span class="ga">${ga}</span></li>`; }).join('')}</ul></div>
+    <div class="card panel" style="${vars(t)}"><div class="section-head"><h2>Perfil na temporada</h2></div>
+      ${p.attrs.map(([k, v, max]) => `<div class="attr"><span>${k}</span><div class="bar-meter"><i style="width:${(v / max) * 100}%"></i></div><b>${v}${max === 100 ? '%' : ''}</b></div>`).join('')}
+      <div class="section-head" style="margin-top:18px"><h2>Histórico</h2></div>
+      <table class="tbl"><thead><tr><th class="l">Temporada</th><th class="l">Time</th><th>J</th><th>G</th><th>A</th><th>Nota</th></tr></thead>
+        <tbody>${p.history.map(([s, k, c, j, g, a, n]) => `<tr><td class="l">${s}</td><td class="l"><span class="team-cell">${img(logo(T[k].id))}${c}</span></td><td>${j}</td><td class="hl">${g}</td><td>${a}</td><td>${n}</td></tr>`).join('')}</tbody></table></div>
+  </div>`;
+}
+
+const pages = { jogos: pageJogos, classificacao: pageClassificacao, jogador: pageJogador };
+function route() {
+  const key = (location.hash.replace('#/', '') || 'jogos');
+  const page = pages[key] ? key : 'jogos';
+  document.getElementById('app').innerHTML = pages[page]();
+  document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('active', a.dataset.tab === page));
+  scrollTo(0, 0);
+}
+addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>
