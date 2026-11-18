@@ -13,7 +13,7 @@ const rules = { id, team:id, league:id, fixture:id, player:id, season, search:te
   live:v=>v==='all' || /^[1-9]\d{0,7}(?:-[1-9]\d{0,7}){0,19}$/.test(v),
   h2h:v=>/^[1-9]\d{0,7}-[1-9]\d{0,7}$/.test(v),
   status:v=>/^(TBD|NS|1H|HT|2H|ET|BT|P|SUSP|INT|FT|AET|PEN|PST|CANC|ABD|AWD|WO|LIVE)(-(TBD|NS|1H|HT|2H|ET|BT|P|SUSP|INT|FT|AET|PEN|PST|CANC|ABD|AWD|WO|LIVE)){0,9}$/.test(v),
-  round:v=>v.length<=80 && /^[\p{L}\p{N} .'-]+$/u.test(v), bookmaker:id, bet:id };
+  round:v=>v.length<=80 && /^[\p{L}\p{N} .'-]+$/u.test(v), bookmaker:id, bet:id, coach:id };
 const schemas = {
   leagues:'id name country code season team type current search', teams:'id name league season country code search',
   'teams/statistics':'league season team date', standings:'league season team',
@@ -24,7 +24,7 @@ const schemas = {
   'players/topscorers':'league season', 'players/topassists':'league season',
   'players/topyellowcards':'league season', 'players/topredcards':'league season',
   'players/squads':'team player', players:'id team league season search page',
-  injuries:'league season fixture team player date timezone', odds:'fixture league season date timezone page bookmaker bet', predictions:'fixture'
+  injuries:'league season fixture team player date timezone', odds:'fixture league season date timezone page bookmaker bet', predictions:'fixture', trophies:'player coach'
 };
 const required = { 'teams/statistics':['league','season','team'], standings:['season'],
   'fixtures/headtohead':['h2h'], 'fixtures/events':['fixture'], 'fixtures/lineups':['fixture'],
@@ -46,6 +46,7 @@ function validate(query) {
   if(endpoint === 'fixtures' && params.league && !params.season && !params.live && !params.date && !params.id) return null;
   if(endpoint === 'injuries' && !(params.fixture || params.date || (params.season && (params.team || params.league || params.player)))) return null;
   if(endpoint === 'odds' && !(params.fixture || params.date || (params.league && params.season))) return null;
+  if(endpoint === 'trophies' && !!params.player === !!params.coach) return null;
   if(params.from && (!params.to || params.from > params.to)) return null;
   if(params.to && !params.from) return null;
   if(params.from && Date.parse(params.to)-Date.parse(params.from)>366*86400000) return null;
@@ -54,7 +55,7 @@ function validate(query) {
 }
 function ttlFor(endpoint) {
   if(endpoint === 'fixtures' || /^fixtures\/(events|statistics|players|lineups)$/.test(endpoint)) return 15;
-  if(endpoint === 'leagues' || endpoint === 'teams' || endpoint === 'players/squads') return 21600;
+  if(endpoint === 'leagues' || endpoint === 'teams' || endpoint === 'players/squads' || endpoint === 'trophies') return 21600;
   if(endpoint === 'odds') return 60;
   return 300;
 }

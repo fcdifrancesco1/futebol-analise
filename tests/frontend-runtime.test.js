@@ -582,3 +582,14 @@ test('squad season stats read the next player page only while pages come full', 
   await ctx.stats(127, 71, 2026);
   assert.equal(pages.length, 1, 'página incompleta encerra a busca');
 });
+
+test('player honors count only titles won and list the major competitions first', () => {
+  const src = fs.readFileSync('public/js/players.js', 'utf8');
+  const ctx = vm.createContext({ Map });
+  vm.runInContext(src.slice(src.indexOf('const PLAYER_MAJOR_TITLES'), src.indexOf('function playerHeroHtml')) + '\nthis.honors = playerHonors;', ctx);
+  const t = (league, place = 'Winner') => ({ league, place });
+  const h = ctx.honors([t('Ligue 1'), t('Ligue 1'), t('UEFA Champions League'), t('Ligue 1', '2nd Place'), t('Copa America', '2nd Place'), t('Paulista A1')]);
+  assert.equal(h.titles, 4);
+  assert.equal(h.chips.map(c => `${c.name}:${c.count}${c.major ? '*' : ''}`).join(), 'UEFA Champions League:1*,Ligue 1:2,Paulista A1:1');
+  assert.equal(ctx.honors(null).titles, 0);
+});

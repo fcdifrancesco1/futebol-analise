@@ -66,6 +66,99 @@ function getSpecificPlayerRole(player, st) {
   return "Meio-Campista";
 }
 
+// ---------- Página do jogador no visual Courtside (topo, faixa de números e painéis) ----------
+const PLAYER_MAJOR_TITLES = /world cup|copa do mundo|champions league|libertadores|copa am[eé]rica|euro championship|olympic|ol[ií]mpi|club world cup|mundial/i;
+
+// Títulos ganhos (place "Winner") agrupados por competição, os maiores primeiro.
+function playerHonors(trophies) {
+  const byName = new Map();
+  (Array.isArray(trophies) ? trophies : []).filter(t => t?.place === "Winner" && t.league).forEach(t => {
+    byName.set(t.league, (byName.get(t.league) || 0) + 1);
+  });
+  const chips = [...byName].map(([name, count]) => ({ name, count, major: PLAYER_MAJOR_TITLES.test(name) }))
+    .sort((a, b) => (b.major - a.major) || (b.count - a.count) || a.name.localeCompare(b.name));
+  return { titles: chips.reduce((sum, c) => sum + c.count, 0), chips: chips.slice(0, 6) };
+}
+
+function playerHeroHtml(p, club, honors, teamId, season) {
+  const chips = [
+    ["Posição", getSpecificPlayerRole(p, club)], ["Idade", p.age ? `${p.age}` : ""],
+    ["Nacionalidade", p.nationality], ["Altura", p.height], ["Peso", p.weight]
+  ].filter(([, v]) => v);
+  const number = club.games?.number;
+  return `
+    <div class="player-hero club-hero pp-hero" style="${teamColorVars(teamId || club.team?.id)}">
+      <img class="pp-headshot" src="${p.photo}" alt="" data-image-fallback="hide">
+      <div class="pp-info">
+        ${club.team ? `<a class="pp-team-link" href="#/time/${club.team.id}/${club.league?.id || 71}/${club.league?.season || season || 2026}"><img src="${club.team.logo}" alt="">${escapeHtml(formatTeamName(club.team.name || ""))}${club.league?.name ? ` · ${escapeHtml(formatTeamName(club.league.name))}` : ""}</a>` : ""}
+        <h1 class="page-title">${escapeHtml(p.name)}</h1>
+        <div class="pp-meta">${chips.map(([k, v]) => `<span class="pp-chip">${k} <b>${escapeHtml(String(v))}</b></span>`).join("")}</div>
+      </div>
+      ${honors.titles ? `
+        <div class="pp-honors">
+          <div class="pp-hon-titles"><div class="pp-hon-num">${honors.titles}</div><div class="pp-hon-lbl">Títulos na carreira</div></div>
+          <div><div class="pp-hon-lbl">Principais conquistas</div>
+            <div class="pp-hon-chips">${honors.chips.map(c => `<span class="pp-aw ${c.major ? "major" : ""}">${escapeHtml(c.name)}${c.count > 1 ? ` <b>${c.count}×</b>` : ""}</span>`).join("")}</div></div>
+        </div>` : ""}
+      ${honors.titles ? "" : `<div class="pp-jersey">${number ? `#${number}` : ""}</div>`}
+    </div>`;
+}
+
+const ptNumber = (v, digits = 2) => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+
+// Seis números da temporada na competição escolhida (goleiro: defesas e gols sofridos no lugar de gols e assistências).
+function playerSeasonStripHtml(s, isGK) {
+  const apps = s.games?.appearences || 0;
+  const minutes = s.games?.minutes || 0;
+  const per = v => apps ? `${ptNumber((v || 0) / apps)} por jogo` : "";
+  const rating = parseFloat(s.games?.rating);
+  const tiles = [
+    ["Jogos", apps, `${s.games?.lineups ?? 0} como titular`],
+    isGK ? ["Defesas", s.goals?.saves ?? 0, per(s.goals?.saves)] : ["Gols", s.goals?.total ?? 0, per(s.goals?.total)],
+    isGK ? ["Sofridos", s.goals?.conceded ?? 0, per(s.goals?.conceded)] : ["Assist.", s.goals?.assists ?? 0, per(s.goals?.assists)],
+    ["Nota", rating > 0 ? ptNumber(rating, 1) : "-", "média na temporada"],
+    ["Minutos", minutes.toLocaleString("pt-BR"), apps ? `${Math.round(minutes / apps)}' por jogo` : ""],
+    ["Cartões", `${s.cards?.yellow ?? 0} / ${s.cards?.red ?? 0}`, "amarelos / verm."],
+  ];
+  return `<div class="card pp-strip">${tiles.map(([k, v, c]) => `<div><div class="pp-k">${k}</div><div class="pp-v">${v}</div><div class="pp-c">${c}</div></div>`).join("")}</div>`;
+}
+
+function playerLastGamesHtml(games) {
+  if (!games.length) return `<p class="pp-empty">Sem jogos encerrados com dados do atleta nesta temporada.</p>`;
+  return `<div class="pp-games">${games.map(g => {
+    const res = g.gf > g.ga ? "V" : g.gf === g.ga ? "E" : "D";
+    const ga = [g.goals ? `${g.goals}G` : "", g.assists ? `${g.assists}A` : ""].filter(Boolean).join(" ") || "—";
+    const d = new Date(g.date);
+    return `<a class="pp-game" style="${teamColorVars(g.opponent?.id)}" href="#/jogo/${g.fixtureId}" title="Ver partida">
+      <span class="pp-d">${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}</span>
+      <img src="${g.opponent?.logo || ""}" alt="" loading="lazy">
+      <span class="pp-opp">${escapeHtml(formatTeamName(g.opponent?.name || ""))}</span>
+      <span class="pp-rs ${res}">${g.gf} x ${g.ga}</span>
+      <span class="pp-ga">${ga}</span></a>`;
+  }).join("")}</div>`;
+}
+
+function playerProfileHtml(s, isGK) {
+  const apps = s.games?.appearences || 0;
+  const per = v => apps ? (v || 0) / apps : 0;
+  const rows = isGK
+    ? [["Defesas/jogo", per(s.goals?.saves), 6], ["Gols sofridos/jogo", per(s.goals?.conceded), 3], ["Precisão de passe", Number(s.passes?.accuracy) || 0, 100]]
+    : [["Finalizações/jogo", per(s.shots?.total), 5], ["Dribles certos/jogo", per(s.dribbles?.success), 4], ["Passes decisivos/jogo", per(s.passes?.key), 4], ["Precisão de passe", Number(s.passes?.accuracy) || 0, 100]];
+  return rows.map(([k, v, max]) => `
+    <div class="pp-attr"><span>${k}</span><div class="pp-meter"><i style="width:${Math.min(100, (v / max) * 100)}%"></i></div><b>${max === 100 ? `${Math.round(v)}%` : ptNumber(v, 1)}</b></div>`).join("");
+}
+
+function playerHistoryHtml(statsList) {
+  if (!statsList.length) return "";
+  return `<table class="pp-table"><thead><tr><th class="l">Competição</th><th class="l">Time</th><th>J</th><th>G</th><th>A</th><th>Nota</th></tr></thead><tbody>
+    ${statsList.map(st => {
+      const rating = parseFloat(st.games?.rating);
+      return `<tr><td class="l"><span class="pp-cell"><img src="${st.league?.logo || ""}" alt="">${escapeHtml(formatTeamName(st.league?.name || ""))}</span></td>
+        <td class="l"><span class="pp-cell"><img src="${st.team?.logo || ""}" alt="">${escapeHtml(formatTeamName(st.team?.name || ""))}</span></td>
+        <td>${st.games?.appearences ?? 0}</td><td class="hl">${st.goals?.total ?? 0}</td><td>${st.goals?.assists ?? 0}</td><td>${rating > 0 ? ptNumber(rating, 1) : "-"}</td></tr>`;
+    }).join("")}</tbody></table>`;
+}
+
 async function renderPlayer(playerId, teamId, leagueId, season) {
   const view = captureView();
   const app = view.root;
@@ -83,6 +176,10 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
     const p = entry.player;
     const statsList = entry.statistics || [];
+    // Títulos na carreira (só para o quadro do topo; se falhar, o quadro some).
+    const trophiesPromise = apiGet("trophies", { player: playerId }, 360).catch(() => []);
+    // Jogos encerrados do atleta, montados com os mesmos dados da reconciliação abaixo.
+    const recentGames = [];
 
     // Reconciliação em Tempo Real: Corrige o delay da API-Football somando os dados dos jogos já finalizados
     await Promise.all(statsList.map(async (st) => {
@@ -101,14 +198,21 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           );
 
           const matchStats = [];
-          for (const fPlayers of fixturePlayerResponses) {
-            if (!Array.isArray(fPlayers)) continue;
+          fixturePlayerResponses.forEach((fPlayers, i) => {
+            if (!Array.isArray(fPlayers)) return;
             const tData = fPlayers.find(t => t.team?.id === st.team.id);
             const pData = tData?.players?.find(pl => pl.player?.id === playerId);
             if (pData?.statistics?.[0] && pData.statistics[0].games?.minutes !== null) {
               matchStats.push(pData.statistics[0]);
+              const f = finishedFixtures[i];
+              const home = f.teams.home.id === st.team.id;
+              recentGames.push({
+                fixtureId: f.fixture.id, date: f.fixture.date, opponent: home ? f.teams.away : f.teams.home,
+                gf: home ? f.goals.home : f.goals.away, ga: home ? f.goals.away : f.goals.home,
+                goals: pData.statistics[0].goals?.total || 0, assists: pData.statistics[0].goals?.assists || 0
+              });
             }
-          }
+          });
 
           if (matchStats.length > (st.games?.appearences || 0)) {
             const totalApps = matchStats.length;
@@ -243,12 +347,17 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
       }
     };
 
+    const trophies = await trophiesPromise;
+    const lastGames = recentGames.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
     const allOptions = [totalStats, ...statsList];
+    // Clube da página (o do endereço) para o topo e as cores; a seleção fica só no filtro.
+    const club = statsList.find(st => st.team?.id === teamId && st.league?.id === leagueId)
+      || statsList.find(st => st.team?.id === teamId) || statsList[0] || {};
+    const honors = playerHonors(trophies);
     let currentSelectedIdx = 0;
     let currentMode = "total"; // "total" | "per_game"
 
     function renderPlayerStatsView(s, selectedIdx = 0, mode = "total") {
-      const rating = parseFloat(s.games?.rating || "0").toFixed(2);
       const isPerGame = (mode === "per_game");
       const apps = Math.max(s.games?.appearences || 0, 0);
 
@@ -882,31 +991,11 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
       return `
         ${breadcrumbs([
           { label: "Ligas", href: "#/" },
-          { label: s.team?.name || "Clube", href: `#/time/${s.team?.id || teamId}/${leagueId || 71}/${season || 2026}` },
+          { label: club.team?.name || "Clube", href: `#/time/${club.team?.id || teamId}/${leagueId || 71}/${season || 2026}` },
           { label: p.name, href: "" }
         ])}
 
-        <div class="player-hero club-hero" style="${teamColorVars(teamId || s.team?.id)}">
-          <div class="player-hero-main-row">
-            <div class="player-hero-avatar-wrap">
-              <img class="player-avatar-large" src="${p.photo}" alt="" data-image-fallback="hide">
-            </div>
-            <div class="player-hero-text">
-              <p class="page-eyebrow">${escapeHtml(formatTeamName(s.team?.name || ""))} · ${escapeHtml(getSpecificPlayerRole(p, s))} ${s.games?.number ? `#${s.games.number}` : ''}</p>
-              <h1 class="page-title">${escapeHtml(p.name)}</h1>
-            </div>
-            <div class="player-rating-badge">
-              <span class="rating-num">${rating > 0 ? rating : '-'}</span>
-              <span class="rating-label">Nota Média</span>
-            </div>
-          </div>
-          <div class="player-hero-meta">
-            <span>🎂 ${p.age ? p.age + ' anos' : '-'}</span>
-            <span>📍 ${escapeHtml(p.nationality || '-')}</span>
-            <span>📏 ${p.height || '-'}</span>
-            <span>⚖️ ${p.weight || '-'}</span>
-          </div>
-        </div>
+        ${playerHeroHtml(p, club, honors, teamId, season)}
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;background:var(--glass-bg);border:1px solid var(--glass-border);padding:12px 16px;border-radius:var(--radius);flex-wrap:wrap;gap:12px;">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -919,6 +1008,15 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           <div class="player-mode-btn-group">
             <button type="button" class="player-mode-btn ${!isPerGame ? 'active' : ''}" id="btn-player-mode-total">Geral</button>
             <button type="button" class="player-mode-btn ${isPerGame ? 'active' : ''}" id="btn-player-mode-per-game">Por jogo</button>
+          </div>
+        </div>
+
+        ${playerSeasonStripHtml(s, isGK)}
+        <div class="pp-grid">
+          <div class="card pp-panel"><h2 class="section-title">Últimos jogos</h2>${playerLastGamesHtml(lastGames)}</div>
+          <div class="card pp-panel">
+            <h2 class="section-title">Perfil na temporada</h2>${playerProfileHtml(s, isGK)}
+            <h2 class="section-title" style="margin-top:18px">Histórico</h2>${playerHistoryHtml(statsList)}
           </div>
         </div>
 

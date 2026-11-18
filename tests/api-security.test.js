@@ -81,7 +81,7 @@ test('football rejects incomplete endpoint filters before spending budget', asyn
   for(const query of [
     {endpoint:'players',page:'2'}, {endpoint:'players',id:'42'},
     {endpoint:'fixtures',league:'71'}, {endpoint:'injuries',timezone:'UTC'},
-    {endpoint:'odds',bookmaker:'1'},
+    {endpoint:'odds',bookmaker:'1'}, {endpoint:'trophies'}, {endpoint:'trophies',player:'42',coach:'7'},
     {endpoint:'fixtures',team:'1',from:'2024-01-01',to:'2026-12-31'}
   ]) {const res=response();await handler('football')(request(query),res);assert.equal(res.statusCode,400,JSON.stringify(query));}
 });
@@ -94,6 +94,6 @@ test('football accepts the concrete dashboard query shapes', async () => {
     {endpoint:'fixtures/headtohead',h2h:'127-121',last:'6'},
     {endpoint:'teams/statistics',league:'71',season:'2026',team:'127'},
     {endpoint:'players',id:'42',season:'2026'}, {endpoint:'injuries',team:'127',season:'2026'},
-    {endpoint:'fixtures/players',fixture:'1234'}
+    {endpoint:'fixtures/players',fixture:'1234'}, {endpoint:'trophies',player:'276'}
   ]) {const res=response();await handler('football')(request(query),res);assert.equal(res.statusCode,200,JSON.stringify(query));}
 });
