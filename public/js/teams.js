@@ -186,7 +186,7 @@ async function renderTeam(teamId, leagueId, season) {
                 const leagueName = formatTeamName(f.league?.name || "");
 
                 return `
-                  <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                  <a class="fixture-card-compact match-colors" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
                     <div class="fixture-card-topbar">
                       <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
                         ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" data-image-fallback="hide">` : ''}
@@ -261,7 +261,7 @@ async function renderTeam(teamId, leagueId, season) {
                 }
 
                 return `
-                  <a class="fixture-card-compact" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                  <a class="fixture-card-compact match-colors" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
                     <div class="fixture-card-topbar">
                       <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
                         ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" data-image-fallback="hide">` : ''}
