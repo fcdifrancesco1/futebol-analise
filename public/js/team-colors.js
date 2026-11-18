@@ -257,9 +257,10 @@ function teamColorVars(teamId) {
   return `--c1:${c1};--c2:${c2}`;
 }
 
-// style="--h1:..;--a1:.." para a linha da partida pintada meio a meio (mandante | visitante).
+// Linha da partida meio a meio: cada metade vai da cor secundária (borda) à principal (centro).
 function matchColorVars(homeId, awayId) {
-  return `--h1:${teamColors(homeId)[0]};--a1:${teamColors(awayId)[0]}`;
+  const [h1, h2] = teamColors(homeId), [a1, a2] = teamColors(awayId);
+  return `--h1:${h1};--h2:${h2};--a1:${a1};--a2:${a2}`;
 }
 
 if (typeof module !== "undefined") module.exports = { TEAM_COLORS, teamColors, teamColorVars, matchColorVars, pickCrestColors, tuneBarColor };
