@@ -160,8 +160,95 @@ const NATION_COLORS = {
 };
 const TEAM_COLORS_DEFAULT = ["#1d2a45", "#101828"];
 
+// ---------- Cores tiradas do escudo, para os times fora das tabelas acima ----------
+// O escudo da API-Football fica sempre em /football/teams/{id}.png e o servidor libera a
+// leitura (CORS *). O time desconhecido recebe var(--tc{id}a, cor neutra); quando as cores
+// do escudo ficam prontas, entram numa folha de estilo própria e a tela muda sozinha.
+const AUTO_COLORS_KEY = "ap_team_colors_v1";
+const autoTeamColors = {};
+const autoTeamPending = new Set();
+
+// Barra com texto branco: limita a luminosidade (mesma regra usada para as bandeiras).
+function tuneBarColor([r, g, b]) {
+  const max = Math.max(r, g, b) / 255, min = Math.min(r, g, b) / 255;
+  let l = (max + min) / 2;
+  const d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d) {
+    const [rr, gg, bb] = [r / 255, g / 255, b / 255];
+    h = max === rr ? ((gg - bb) / d) % 6 : max === gg ? (bb - rr) / d + 2 : (rr - gg) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  l = Math.max(0.14, Math.min(l, s > 0.15 ? 0.42 : 0.30));
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  const [r1, g1, b1] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return "#" + [r1, g1, b1].map(v => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("");
+}
+
+// Duas cores principais de um escudo a partir dos pixels RGBA (ignora transparente e branco).
+// A principal favorece as cores vivas: contornos pretos e cinzas pesam menos.
+function pickCrestColors(data) {
+  const buckets = new Map();
+  for (let i = 0; i < data.length; i += 4) {
+    const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+    if (a < 128 || Math.min(r, g, b) > 200) continue;
+    const key = (r >> 5) << 6 | (g >> 5) << 3 | (b >> 5);
+    const e = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+    e.n++; e.r += r; e.g += g; e.b += b;
+    buckets.set(key, e);
+  }
+  const cols = [...buckets.values()].map(e => {
+    const rgb = [e.r / e.n, e.g / e.n, e.b / e.n];
+    const sat = (Math.max(...rgb) - Math.min(...rgb)) / 255;
+    return { rgb, score: e.n * (0.35 + sat) };
+  }).sort((a, b) => b.score - a.score);
+  if (!cols.length) return null;
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const c1 = cols[0].rgb;
+  const c2 = cols.slice(1).find(c => dist(c.rgb, c1) > 90)?.rgb || c1.map(v => v * 0.55);
+  return [tuneBarColor(c1), tuneBarColor(c2)];
+}
+
+function writeAutoColorStyle() {
+  let el = document.getElementById("team-colors-auto");
+  if (!el) { el = document.createElement("style"); el.id = "team-colors-auto"; document.head.appendChild(el); }
+  el.textContent = `:root{${Object.entries(autoTeamColors).map(([id, [a, b]]) => `--tc${id}a:${a};--tc${id}b:${b}`).join(";")}}`;
+}
+
+function learnTeamColors(teamId) {
+  if (typeof document === "undefined" || typeof Image === "undefined" || autoTeamPending.has(teamId)) return;
+  autoTeamPending.add(teamId);
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 32;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, 32, 32);
+      // Sem cor aproveitável (escudo todo branco): guarda a neutra para não tentar de novo.
+      autoTeamColors[teamId] = pickCrestColors(ctx.getImageData(0, 0, 32, 32).data) || TEAM_COLORS_DEFAULT;
+      writeAutoColorStyle();
+      try { localStorage.setItem(AUTO_COLORS_KEY, JSON.stringify(autoTeamColors)); } catch { /* armazenamento cheio ou bloqueado */ }
+    } catch { /* imagem bloqueada: fica a cor neutra */ }
+  };
+  img.src = `https://media.api-sports.io/football/teams/${teamId}.png`;
+}
+
+if (typeof document !== "undefined") {
+  try { Object.assign(autoTeamColors, JSON.parse(localStorage.getItem(AUTO_COLORS_KEY) || "{}")); } catch { /* cache inválido */ }
+  if (Object.keys(autoTeamColors).length && document.head) writeAutoColorStyle();
+}
+
 function teamColors(teamId) {
-  return TEAM_COLORS[teamId] || NATION_COLORS[teamId] || TEAM_COLORS_DEFAULT;
+  const known = TEAM_COLORS[teamId] || NATION_COLORS[teamId];
+  if (known) return known;
+  const id = Number(teamId);
+  if (!Number.isSafeInteger(id) || id <= 0) return TEAM_COLORS_DEFAULT;
+  if (!autoTeamColors[id]) learnTeamColors(id);
+  return [`var(--tc${id}a, ${TEAM_COLORS_DEFAULT[0]})`, `var(--tc${id}b, ${TEAM_COLORS_DEFAULT[1]})`];
 }
 
 // style="--c1:..;--c2:.." para as barras (classificação, líderes, heróis).
@@ -175,4 +262,4 @@ function matchColorVars(homeId, awayId) {
   return `--h1:${teamColors(homeId)[0]};--a1:${teamColors(awayId)[0]}`;
 }
 
-if (typeof module !== "undefined") module.exports = { TEAM_COLORS, teamColors, teamColorVars, matchColorVars };
+if (typeof module !== "undefined") module.exports = { TEAM_COLORS, teamColors, teamColorVars, matchColorVars, pickCrestColors, tuneBarColor };

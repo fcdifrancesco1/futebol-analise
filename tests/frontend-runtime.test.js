@@ -593,3 +593,14 @@ test('player honors count only titles won and list the major competitions first'
   assert.equal(h.chips.map(c => `${c.name}:${c.count}${c.major ? '*' : ''}`).join(), 'UEFA Champions League:1*,Ligue 1:2,Paulista A1:1');
   assert.equal(ctx.honors(null).titles, 0);
 });
+
+test('crest colors skip white and transparent pixels and prefer the vivid color over the black outline', () => {
+  const { pickCrestColors, teamColors } = require('../public/js/team-colors.js');
+  const px = (n, rgba) => Array.from({ length: n }, () => rgba).flat();
+  // escudo: muito branco, contorno preto, vermelho no meio, fundo transparente
+  const crest = Uint8ClampedArray.from([...px(400, [255, 255, 255, 255]), ...px(260, [15, 15, 15, 255]), ...px(200, [200, 16, 46, 255]), ...px(164, [0, 0, 0, 0])]);
+  assert.deepEqual(pickCrestColors(crest), ['#c6102e', '#242424']);
+  assert.equal(pickCrestColors(Uint8ClampedArray.from(px(50, [255, 255, 255, 255]))), null);
+  // time fora das tabelas: variável CSS com a cor neutra até o escudo ser lido
+  assert.deepEqual(teamColors(424242), ['var(--tc424242a, #1d2a45)', 'var(--tc424242b, #101828)']);
+});
