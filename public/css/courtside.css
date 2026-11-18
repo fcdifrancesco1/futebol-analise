@@ -256,3 +256,8 @@ tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; 
   .pp-strip > div:nth-child(3) { border-right: 0; } .pp-attr { grid-template-columns: 120px 1fr 44px; }
   .pp-game { grid-template-columns: 40px 32px minmax(0, 1fr) 54px 44px; } .pp-game img { width: 30px; height: 30px; margin: 0; }
 }
+
+/* ---------- todas as telas na largura total (antes: 1200 px no conteúdo e 1460 px no topo) ---------- */
+.main-content { max-width: none; width: 100%; padding: 32px 28px 90px; }
+.topbar-inner { max-width: none; }
+@media (max-width: 760px) { .main-content { padding: 16px 12px calc(90px + env(safe-area-inset-bottom)); } }
