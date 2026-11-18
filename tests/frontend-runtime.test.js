@@ -560,3 +560,25 @@ test('day standings add live and just-finished scores missing from the official 
   assert.equal(result.rows[0].description, 'Libertadores'); assert.equal(result.rows[1].description, null);
   assert.equal(ctx.live(rows, [fixtures[2]], 71), null);
 });
+
+test('squad season stats read the next player page only while pages come full', async () => {
+  const src = fs.readFileSync('public/js/teams.js', 'utf8');
+  const start = src.indexOf('async function squadSeasonStats');
+  const pages = [];
+  const entry = (id, league) => ({ player: { id }, statistics: [{ league: { id: 99 }, goals: { total: 0 } }, { league: { id: league }, goals: { total: id } }] });
+  const ctx = vm.createContext({ Map, Array, apiGet: async (endpoint, params) => {
+    pages.push(params.page);
+    const size = params.page < 3 ? 20 : 5;
+    return Array.from({ length: size }, (_, i) => entry(params.page * 100 + i, params.league));
+  } });
+  vm.runInContext(src.slice(start) + '\nthis.stats = squadSeasonStats;', ctx);
+  const stats = await ctx.stats(127, 71, 2026);
+  assert.equal(pages.join(), '1,2,3');
+  assert.equal(stats.size, 45);
+  assert.equal(stats.get(101).goals.total, 101, 'usa a estatística da competição pedida');
+
+  pages.length = 0;
+  ctx.apiGet = async () => { pages.push(1); return [entry(1, 71)]; };
+  await ctx.stats(127, 71, 2026);
+  assert.equal(pages.length, 1, 'página incompleta encerra a busca');
+});

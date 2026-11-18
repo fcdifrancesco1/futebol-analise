@@ -341,7 +341,10 @@ async function renderSquad(teamId, leagueId, season) {
   const content = document.getElementById("squad-content");
 
   try {
-    const response = await apiGet("players/squads", { team: teamId }, 60);
+    const [response, seasonStats] = await Promise.all([
+      apiGet("players/squads", { team: teamId }, 60),
+      squadSeasonStats(teamId, leagueId, season).catch(() => new Map())
+    ]);
     const squad = response?.[0];
     if (!squad) {
       content.innerHTML = errorBox("Elenco indisponível para esse time.");
@@ -349,16 +352,35 @@ async function renderSquad(teamId, leagueId, season) {
     }
 
     const groups = { Goalkeeper: "Goleiros", Defender: "Defensores", Midfielder: "Meio-Campistas", Attacker: "Atacantes" };
+    const roles = { Goalkeeper: "Goleiro", Defender: "Defensor", Midfielder: "Meio-campista", Attacker: "Atacante" };
     const byPos = {};
     (squad.players || []).forEach(p => {
       const key = p.position || "Outros";
       byPos[key] = byPos[key] || [];
       byPos[key].push(p);
     });
+    const colors = teamColorVars(teamId);
+    // Cartão do elenco no estilo do nba-stats: foto sobre as cores do time, número da camisa,
+    // faixa com o nome e três números da temporada (goleiro: jogos, gols sofridos e defesas).
+    const card = p => {
+      const s = seasonStats.get(p.id);
+      const mini = p.position === "Goalkeeper"
+        ? [[s?.games?.appearences, "Jogos"], [s?.goals?.conceded, "Sofridos"], [s?.goals?.saves, "Defesas"]]
+        : [[s?.games?.appearences, "Jogos"], [s?.goals?.total, "Gols"], [s?.goals?.assists, "Assist."]];
+      return `
+        <a class="pcard" style="${colors}" href="#/jogador/${p.id}/${teamId}/${leagueId}/${season}" title="Ver estatísticas de ${escapeHtml(p.name)}">
+          <div class="ph">${p.number != null ? `<span class="jersey">${p.number}</span>` : ""}<img src="${p.photo}" alt="" loading="lazy" data-image-fallback="player"></div>
+          <div class="pc-bar"><span>${escapeHtml(p.name)}</span></div>
+          <div class="body">
+            <div class="meta">${escapeHtml(roles[p.position] || p.position || "")}${p.age ? ` · ${p.age} anos` : ""}</div>
+            <div class="mini">${mini.map(([v, label]) => `<div><b>${v ?? "-"}</b><span>${label}</span></div>`).join("")}</div>
+          </div>
+        </a>`;
+    };
 
     content.innerHTML = `
       ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: squad.team.name, href: `#/time/${teamId}/${leagueId}/${season}` }, { label: "Elenco", href: "" }])}
-      <div class="team-header club-hero" style="${teamColorVars(teamId)};display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;border-radius:var(--radius-lg);">
+      <div class="team-header club-hero" style="${colors};display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;border-radius:var(--radius-lg);">
         <img src="${squad.team.logo}" alt="" style="width:54px;height:54px;object-fit:contain;">
         <div>
           <p class="page-eyebrow">${escapeHtml(league?.name || "")}</p>
@@ -375,21 +397,31 @@ async function renderSquad(teamId, leagueId, season) {
         if (!players || !players.length) return "";
         return `
           <h2 class="section-title">${label}</h2>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:12px;margin-bottom:22px;">
-            ${players.map(p => `
-              <a class="card player-card" href="#/jogador/${p.id}/${teamId}/${leagueId}/${season}" title="Ver estatísticas de ${escapeHtml(p.name)}">
-                <img src="${p.photo}" alt="" loading="lazy" data-image-fallback="player">
-                <div style="font-family:var(--font-mono);color:var(--gold);font-size:0.8rem;font-weight:700;">${p.number ?? "-"}</div>
-                <div style="font-size:0.86rem;margin-top:3px;font-weight:600;color:var(--chalk);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.name)}</div>
-                <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);margin-top:2px;">${p.age ? p.age + " anos" : ""}</div>
-              </a>`
-            ).join("")}
-          </div>`;
+          <div class="roster-grid">${players.map(card).join("")}</div>`;
       }).join("")}
     `;
   } catch (err) {
     content.innerHTML = errorBox(err.message);
   }
+}
+
+// Números da temporada de cada jogador do time na competição (Map id -> statistics).
+// A API pagina de 20 em 20 e apiGet não devolve o total: busca a próxima página só
+// quando a anterior veio cheia (no máximo 3 páginas, ~60 jogadores).
+async function squadSeasonStats(teamId, leagueId, season) {
+  const entries = [];
+  for (let page = 1; page <= 3; page++) {
+    const list = await apiGet("players", { team: teamId, league: leagueId, season, page }, 30);
+    if (!Array.isArray(list)) break;
+    entries.push(...list);
+    if (list.length < 20) break;
+  }
+  const stats = new Map();
+  entries.forEach(entry => {
+    const s = (entry?.statistics || []).find(st => st.league?.id === leagueId) || entry?.statistics?.[0];
+    if (entry?.player?.id && s) stats.set(entry.player.id, s);
+  });
+  return stats;
 }
 
 async function renderInjuries(teamId, leagueId, season) {
