@@ -18,9 +18,6 @@
   --terracotta-soft: rgba(255, 59, 78, .15);
   --glass-bg: rgba(16, 24, 40, .94);
   --glass-border: #1a2540;
-  --league-header-bg: linear-gradient(180deg, #1d2a45, #162036);
-  --league-header-ink: #eef2fa;
-  --league-header-ink-dim: #8d9abb;
   --cs-pitch: #0f7a45;
   --cs-pitch-2: #19b36b;
   --cs-shadow: 0 10px 30px -12px rgba(0, 0, 0, .6);
@@ -66,7 +63,8 @@ body { font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 .league-matches-header, .day-main .league-matches-header, .day-rail-card a.day-standings-title { border-color: var(--pitch-border); box-shadow: none; }
 .league-matches-header-title, .day-standings-title strong { font-family: var(--font-display); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
 .day-main .league-matches-header-title { font-size: 15px; }
-.league-matches-header .league-matches-header-left:hover span, .day-standings-title:hover strong { color: var(--gold); }
+/* cabeçalho da competição prateado (redesign.css) para os escudos escuros aparecerem */
+.league-matches-header .league-matches-header-left:hover span, .day-standings-title:hover strong { color: #0b5f55; }
 
 /* botões e filtros em cápsula; ativo em dourado como no nba-stats */
 .day-nav-btn, .matches-day-filter-btn, .table-filter-btn, .player-mode-btn { border-radius: 999px; }
