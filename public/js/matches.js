@@ -717,7 +717,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                       ${statusBadge}
                     </div>
                     <div class="fixture-team-item right">
-                      <span>${escapeHtml(f.teams.home.name)}</span>
+                      <span data-short="${teamShortName(f.teams.home.name)}">${escapeHtml(f.teams.home.name)}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
                     <div class="fixture-score-col">
@@ -731,7 +731,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                     </div>
                     <div class="fixture-team-item">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span>${escapeHtml(f.teams.away.name)}</span>
+                      <span data-short="${teamShortName(f.teams.away.name)}">${escapeHtml(f.teams.away.name)}</span>
                     </div>
                   </a>`;
               }).join("")}
@@ -856,7 +856,7 @@ async function fetchLiveMatches(isForced = false) {
                       <span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${timeDisplay}</span>
                     </div>
                     <div class="fixture-team-item right">
-                      <span>${escapeHtml(f.teams.home.name)}</span>
+                      <span data-short="${teamShortName(f.teams.home.name)}">${escapeHtml(f.teams.home.name)}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
                     <div class="fixture-score-col">
@@ -864,7 +864,7 @@ async function fetchLiveMatches(isForced = false) {
                     </div>
                     <div class="fixture-team-item">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span>${escapeHtml(f.teams.away.name)}</span>
+                      <span data-short="${teamShortName(f.teams.away.name)}">${escapeHtml(f.teams.away.name)}</span>
                     </div>
                   </a>
                 `;

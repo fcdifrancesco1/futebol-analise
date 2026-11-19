@@ -198,7 +198,7 @@ async function renderTeam(teamId, leagueId, season) {
                     </div>
                     <div class="fixture-card-matchup">
                       <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
-                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                        <span class="fixture-team-name" data-short="${teamShortName(f.teams.home.name)}" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                         <img src="${f.teams.home.logo}" alt="" loading="lazy">
                       </div>
                       <div class="fixture-card-score-box">
@@ -206,7 +206,7 @@ async function renderTeam(teamId, leagueId, season) {
                       </div>
                       <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
                         <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                        <span class="fixture-team-name" data-short="${teamShortName(f.teams.away.name)}" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                       </div>
                     </div>
                   </a>
@@ -276,7 +276,7 @@ async function renderTeam(teamId, leagueId, season) {
                     </div>
                     <div class="fixture-card-matchup">
                       <div class="fixture-team-item right ${isHome ? 'bold-team' : ''}">
-                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
+                        <span class="fixture-team-name" data-short="${teamShortName(f.teams.home.name)}" title="${escapeHtml(formatTeamName(f.teams.home.name))}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                         <img src="${f.teams.home.logo}" alt="" loading="lazy">
                       </div>
                       <div class="fixture-card-score-box">
@@ -288,7 +288,7 @@ async function renderTeam(teamId, leagueId, season) {
                       </div>
                       <div class="fixture-team-item ${!isHome ? 'bold-team' : ''}">
                         <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                        <span class="fixture-team-name" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
+                        <span class="fixture-team-name" data-short="${teamShortName(f.teams.away.name)}" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                       </div>
                     </div>
                   </a>
@@ -365,7 +365,7 @@ async function renderSquad(teamId, leagueId, season) {
     const card = p => {
       const s = seasonStats.get(p.id);
       const mini = p.position === "Goalkeeper"
-        ? [[s?.games?.appearences, "Jogos"], [s?.goals?.conceded, "Sofridos"], [s?.goals?.saves, "Defesas"]]
+        ? [[s?.games?.appearences, "Jogos"], [s?.goals?.conceded, "Sofr."], [s?.goals?.saves, "Def."]]
         : [[s?.games?.appearences, "Jogos"], [s?.goals?.total, "Gols"], [s?.goals?.assists, "Assist."]];
       return `
         <a class="pcard" style="${colors}" href="#/jogador/${p.id}/${teamId}/${leagueId}/${season}" title="Ver estatísticas de ${escapeHtml(p.name)}">

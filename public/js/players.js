@@ -132,7 +132,7 @@ function playerLastGamesHtml(games) {
     return `<a class="pp-game" style="${teamColorVars(g.opponent?.id)}" href="#/jogo/${g.fixtureId}" title="Ver partida">
       <span class="pp-d">${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}</span>
       <img src="${g.opponent?.logo || ""}" alt="" loading="lazy">
-      <span class="pp-opp">${escapeHtml(formatTeamName(g.opponent?.name || ""))}</span>
+      <span class="pp-opp" data-short="${teamShortName(g.opponent?.name)}">${escapeHtml(formatTeamName(g.opponent?.name || ""))}</span>
       <span class="pp-rs ${res}">${g.gf} x ${g.ga}</span>
       <span class="pp-ga">${ga}</span></a>`;
   }).join("")}</div>`;
@@ -998,9 +998,9 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
         ${playerHeroHtml(p, club, honors, teamId, season)}
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;background:var(--glass-bg);border:1px solid var(--glass-border);padding:12px 16px;border-radius:var(--radius);flex-wrap:wrap;gap:12px;">
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;max-width:100%;">
             <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;">FILTRO DE COMPETIÇÃO:</span>
-            <select id="player-comp-select" style="background:var(--pitch-card);border:1px solid var(--line-strong);color:var(--chalk);padding:6px 14px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.85rem;">
+            <select id="player-comp-select" style="max-width:100%;min-width:0;background:var(--pitch-card);border:1px solid var(--line-strong);color:var(--chalk);padding:6px 14px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:0.85rem;">
               ${compOptions}
             </select>
           </div>

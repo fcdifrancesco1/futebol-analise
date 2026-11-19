@@ -931,7 +931,7 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                       </div>
 
                       <div class="fixture-team-item right">
-                        <span>${escapeHtml(f.teams.home.name)}</span>
+                        <span data-short="${teamShortName(f.teams.home.name)}">${escapeHtml(f.teams.home.name)}</span>
                         <img src="${f.teams.home.logo}" alt="" loading="lazy">
                       </div>
 
@@ -939,7 +939,7 @@ function renderGroupedFixtures(fixtures, isCup = false) {
 
                       <div class="fixture-team-item">
                         <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                        <span>${escapeHtml(f.teams.away.name)}</span>
+                        <span data-short="${teamShortName(f.teams.away.name)}">${escapeHtml(f.teams.away.name)}</span>
                       </div>
                     </a>`;
                 }).join("")}

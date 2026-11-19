@@ -295,3 +295,7 @@ a.fixture-card-compact.match-colors:hover { filter: brightness(1.15); }
   .pp-cell { gap: 6px; }
   .pp-v { font-size: 28px; }
 }
+@media (max-width: 760px) {
+  .fixture-team-item span[data-short], .pp-opp[data-short] { font-size: 0; overflow: visible; }
+  .fixture-team-item span[data-short]::before, .pp-opp[data-short]::before { content: attr(data-short); font-size: 13px; letter-spacing: .04em; }
+}
