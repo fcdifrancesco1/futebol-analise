@@ -333,7 +333,7 @@ function renderDayStandingsSlide(slide, rows, movement = null, playing = null) {
           <tr style="${teamColorVars(t.team?.id)}" class="club-bar${zone ? ` zone-${zone}` : ""}${compZone ? ` zone-${compZone}` : ""}${playing?.has(t.team?.id) ? ` is-live live-${playing.get(t.team.id)}` : ""}"${t.description ? ` title="${escapeHtml(t.description)}"` : ""}>
             <td class="pos">${t.rank ?? "-"}</td>
             <td class="move">${dayStandingsMoveHtml(movement?.get(t.team?.id) ?? 0)}</td>
-            <td class="team"><a href="#/time/${t.team?.id}/${comp.id}/${comp.season}"><img src="${t.team?.logo || ""}" alt="" loading="lazy" data-image-fallback="hide"><span>${escapeHtml(formatTeamName(t.team?.name || ""))}</span></a></td>
+            <td class="team"><a href="#/time/${t.team?.id}/${comp.id}/${comp.season}"><img src="${t.team?.logo || ""}" alt="" loading="lazy" data-image-fallback="hide"><span data-short="${teamShortName(t.team?.name)}">${escapeHtml(formatTeamName(t.team?.name || ""))}</span></a></td>
             <td class="pts">${t.points ?? 0}</td>
             <td>${t.all?.played ?? 0}</td>
             <td>${t.all?.win ?? 0}</td>

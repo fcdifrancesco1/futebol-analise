@@ -708,7 +708,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
         <td class="team-cell">
           <div class="team-cell-inner">
             <img src="${row.team.logo}" alt="" loading="lazy">
-            <span>${escapeHtml(row.team.name)}</span>
+            <span data-short="${teamShortName(row.team.name)}">${escapeHtml(row.team.name)}</span>
           </div>
         </td>
         <td>${stat.played}</td>

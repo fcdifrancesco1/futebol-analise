@@ -278,3 +278,20 @@ a.fixture-card-compact.match-colors:hover { filter: brightness(1.15); }
 /* botão Melhores Momentos sólido (antes translúcido), legível sobre qualquer cor de clube */
 .btn-fixture-highlights-pill { background: #dc2626; color: #fff; border-color: #ef4444; text-shadow: none; }
 .btn-fixture-highlights-pill:hover { background: #ef4444; color: #fff; }
+
+/* ---------- celular: classificação com sigla + escudo, nada vazando para a direita ---------- */
+.pp-grid > * { min-width: 0; }
+.pp-panel { overflow-x: auto; }
+@media (max-width: 760px) {
+  tr.club-bar .team-cell span[data-short], .day-standings-table td.team span[data-short] { font-size: 0; }
+  tr.club-bar .team-cell span[data-short]::before, .day-standings-table td.team span[data-short]::before { content: attr(data-short); font-size: 13px; letter-spacing: .04em; }
+  a.fixture-row.match-colors .fixture-team-item span { overflow-wrap: normal; word-break: normal; overflow: hidden; text-overflow: ellipsis; }
+  .fixture-hero.match-hero .hero-team-name { font-size: 15px; line-height: 1.1; max-width: 100%; overflow-wrap: normal; word-break: normal; }
+  .fixture-hero.match-hero .hero-team-logo { width: 52px; height: 52px; }
+  .fixture-hero.match-hero .hero-score-numbers { font-size: 40px; }
+  .pp-table th, .pp-table td { padding: 8px 5px; font-size: 12.5px; }
+  .pp-table th.l:nth-child(2) { font-size: 0; }
+  .pp-table td.l:nth-child(2) .pp-cell { font-size: 0; }
+  .pp-cell { gap: 6px; }
+  .pp-v { font-size: 28px; }
+}

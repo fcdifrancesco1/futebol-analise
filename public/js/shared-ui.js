@@ -388,6 +388,11 @@ function sanitizeUrl(url) {
   return "#";
 }
 
+// Sigla de 3 letras para a classificação no celular (o escudo ao lado desfaz ambiguidades).
+function teamShortName(name) {
+  return String(name || "").normalize("NFD").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
+}
+
 function formatTeamName(name) {
   if (!name) return "";
   return String(name)
