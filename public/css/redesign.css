@@ -241,6 +241,9 @@ body { padding-bottom: 0; }
 .day-standings-timer span { display: block; height: 1px; animation: day-standings-progress 15s linear forwards; }
 .day-standings-card.is-paused .day-standings-timer span { animation-play-state: paused; }
 @keyframes day-standings-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* a barra é o relógio da troca (invisível): "reduzir movimento" do sistema zera as animações
+   em accessibility.css e fazia a classificação trocar sem parar */
+@media (prefers-reduced-motion: reduce) { .day-standings-timer span { animation-duration: 15s !important; } }
 /* Altura das linhas ajustada por fitDayStandings para caber na tela */
 .day-standings-card[style*="--ds-row"] .day-standings-table tbody tr { height: var(--ds-row); }
 .day-standings-card[style*="--ds-row"] .day-standings-table tbody td { padding-top: 0; padding-bottom: 0; }
