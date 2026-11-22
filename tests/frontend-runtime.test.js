@@ -334,7 +334,7 @@ test('finished followed matches are automatically removed from favoriteFixtures 
       ]
     },
     escapeHtml: s => s,
-    sanitizeUrl: u => u,
+    sanitizeUrl: u => u, formatTeamName: n => n,
     formatRoundName: r => r,
     getLocalDateString: () => '2026-09-26',
     getMatchStatusCategory: f => ({
@@ -386,7 +386,7 @@ test('day spotlight prioritizes favorite teams, prominent competitions and compl
     state: { favoriteFixtures: [] },
     matchColorVars: require('../public/js/team-colors.js').matchColorVars,
     escapeHtml: s => s,
-    sanitizeUrl: u => u,
+    sanitizeUrl: u => u, formatTeamName: n => n,
     formatRoundName: r => r,
     UserPrefs: { getFavoriteTeam: () => null },
     getMatchStatusCategory: f => ({

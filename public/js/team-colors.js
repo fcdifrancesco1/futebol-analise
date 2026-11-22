@@ -28,7 +28,7 @@ const TEAM_COLORS = {
   543: ["#00954c", "#0b4a2a"], 544: ["#0057b8", "#00306b"], 546: ["#005999", "#002d4d"], 548: ["#0067b1", "#00335a"],
   727: ["#d91a21", "#0a346f"], 728: ["#e53027", "#1a1a1a"], 797: ["#00843d", "#003d1c"], 4665: ["#00843d", "#003d1c"],
   // Serie A
-  487: ["#87d8f7", "#1c4f7a"], 488: ["#00a752", "#1a1a1a"], 489: ["#fb090b", "#1a1a1a"], 490: ["#a6192e", "#002350"],
+  487: ["#5aaedb", "#1c4f7a"], 488: ["#00a752", "#1a1a1a"], 489: ["#fb090b", "#1a1a1a"], 490: ["#a6192e", "#002350"],
   492: ["#12a0d7", "#0b4f7a"], 494: ["#2b2b2b", "#6b6b6b"], 495: ["#a6192e", "#002350"], 496: ["#2b2b2b", "#6b6b6b"],
   497: ["#8e1f2f", "#f0bc42"], 499: ["#1e71b8", "#1a1a1a"], 500: ["#a21c26", "#1a2f5c"], 502: ["#482e92", "#2a1a5c"],
   503: ["#8a1e03", "#4a1000"], 505: ["#0068a8", "#1a1a1a"], 512: ["#0057b8", "#d4a600"], 517: ["#ea5b0c", "#00843d"],
@@ -164,7 +164,7 @@ const TEAM_COLORS_DEFAULT = ["#1d2a45", "#101828"];
 // O escudo da API-Football fica sempre em /football/teams/{id}.png e o servidor libera a
 // leitura (CORS *). O time desconhecido recebe var(--tc{id}a, cor neutra); quando as cores
 // do escudo ficam prontas, entram numa folha de estilo própria e a tela muda sozinha.
-const AUTO_COLORS_KEY = "ap_team_colors_v1";
+const AUTO_COLORS_KEY = "ap_team_colors_v2"; // v2: limite de luminosidade por matiz
 const autoTeamColors = {};
 const autoTeamPending = new Set();
 
@@ -181,7 +181,9 @@ function tuneBarColor([r, g, b]) {
     h *= 60;
     if (h < 0) h += 360;
   }
-  l = Math.max(0.14, Math.min(l, s > 0.15 ? 0.42 : 0.30));
+  // amarelos, verdes e cianos são claros mesmo com luminosidade média: limite mais baixo para o texto branco
+  const cap = s <= 0.15 ? 0.30 : (h >= 40 && h <= 200 ? 0.32 : 0.42);
+  l = Math.max(0.14, Math.min(l, cap));
   const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
   const [r1, g1, b1] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
   return "#" + [r1, g1, b1].map(v => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("");

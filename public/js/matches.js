@@ -121,9 +121,9 @@ function renderDaySpotlight(fixtures) {
     <article class="day-spotlight match-hero" style="${matchColorVars(featured.teams.home.id, featured.teams.away.id)}" aria-label="Partida em destaque">
       <div class="day-spotlight-head"><span>${escapeHtml(featured.league?.name || 'Partida')} · ${escapeHtml(formatRoundName(featured.league?.round || ''))}</span><span class="day-spotlight-status ${status.isLive ? 'is-live' : ''}">${escapeHtml(statusText)}</span></div>
       <a class="day-spotlight-main" href="#/jogo/${featured.fixture.id}">
-        <div class="day-spotlight-team">${featured.teams.home.logo ? `<img src="${sanitizeUrl(featured.teams.home.logo)}" alt="" loading="lazy">` : ''}<strong>${escapeHtml(featured.teams.home.name)}</strong></div>
+        <div class="day-spotlight-team">${featured.teams.home.logo ? `<img src="${sanitizeUrl(featured.teams.home.logo)}" alt="" loading="lazy">` : ''}<strong>${escapeHtml(formatTeamName(featured.teams.home.name))}</strong></div>
         <div class="day-spotlight-score"><strong>${escapeHtml(score)}</strong><small>${hasScore ? escapeHtml(status.label) : kickoff}</small></div>
-        <div class="day-spotlight-team away">${featured.teams.away.logo ? `<img src="${sanitizeUrl(featured.teams.away.logo)}" alt="" loading="lazy">` : ''}<strong>${escapeHtml(featured.teams.away.name)}</strong></div>
+        <div class="day-spotlight-team away">${featured.teams.away.logo ? `<img src="${sanitizeUrl(featured.teams.away.logo)}" alt="" loading="lazy">` : ''}<strong>${escapeHtml(formatTeamName(featured.teams.away.name))}</strong></div>
       </a>
       <a class="day-spotlight-foot" href="#/jogo/${featured.fixture.id}">Ver detalhes da partida</a>
     </article>`;

@@ -76,10 +76,10 @@ body { font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 .fixture-row.match-colors, .day-main .fixture-row.match-colors {
   position: relative; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); margin: 4px 8px; padding: 8px 12px; border-radius: 9px;
   border: 1px solid rgba(255, 255, 255, .18); color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
-  background: linear-gradient(90deg, rgba(0, 0, 0, .2), rgba(0, 0, 0, .55) 50%, rgba(0, 0, 0, .2)), linear-gradient(90deg, var(--h2, var(--h1)) 0, var(--h1) 50%, var(--a1) 50%, var(--a2, var(--a1)) 100%);
+  background: linear-gradient(90deg, rgba(0, 0, 0, .32), rgba(0, 0, 0, .58) 50%, rgba(0, 0, 0, .32)), linear-gradient(90deg, var(--h2, var(--h1)) 0, var(--h1) 50%, var(--a1) 50%, var(--a2, var(--a1)) 100%);
   transition: filter .15s, transform .15s; }
 .fixture-row.match-colors:hover, .day-main .fixture-row.match-colors:hover { filter: brightness(1.15); transform: translateY(-1px);
-  background: linear-gradient(90deg, rgba(0, 0, 0, .2), rgba(0, 0, 0, .55) 50%, rgba(0, 0, 0, .2)), linear-gradient(90deg, var(--h2, var(--h1)) 0, var(--h1) 50%, var(--a1) 50%, var(--a2, var(--a1)) 100%); }
+  background: linear-gradient(90deg, rgba(0, 0, 0, .32), rgba(0, 0, 0, .58) 50%, rgba(0, 0, 0, .32)), linear-gradient(90deg, var(--h2, var(--h1)) 0, var(--h1) 50%, var(--a1) 50%, var(--a2, var(--a1)) 100%); }
 .day-main .fixture-row.match-colors:first-child { margin-top: 8px; }
 .day-main .fixture-list > .fixture-row.match-colors:last-child { margin-bottom: 8px; }
 .fixture-row.match-colors .fixture-date-col { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); }
@@ -93,8 +93,8 @@ body { font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 .standings-table, .day-standings-table { border-collapse: separate; border-spacing: 0 4px; }
 .standings-table th, .day-standings-table th { background: transparent; border-bottom: 0; font: 700 10.5px var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--chalk-muted); }
 tr.club-bar { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); transition: filter .15s;
-  background: linear-gradient(90deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .5)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); }
-.standings-table tbody tr.club-bar:hover { filter: brightness(1.15); background: linear-gradient(90deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .5)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); }
+  background: linear-gradient(90deg, rgba(0, 0, 0, .3), rgba(0, 0, 0, .52)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); }
+.standings-table tbody tr.club-bar:hover { filter: brightness(1.15); background: linear-gradient(90deg, rgba(0, 0, 0, .3), rgba(0, 0, 0, .52)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); }
 tr.club-bar td, .day-standings-table tr.club-bar td { border-bottom: 0; color: #fff; }
 tr.club-bar td:first-child { border-radius: 6px 0 0 6px; }
 tr.club-bar td:last-child { border-radius: 0 6px 6px 0; }
@@ -114,8 +114,8 @@ tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; 
 
 /* ---------- destaque do dia e cabeçalho da partida meio a meio nas cores dos clubes ---------- */
 .match-hero { color: #fff; border: 1px solid rgba(255, 255, 255, .14);
-  background: linear-gradient(90deg, rgba(0, 0, 0, .25), rgba(0, 0, 0, .45) 50%, rgba(0, 0, 0, .25)), linear-gradient(90deg, var(--h2, var(--h1)) 0, var(--h1) 50%, var(--a1) 50%, var(--a2, var(--a1)) 100%); }
-.day-spotlight.match-hero { background: linear-gradient(90deg, rgba(0, 0, 0, .25), rgba(0, 0, 0, .45) 50%, rgba(0, 0, 0, .25)), linear-gradient(90deg, var(--h2, var(--h1)) 0, var(--h1) 50%, var(--a1) 50%, var(--a2, var(--a1)) 100%); }
+  background: linear-gradient(90deg, rgba(0, 0, 0, .32), rgba(0, 0, 0, .5) 50%, rgba(0, 0, 0, .32)), linear-gradient(90deg, var(--h2, var(--h1)) 0, var(--h1) 50%, var(--a1) 50%, var(--a2, var(--a1)) 100%); }
+.day-spotlight.match-hero { background: linear-gradient(90deg, rgba(0, 0, 0, .32), rgba(0, 0, 0, .5) 50%, rgba(0, 0, 0, .32)), linear-gradient(90deg, var(--h2, var(--h1)) 0, var(--h1) 50%, var(--a1) 50%, var(--a2, var(--a1)) 100%); }
 .day-spotlight.match-hero .day-spotlight-head, .day-spotlight.match-hero .day-spotlight-foot { background: rgba(0, 0, 0, .35); border-color: rgba(255, 255, 255, .12); color: rgba(255, 255, 255, .85); }
 .day-spotlight.match-hero .day-spotlight-status { color: rgba(255, 255, 255, .85); }
 .day-spotlight.match-hero .day-spotlight-status.is-live { color: #ffb3bb; }
@@ -154,9 +154,9 @@ tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; 
 .sidebar-leader-hero[style*="--c1"] .sidebar-stat-pill { background: rgba(0, 0, 0, .45); color: #fff; border-color: rgba(255, 255, 255, .2); }
 .sidebar-leader-hero[style*="--c1"] .sidebar-stat-pill strong { font-family: var(--font-display); }
 .sidebar-rank-row[style*="--c1"], a.fixture-row.club-row { margin-top: 5px; color: #fff; border: 1px solid rgba(255, 255, 255, .2); border-radius: 6px; text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
-  background: linear-gradient(90deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .5)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); transition: filter .15s, transform .15s; }
+  background: linear-gradient(90deg, rgba(0, 0, 0, .3), rgba(0, 0, 0, .52)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); transition: filter .15s, transform .15s; }
 .sidebar-rank-row[style*="--c1"]:hover, a.fixture-row.club-row:hover { filter: brightness(1.15); transform: translateX(3px);
-  background: linear-gradient(90deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .5)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); }
+  background: linear-gradient(90deg, rgba(0, 0, 0, .3), rgba(0, 0, 0, .52)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); }
 .sidebar-rank-row[style*="--c1"] *, a.fixture-row.club-row * { color: #fff !important; }
 .sidebar-rank-row[style*="--c1"] .sidebar-rank-thumb, a.fixture-row.club-row img { border: 2px solid rgba(255, 255, 255, .45); border-radius: 50%; }
 .sidebar-rank-row[style*="--c1"] .sidebar-rank-name, a.fixture-row.club-row > div > div:first-child { font-weight: 800; text-transform: uppercase; }
@@ -226,7 +226,7 @@ tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; 
 .pp-panel .section-title { margin-top: 0; }
 .pp-games { display: grid; gap: 5px; }
 .pp-game { display: grid; grid-template-columns: 46px 44px minmax(0, 1fr) 62px 64px; align-items: center; gap: 8px; height: 40px; padding: 0 12px 0 8px; border-radius: 6px; color: #fff; text-decoration: none; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); border: 1px solid rgba(255, 255, 255, .22);
-  background: linear-gradient(90deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .5)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); transition: filter .15s, transform .15s; }
+  background: linear-gradient(90deg, rgba(0, 0, 0, .3), rgba(0, 0, 0, .52)), linear-gradient(90deg, var(--c1) 0%, var(--c1) 45%, var(--c2) 100%); transition: filter .15s, transform .15s; }
 .pp-game:hover { filter: brightness(1.15); transform: translateX(3px); }
 .pp-game img { width: 40px; height: 40px; margin: -2px 0; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); }
 .pp-d { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, .85); }
@@ -262,7 +262,7 @@ tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; 
 
 /* ---------- cartões de próximos jogos e últimos resultados (time e Seu Time) meio a meio ---------- */
 .fixture-card-compact.match-colors, .fixture-card-compact.match-colors:hover { padding: 0 0 10px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .18); border-radius: 9px; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
-  background: linear-gradient(90deg, rgba(0, 0, 0, .2), rgba(0, 0, 0, .55) 50%, rgba(0, 0, 0, .2)), linear-gradient(90deg, var(--h2, var(--h1)) 0, var(--h1) 50%, var(--a1) 50%, var(--a2, var(--a1)) 100%); }
+  background: linear-gradient(90deg, rgba(0, 0, 0, .32), rgba(0, 0, 0, .58) 50%, rgba(0, 0, 0, .32)), linear-gradient(90deg, var(--h2, var(--h1)) 0, var(--h1) 50%, var(--a1) 50%, var(--a2, var(--a1)) 100%); }
 .fixture-card-compact.match-colors:hover { filter: brightness(1.15); }
 /* cabeçalho (competição e data) na cor padrão dos cartões, sem as cores dos clubes, para destacar */
 .fixture-card-compact.match-colors .fixture-card-topbar { margin-bottom: 10px; padding: 7px 14px; background: #162036; border-bottom: 1px solid var(--pitch-border); text-shadow: none; }
@@ -390,3 +390,13 @@ tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; 
 .has-row-link .btn-fixture-highlights-pill { position: relative; z-index: 2; }
 .has-row-link:has(.fixture-row-link:focus-visible) { outline: 3px solid var(--gold); outline-offset: 2px; }
 .fixture-row-link:focus-visible { outline: none; }
+
+/* ---------- acabamento: nada abaixo de 11px em texto funcional, placeholders e chips legíveis ---------- */
+.fixture-row .fixture-date, .fixture-date-col .fixture-date, .league-round-when, .league-round-head .page-eyebrow { font-size: 11px; }
+.btn-fixture-highlights-pill { font-size: 11px; }
+.stat-chip.win { color: #6ee7b7; }
+.stat-chip.loss { color: #fca5a5; }
+input::placeholder, textarea::placeholder { color: var(--chalk-dim); opacity: 1; }
+.pen-score { font-size: 11px; }
+.league-highlight-title { font-size: 11px; }
+.league-highlight-sub { font-size: 12px; }

@@ -160,7 +160,7 @@ async function renderTeam(teamId, leagueId, season) {
         <!-- 1. Próximas Partidas (5 jogos) -->
         <div class="card" style="padding:16px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
-            <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Próximas Partidas (5 Jogos)</h3>
+            <h2 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Próximas partidas</h2>
           </div>
 
           ${(nextFixtures && nextFixtures.length) ? `
@@ -214,7 +214,7 @@ async function renderTeam(teamId, leagueId, season) {
         <!-- 2. Últimos Resultados (5 jogos) -->
         <div class="card" style="padding:16px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
-            <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Últimos Resultados (5 Jogos)</h3>
+            <h2 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Últimos resultados</h2>
           </div>
 
           ${(recentFixtures && recentFixtures.length) ? `
