@@ -1036,7 +1036,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
         </div>
 
         <h2 class="section-title">${isPerGame ? 'Estatísticas por Jogo' : 'Estatísticas na Temporada'} (${s.league?.id === 'TOTAL' ? 'Todas as Competições' : escapeHtml(formatTeamName(s.league?.name || 'Geral'))})</h2>
-        <div class="stat-grid">
+        <div class="stat-grid club-stat-grid" style="${teamColorVars(teamId || club.team?.id)}">
           ${topCardsHtml}
         </div>
 

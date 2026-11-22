@@ -349,3 +349,15 @@ a.fixture-card-compact.match-colors:hover { filter: brightness(1.15); }
   .league-projection-table th span[data-short] { font-size: 0; }
   .league-projection-table th span[data-short]::before { content: attr(data-short); font-size: 11px; }
 }
+
+/* ---------- cores dos clubes nas estatísticas (DESIGN.md: a cor é dos clubes) ---------- */
+/* barras da partida: mandante à esquerda na cor dele, visitante à direita; aro claro para clubes escuros */
+.match-stat-bar { position: relative; height: 6px; border-radius: 3px; overflow: hidden; background: rgba(255, 255, 255, .07); }
+.match-stat-bar i { position: absolute; top: 0; bottom: 0; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .3); }
+.match-stat-bar i.home { right: 50%; background: var(--h1, var(--gold)); border-radius: 3px 0 0 3px; }
+.match-stat-bar i.away { left: 50%; background: var(--a1, var(--terracotta)); border-radius: 0 3px 3px 0; }
+.match-stats-colored .fifa-val.a, .match-stats-colored .fifa-val.b { color: var(--chalk-dim); font-family: var(--font-display); }
+.match-stats-colored .fifa-val.highlight { color: var(--chalk); font-weight: 700; }
+/* cartões de número do time e do jogador: faixa no topo nas cores do clube, números em giz */
+.club-stat-grid .stat-card-modern::before { height: 4px; background: linear-gradient(90deg, var(--c1, var(--gold)), color-mix(in srgb, var(--c1, var(--gold)), #fff 40%)); }
+.club-stat-grid .stat-card-main-val { color: var(--chalk); font-family: var(--font-display); }

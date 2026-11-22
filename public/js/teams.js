@@ -109,7 +109,7 @@ async function renderTeam(teamId, leagueId, season) {
         { label: "Lesões", href: `#/time/${teamId}/${leagueId}/${season}/lesoes` },
       ])}
 
-      <div class="stat-grid">
+      <div class="stat-grid club-stat-grid" style="${teamColorVars(teamId)}">
         <div class="stat-card-modern gold">
           <div class="stat-card-header">
             <span>🎯</span>

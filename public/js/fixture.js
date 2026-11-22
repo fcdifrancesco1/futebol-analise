@@ -431,8 +431,9 @@ function renderPreMatchStatsComparison(statsA, statsB, fx) {
   const pA = statsA.fixtures.played.total || 1;
   const pB = statsB.fixtures.played.total || 1;
 
-  const winPctA = Math.round((statsA.fixtures.wins.total / pA) * 100);
-  const winPctB = Math.round((statsB.fixtures.wins.total / pB) * 100);
+  // aproveitamento = pontos / pontos disputados (mesma conta da tabela)
+  const winPctA = Math.round(((statsA.fixtures.wins.total * 3 + (statsA.fixtures.draws?.total || 0)) / (pA * 3)) * 100);
+  const winPctB = Math.round(((statsB.fixtures.wins.total * 3 + (statsB.fixtures.draws?.total || 0)) / (pB * 3)) * 100);
 
   const gfAvgA = parseFloat(statsA.goals.for.average.total) || 0;
   const gfAvgB = parseFloat(statsB.goals.for.average.total) || 0;
@@ -449,7 +450,7 @@ function renderPreMatchStatsComparison(statsA, statsB, fx) {
 
   return `
     <h2 class="section-title">Desempenho dos Times no Campeonato (Pré-Jogo)</h2>
-    <div class="card" style="padding:16px;">
+    <div class="card match-stats-colored" style="padding:16px;${fx ? matchColorVars(fx.teams.home.id, fx.teams.away.id) : ""}">
       <div class="fifa-stats-center" style="background:transparent;border:none;">
         ${metrics.map(m => {
           const max = Math.max(m.numA, m.numB, 1);
@@ -466,9 +467,9 @@ function renderPreMatchStatsComparison(statsA, statsB, fx) {
                 <span>${m.valB}</span>
               </div>
             </div>
-            <div style="position:relative;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin:0 12px 8px;">
-              <div style="position:absolute;right:50%;height:100%;background:var(--gold);width:${(m.numA / max) * 50}%;"></div>
-              <div style="position:absolute;left:50%;height:100%;background:var(--terracotta);width:${(m.numB / max) * 50}%;"></div>
+            <div class="match-stat-bar" style="margin:0 12px 8px;">
+              <i class="home" style="width:${(m.numA / max) * 50}%;"></i>
+              <i class="away" style="width:${(m.numB / max) * 50}%;"></i>
             </div>
           `;
         }).join("")}
@@ -511,6 +512,9 @@ function renderLiveMatchStats(statsArr, fx) {
     if (va === null && vb === null) return false;
     return true;
   });
+  // ordem do statMap (posse de bola primeiro), não a ordem em que a API manda
+  const statOrder = Object.keys(statMap);
+  filteredStats.sort((x, y) => statOrder.indexOf(String(x.type).trim()) - statOrder.indexOf(String(y.type).trim()));
 
   if (!filteredStats.length) return "";
 
@@ -538,16 +542,16 @@ function renderLiveMatchStats(statsArr, fx) {
           <span>${vb}</span>
         </div>
       </div>
-      <div style="position:relative;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin:0 12px 6px;">
-        <div style="position:absolute;right:50%;height:100%;background:var(--gold);width:${(numA / max) * 50}%;"></div>
-        <div style="position:absolute;left:50%;height:100%;background:var(--terracotta);width:${(numB / max) * 50}%;"></div>
+      <div class="match-stat-bar" style="margin:0 12px 6px;">
+        <i class="home" style="width:${(numA / max) * 50}%;"></i>
+        <i class="away" style="width:${(numB / max) * 50}%;"></i>
       </div>
     `;
   }).join("");
 
   return `
     <h2 class="section-title">${getMatchStatusCategory(fx?.fixture).isLive ? "Estatísticas ao vivo" : "Estatísticas da partida"}</h2>
-    <div class="card" style="padding:14px 10px;">
+    <div class="card match-stats-colored" style="padding:14px 10px;${fx ? matchColorVars(fx.teams.home.id, fx.teams.away.id) : ""}">
       <div class="fifa-stats-center" style="background:transparent;border:none;">
         ${rows}
       </div>
