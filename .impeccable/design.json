@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-21T00:00:00Z",
+  "title": "Design System: FutStats",
+  "extensions": {
+    "colorMeta": {
+      "night-stand": { "role": "neutral", "displayName": "Noite de Estádio", "tonalRamp": ["#03060b", "#070b14", "#0b1120", "#101828", "#162036", "#1d2a45", "#2b3a5c", "#3d4f78"] },
+      "card-navy": { "role": "neutral", "displayName": "Marinho de Cartão", "tonalRamp": ["#070b14", "#0b1120", "#101828", "#162036", "#1d2a45", "#233150", "#33456d", "#4a5f8c"] },
+      "chalk": { "role": "neutral", "displayName": "Giz", "tonalRamp": ["#3a4560", "#5e6b8a", "#7783a3", "#8d9abb", "#a9b4cf", "#c4cde2", "#dde3f1", "#eef2fa"] },
+      "trophy-gold": { "role": "secondary", "displayName": "Ouro de Taça", "tonalRamp": ["#3d2c00", "#664a00", "#946c00", "#c48f00", "#f5b301", "#ffc94d", "#ffdc8a", "#fff0c7"] },
+      "pitch-green": { "role": "primary", "displayName": "Verde Gramado", "tonalRamp": ["#032614", "#06401f", "#0a5a31", "#0f7a45", "#19b36b", "#4ade80", "#8ef0b4", "#d3fbe3"] },
+      "flare-red": { "role": "tertiary", "displayName": "Vermelho Sinalizador", "tonalRamp": ["#3d0610", "#6b0b1a", "#9c1226", "#cc1a33", "#ff3b4e", "#ff7480", "#ffaab1", "#ffdcdf"] },
+      "silver-mid": { "role": "neutral", "displayName": "Prata Metálica", "tonalRamp": ["#13222a", "#3c4b53", "#6a777e", "#8e989e", "#b3bcc2", "#c9d0d4", "#e3e7ea", "#f1f4f6"] },
+      "club-fallback": { "role": "primary", "displayName": "Azul de Espera (cor do clube ainda não pronta)", "tonalRamp": ["#0b1120", "#101828", "#162036", "#1d2a45", "#2b3a5c", "#3d4f78", "#5a6e9a", "#8293bb"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Títulos de seção em caixa alta com barra ouro→verde." },
+      "score": { "displayName": "Placar", "purpose": "Placares do destaque e da página de jogo." },
+      "title": { "displayName": "Competição", "purpose": "Nome do campeonato no cabeçalho prateado." },
+      "team-label": { "displayName": "Nome do time", "purpose": "Times nas linhas de partida e na classificação; sigla de 3 letras no celular." },
+      "label": { "displayName": "Rótulo de coluna", "purpose": "Cabeçalhos de tabela." }
+    },
+    "shadows": [
+      { "name": "card", "value": "0 10px 30px -12px rgba(0,0,0,.6)", "purpose": "Todos os cartões e painéis." },
+      { "name": "tab-glow", "value": "0 4px 14px -4px rgba(25,179,107,.7)", "purpose": "Só a aba ativa da navegação." },
+      { "name": "crest", "value": "drop-shadow(0 2px 4px rgba(0,0,0,.5))", "purpose": "Escudos sobre faixas de clube (filter)." }
+    ],
+    "motion": [
+      { "name": "hover-lift", "value": "filter .15s, transform .15s", "purpose": "Faixas de clube clareiam (brightness 1.15) e sobem 1px no hover." },
+      { "name": "standings-rotation", "value": "15s linear", "purpose": "Relógio invisível da troca de campeonato; precisa valer mesmo com reduzir movimento." }
+    ],
+    "breakpoints": [
+      { "name": "desktop-narrow", "value": "1100px" },
+      { "name": "mobile", "value": "760px" },
+      { "name": "player-mobile", "value": "700px" },
+      { "name": "roster-mobile", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Aba de navegação",
+      "kind": "nav",
+      "refersTo": "tab-pill",
+      "description": "Abas em cápsula num trilho escuro; ativa em verde gramado com brilho.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-tab ds-tab-active\" href=\"#\">Jogos do Dia</a><a class=\"ds-tab\" href=\"#\">Ao Vivo</a><a class=\"ds-tab\" href=\"#\">Ligas &amp; Copas</a></nav>",
+      "css": ".ds-nav{display:inline-flex;gap:4px;padding:4px;background:#101828;border:1px solid #1a2540;border-radius:999px}.ds-tab{padding:8px 16px;border-radius:999px;color:#8d9abb;font:600 13px Inter,system-ui,sans-serif;text-decoration:none;transition:color .15s}.ds-tab:hover{color:#eef2fa}.ds-tab:focus-visible{outline:2px solid #f5b301;outline-offset:2px}.ds-tab-active{color:#fff;background:linear-gradient(135deg,#0f7a45,#19b36b);box-shadow:0 4px 14px -4px rgba(25,179,107,.7)}"
+    },
+    {
+      "name": "Filtro em cápsula",
+      "kind": "chip",
+      "refersTo": "filter-pill-active",
+      "description": "Filtros de dia, tabela e modo; ativo em ouro de taça.",
+      "html": "<div class=\"ds-filters\"><button class=\"ds-chip ds-chip-on\">Geral</button><button class=\"ds-chip\">Mandante</button><button class=\"ds-chip\">Visitante</button></div>",
+      "css": ".ds-filters{display:flex;gap:8px}.ds-chip{padding:6px 14px;border-radius:999px;border:1px solid #233150;background:#101828;color:#8d9abb;font:600 13px Inter,system-ui,sans-serif;cursor:pointer}.ds-chip:hover{color:#eef2fa}.ds-chip:focus-visible{outline:2px solid #f5b301;outline-offset:2px}.ds-chip-on{background:#f5b301;border-color:#f5b301;color:#1a1200}"
+    },
+    {
+      "name": "Cartão",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Painel escuro em degradê com sombra ambiente e título Oswald com barra.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-title\">Últimos jogos</h3><p class=\"ds-body\">Conteúdo do painel.</p></div>",
+      "css": ".ds-card{padding:16px 18px;border-radius:14px;background:linear-gradient(180deg,#101828,#0b1120);border:1px solid #1a2540;box-shadow:0 10px 30px -12px rgba(0,0,0,.6);color:#eef2fa}.ds-title{display:flex;align-items:center;gap:10px;margin:0 0 8px;font:700 22px Oswald,'Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.03em;color:#f5b301}.ds-title::before{content:'';width:4px;height:20px;border-radius:2px;background:linear-gradient(#f5b301,#19b36b)}.ds-body{margin:0;font:400 14px Inter,system-ui,sans-serif;color:#8d9abb}"
+    },
+    {
+      "name": "Linha de partida",
+      "kind": "custom",
+      "refersTo": "match-row",
+      "description": "Confronto meio a meio nas cores dos clubes, placar no centro exato.",
+      "html": "<a class=\"ds-match\" href=\"#\" style=\"--h1:#00704a;--h2:#0b2e22;--a1:#2b2b2b;--a2:#6b6b6b\"><span class=\"ds-team ds-home\">Coritiba</span><span class=\"ds-score\">2 : 1</span><span class=\"ds-team\">Santos</span></a>",
+      "css": ".ds-match{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;padding:8px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.18);color:#fff;text-decoration:none;text-shadow:0 1px 3px rgba(0,0,0,.7);background:linear-gradient(90deg,rgba(0,0,0,.2),rgba(0,0,0,.55) 50%,rgba(0,0,0,.2)),linear-gradient(90deg,var(--h2) 0,var(--h1) 50%,var(--a1) 50%,var(--a2) 100%);transition:filter .15s,transform .15s}.ds-match:hover{filter:brightness(1.15);transform:translateY(-1px)}.ds-match:focus-visible{outline:2px solid #f5b301;outline-offset:2px}.ds-team{font:800 12.5px Inter,system-ui,sans-serif;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-home{text-align:right}.ds-score{padding:2px 10px;border-radius:6px;background:rgba(0,0,0,.45);font:700 18px Oswald,'Arial Narrow',sans-serif;text-shadow:none}"
+    },
+    {
+      "name": "Barra de classificação",
+      "kind": "custom",
+      "refersTo": "club-bar",
+      "description": "Cada time numa faixa da cor principal para a secundária; ponto ao vivo em selo escuro.",
+      "html": "<div class=\"ds-bar\" style=\"--c1:#c8102e;--c2:#1a1a1a\"><span class=\"ds-pos\">1</span><span class=\"ds-name\">Flamengo</span><span class=\"ds-pts ds-win\">79</span></div>",
+      "css": ".ds-bar{display:grid;grid-template-columns:32px 1fr auto;align-items:center;height:34px;border-radius:6px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7);background:linear-gradient(90deg,rgba(0,0,0,.15),rgba(0,0,0,.5)),linear-gradient(90deg,var(--c1) 0%,var(--c1) 45%,var(--c2) 100%);transition:filter .15s}.ds-bar:hover{filter:brightness(1.15)}.ds-pos{text-align:center;font:700 13px Inter,system-ui,sans-serif}.ds-name{font:800 13px Inter,system-ui,sans-serif;text-transform:uppercase}.ds-pts{height:100%;display:grid;place-items:center;padding:0 12px;border-radius:0 6px 6px 0;font:700 18px Oswald,'Arial Narrow',sans-serif;text-shadow:none}.ds-win{background:rgba(0,0,0,.55);color:#4ade80}"
+    },
+    {
+      "name": "Cabeçalho de competição",
+      "kind": "custom",
+      "refersTo": "league-header",
+      "description": "Faixa prateada metálica para os escudos escuros aparecerem.",
+      "html": "<div class=\"ds-league\"><span class=\"ds-league-name\">Premier League</span><span class=\"ds-round\">Rodada 11</span></div>",
+      "css": ".ds-league{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:linear-gradient(180deg,#f1f4f6 0%,#d3d9dd 38%,#b3bcc2 52%,#c9d0d4 70%,#e3e7ea 100%);border-bottom:1px solid #8e989e;box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(0,0,0,.18)}.ds-league-name{font:600 15px Oswald,'Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.05em;color:#13222a}.ds-league:hover .ds-league-name{color:#0b5f55}.ds-round{font:600 12px Inter,system-ui,sans-serif;color:#3c4b53}"
+    },
+    {
+      "name": "Botão Melhores Momentos",
+      "kind": "button",
+      "refersTo": "highlights-button",
+      "description": "Botão sólido de vídeo, sem transparência.",
+      "html": "<button class=\"ds-hl\">▶ Melhores Momentos</button>",
+      "css": ".ds-hl{padding:5px 14px;border-radius:999px;border:1px solid #ef4444;background:#dc2626;color:#fff;font:700 12px Inter,system-ui,sans-serif;cursor:pointer;transition:filter .15s}.ds-hl:hover{filter:brightness(1.1)}.ds-hl:focus-visible{outline:2px solid #f5b301;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Arquibancada em Cores",
+    "overview": "FutStats é o palco das torcidas. A estrutura é uma noite de estádio, em azul-marinho quase preto. Quem acende a tela são os clubes: cada linha de partida, barra de classificação, cartão de jogador e cabeçalho de jogo veste as cores do time a que pertence. O sistema é encorpado e vibrante, com faixas de cor cheias, números grandes em Oswald, sombras profundas e contraste alto. Ainda assim, a base fica sóbria, para que a cor dos clubes seja sempre a protagonista.\n\nA leitura é de arquibancada: de relance, de longe, com uma mão. Placares e pontos ganham fonte de display. Nomes de times vão em caixa alta e peso 800, sempre em branco com sombra, para ficarem legíveis sobre qualquer cor de clube. As duas metades de um confronto se encontram exatamente no centro, onde fica o placar.\n\nO sistema rejeita a cara de site de apostas (neon, verde-dinheiro, chamadas agressivas) e o visual genérico de template (gradientes roxos, glassmorphism, ícones emoji como enfeite).",
+    "keyCharacteristics": [
+      "Fundo noturno azul-marinho; a cor vem dos clubes, não da interface.",
+      "Faixas cheias nas cores dos times, com véu escuro por cima para o texto branco.",
+      "Confronto dividido meio a meio, com corte seco no centro do placar.",
+      "Oswald em caixa alta para títulos, placares e pontos; Inter para todo o resto.",
+      "Cápsulas (999px) para abas e filtros; cantos de 9 a 18px para linhas e cartões."
+    ],
+    "rules": [
+      { "name": "The Club Owns the Color Rule", "body": "A interface não introduz cores de destaque novas. Se algo precisa de cor, que seja a do clube a que pertence. Ouro e verde marcam só estado e navegação.", "section": "colors" },
+      { "name": "The Veil Rule", "body": "Toda faixa em cor de clube leva um véu escuro: rgba(0,0,0,.2–.55) por cima, mais escuro no centro, e texto branco com text-shadow: 0 1px 3px rgba(0,0,0,.7). Nunca escreva texto escuro sobre cor de clube.", "section": "colors" },
+      { "name": "The Live Seal Rule", "body": "O resultado ao vivo (vence, empata ou perde) aparece num selo escuro rgba(0,0,0,.55), em live-win, live-draw ou live-lose. Assim ele aparece sobre qualquer cor de clube.", "section": "colors" },
+      { "name": "The Numbers Shout Rule", "body": "Placar, pontos e números-chave de estatística usam Oswald. Rótulos e texto corrido nunca usam.", "section": "typography" },
+      { "name": "The Three Letters Rule", "body": "Em telas de até 760px, o nome do time vira a sigla de 3 letras ao lado do escudo, sem quebrar no meio da palavra.", "section": "typography" },
+      { "name": "The Nothing Leaks Rule", "body": "Nenhum conteúdo passa da borda direita em 375px. Use minmax(0, 1fr) e min-width: 0 em filhos de grade e flex. Selects e tabelas largas ficam dentro do cartão.", "section": "layout" }
+    ],
+    "dos": [
+      "Do pintar tudo o que pertence a um time com teamColorVars / matchColorVars (public/js/team-colors.js), nunca com cor fixa.",
+      "Do manter o véu escuro e o texto branco com sombra sobre qualquer cor de clube.",
+      "Do usar Oswald para placares, pontos e títulos, e Inter para o resto.",
+      "Do usar a sigla de 3 letras com o escudo no celular quando o nome não couber.",
+      "Do conferir cada tela a 375px e no computador: celular e computador têm o mesmo peso.",
+      "Do manter relógios que dependem de animação funcionando com \"reduzir movimento\" ligado."
+    ],
+    "donts": [
+      "Don't dar cara de site de apostas: nada de neon, verde-dinheiro ou chamadas agressivas.",
+      "Don't usar visual genérico de template: gradientes roxos, glassmorphism, backdrop-filter e emoji como enfeite.",
+      "Don't criar cores de destaque novas para a interface; a cor é dos clubes.",
+      "Don't escrever texto escuro sobre cor de clube nem deixar a metade de um time invadir a do outro além do centro.",
+      "Don't trocar o logo oficial nem a imagem de fundo do app."
+    ]
+  }
+}
