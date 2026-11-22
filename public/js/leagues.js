@@ -38,7 +38,7 @@ function renderHome() {
               <img class="league-sub-logo" src="https://media.api-sports.io/football/leagues/${l.id}.png" alt="" loading="lazy" data-image-fallback="hide">
               <div class="league-sub-details">
                 <span class="league-sub-name">${escapeHtml(l.name)}</span>
-                <span class="league-sub-type">${l.isCup ? '🏆 Copa Mata-Mata' : '📊 Pontos Corridos'}</span>
+                <span class="league-sub-type">${l.isCup ? 'Copa Mata-Mata' : 'Pontos Corridos'}</span>
               </div>
               <span class="league-sub-arrow">→</span>
             </a>
@@ -145,13 +145,13 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
     <!-- Card Artilharia -->
     <div class="sidebar-stat-card gold">
       <div class="sidebar-stat-header">
-        <span class="sidebar-stat-title">⚽ Top 5 Artilheiros</span>
+        <span class="sidebar-stat-title">Top 5 Artilheiros</span>
         <a href="#/liga/${leagueId}/${season}/artilheiros" class="sidebar-stat-more" title="Ver ranking completo">Ver todos →</a>
       </div>
 
       ${scorerLeader ? `
         <a class="sidebar-leader-hero gold" style="${teamColorVars(scorerLeader.statistics?.[0]?.team?.id)}" href="#/jogador/${scorerLeader.player?.id}/${scorerLeader.statistics?.[0]?.team?.id || 0}/${leagueId}/${season}" title="Ver perfil de ${escapeHtml(scorerLeader.player?.name || '')}">
-          <div class="sidebar-leader-badge gold">👑 1º LUGAR · ARTILHEIRO</div>
+          <div class="sidebar-leader-badge gold">1º LUGAR · ARTILHEIRO</div>
           <div class="sidebar-leader-body">
             <div class="sidebar-leader-avatar-wrap gold">
               <img src="${scorerLeader.player?.photo}" alt="" loading="lazy" data-image-fallback="hide">
@@ -192,13 +192,13 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
     <!-- Card Assistências -->
     <div class="sidebar-stat-card cyan">
       <div class="sidebar-stat-header">
-        <span class="sidebar-stat-title">👟 Top 5 Assistências</span>
+        <span class="sidebar-stat-title">Top 5 Assistências</span>
         <a href="#/liga/${leagueId}/${season}/artilheiros" class="sidebar-stat-more" title="Ver ranking completo">Ver todos →</a>
       </div>
 
       ${assistLeader ? `
         <a class="sidebar-leader-hero cyan" style="${teamColorVars(assistLeader.statistics?.[0]?.team?.id)}" href="#/jogador/${assistLeader.player?.id}/${assistLeader.statistics?.[0]?.team?.id || 0}/${leagueId}/${season}" title="Ver perfil de ${escapeHtml(assistLeader.player?.name || '')}">
-          <div class="sidebar-leader-badge cyan">👟 1º LUGAR · ASSISTÊNCIAS</div>
+          <div class="sidebar-leader-badge cyan">1º LUGAR · ASSISTÊNCIAS</div>
           <div class="sidebar-leader-body">
             <div class="sidebar-leader-avatar-wrap cyan">
               <img src="${assistLeader.player?.photo}" alt="" loading="lazy" data-image-fallback="hide">
@@ -239,12 +239,12 @@ function renderLeagueSidebar(leagueId, season, fixtures, scorers = [], assists =
     <!-- Card Jogos Sem Sofrer Gol -->
     <div class="sidebar-stat-card green">
       <div class="sidebar-stat-header">
-        <span class="sidebar-stat-title">🧤 Top 5 Sem Sofrer Gol</span>
+        <span class="sidebar-stat-title">Top 5 Sem Sofrer Gol</span>
       </div>
 
       ${csLeader ? `
         <a class="sidebar-leader-hero green" style="${teamColorVars(csLeader.id)}" href="#/time/${csLeader.id}/${leagueId}/${season}" title="Ver estatísticas do ${escapeHtml(csLeader.name || '')}">
-          <div class="sidebar-leader-badge green">🧤 1º LUGAR · DEFESA MENOS VAZADA</div>
+          <div class="sidebar-leader-badge green">1º LUGAR · DEFESA MENOS VAZADA</div>
           <div class="sidebar-leader-body">
             <div class="sidebar-leader-avatar-wrap green">
               <img src="${csLeader.logo}" alt="" loading="lazy" style="border-radius:4px;object-fit:contain;">
@@ -484,7 +484,7 @@ async function renderStandingsFromCache(leagueId, season) {
  * 🇪🇸 La Liga (140), 🇮🇹 Serie A (135), 🇸🇦 Liga Saudita (307):
  *    1º Pontos | 2º Confronto Direto (Pts) | 3º Saldo no Confronto | 4º Saldo de Gols Geral | 5º Gols Pró | 6º Vitórias
  * 
- * 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (39), 🇩🇪 Bundesliga (78), 🇫🇷 Ligue 1 (61), 🏆 UEFA (2, 3, 4), 🌎 CONMEBOL (13, 11):
+ * 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (39), 🇩🇪 Bundesliga (78), 🇫🇷 Ligue 1 (61), UEFA (2, 3, 4), CONMEBOL (13, 11):
  *    1º Pontos | 2º Saldo de Gols Geral | 3º Gols Pró Geral | 4º Confronto Direto | 5º Gols Fora de Casa | 6º Vitórias
  */
 function sortStandingsByLeagueRules(table, leagueId, fixtures = [], filter = "all") {
@@ -828,7 +828,6 @@ function renderGroupedFixtures(fixtures, isCup = false) {
   if (!fixtures || !fixtures.length) {
     return `
       <div class="card" style="text-align:center;padding:36px 20px;color:var(--chalk-dim);">
-        <span style="font-size:2rem;display:block;margin-bottom:8px;">🏆</span>
         <p style="margin:0;font-weight:700;font-size:1rem;color:var(--chalk);">Confronto ainda não definido</p>
         <span style="font-size:0.82rem;color:var(--chalk-dim);margin-top:6px;display:block;">Os times e datas desta fase serão confirmados após o encerramento das etapas anteriores.</span>
       </div>`;
@@ -884,7 +883,6 @@ function renderGroupedFixtures(fixtures, isCup = false) {
     return `
       <div class="fixture-group-section">
         <div class="fixture-round-header">
-          <span>🏆</span>
           <span class="round-title-text">${escapeHtml(roundTitle)}</span>
         </div>
         <div class="card" style="padding:10px;">
@@ -893,7 +891,7 @@ function renderGroupedFixtures(fixtures, isCup = false) {
             return `
               ${sortedDates.length > 1 ? `
                 <div class="fixture-date-divider" style="${dIdx === 0 ? 'margin-top:2px;' : 'margin-top:16px;'}">
-                  <span class="date-icon">📅</span>
+                  <span class="date-icon">${icon("calendar", 14)}</span>
                   <span class="date-text">${escapeHtml(dateHeader)}</span>
                 </div>
               ` : ''}
@@ -927,7 +925,7 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                   const date = kickoff.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
                   const time = kickoff.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
                   const dateDisplay = isMatchLive
-                    ? `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${statusInfo.label}</span>`
+                    ? `<span class="fixture-date" style="color:#10B981;font-weight:700;"><i class="live-dot" aria-hidden="true"></i>${statusInfo.label}</span>`
                     : (statusInfo.isPostponed
                         ? `<span class="fixture-date" style="color:#F59E0B;font-weight:600;">${statusInfo.label}</span>`
                         : (statusInfo.isFinished

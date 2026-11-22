@@ -99,7 +99,7 @@ async function renderTeam(teamId, leagueId, season) {
           <h1 class="page-title" style="margin:0;">${escapeHtml(formatTeamName(t.name))}</h1>
         </div>
         <button class="btn ${isFav ? 'ghost' : ''} small" id="btn-toggle-team-fav" style="margin-left:auto;">
-          ${isFav ? '⭐ Seguindo Alertas' : '🔔 Seguir Time'}
+          ${isFav ? `${icon("star", 14)} Seguindo alertas` : `${icon("bell", 14)} Seguir time`}
         </button>
       </div>
 
@@ -112,7 +112,6 @@ async function renderTeam(teamId, leagueId, season) {
       <div class="stat-grid club-stat-grid" style="${teamColorVars(teamId)}">
         <div class="stat-card-modern gold">
           <div class="stat-card-header">
-            <span>🎯</span>
             <span>Aproveitamento</span>
           </div>
           <div class="stat-card-main-val gold">${winPct}<small style="font-size:1.1rem;">%</small></div>
@@ -125,37 +124,34 @@ async function renderTeam(teamId, leagueId, season) {
 
         <div class="stat-card-modern green">
           <div class="stat-card-header">
-            <span>⚽</span>
             <span>Média Gols Pró</span>
           </div>
           <div class="stat-card-main-val green">${ptDecimal(gfAvg, 2)}</div>
           <div class="stat-split-bar">
-            <span>🏠 Casa ${ptDecimal(gfHomeAvg, 2)}</span>
-            <span>✈️ Fora ${ptDecimal(gfAwayAvg, 2)}</span>
+            <span>Casa ${ptDecimal(gfHomeAvg, 2)}</span>
+            <span>Fora ${ptDecimal(gfAwayAvg, 2)}</span>
           </div>
         </div>
 
         <div class="stat-card-modern red">
           <div class="stat-card-header">
-            <span>🛡️</span>
             <span>Média Gols Contra</span>
           </div>
           <div class="stat-card-main-val red">${ptDecimal(gaAvg, 2)}</div>
           <div class="stat-split-bar">
-            <span>🏠 Casa ${ptDecimal(gaHomeAvg, 2)}</span>
-            <span>✈️ Fora ${ptDecimal(gaAwayAvg, 2)}</span>
+            <span>Casa ${ptDecimal(gaHomeAvg, 2)}</span>
+            <span>Fora ${ptDecimal(gaAwayAvg, 2)}</span>
           </div>
         </div>
 
         <div class="stat-card-modern cyan">
           <div class="stat-card-header">
-            <span>🧤</span>
             <span>Jogos Sem Sofrer Gol</span>
           </div>
           <div class="stat-card-main-val cyan">${csTotal}</div>
           <div class="stat-split-bar">
-            <span>🏠 Casa ${csHome}</span>
-            <span>✈️ Fora ${csAway}</span>
+            <span>Casa ${csHome}</span>
+            <span>Fora ${csAway}</span>
           </div>
         </div>
       </div>
@@ -169,7 +165,6 @@ async function renderTeam(teamId, leagueId, season) {
         <!-- 1. Próximas Partidas (5 jogos) -->
         <div class="card" style="padding:16px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
-            <span style="font-size:1.1rem;">⏳</span>
             <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Próximas Partidas (5 Jogos)</h3>
           </div>
 
@@ -194,7 +189,7 @@ async function renderTeam(teamId, leagueId, season) {
                         <span>${escapeHtml(leagueName)}</span>
                       </div>
                       <div class="fixture-card-top-right">
-                        <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
+                        <span class="fixture-card-date-badge">${icon("calendar", 13)} ${dateFormatted}</span>
                       </div>
                     </div>
                     <div class="fixture-card-matchup">
@@ -224,7 +219,6 @@ async function renderTeam(teamId, leagueId, season) {
         <!-- 2. Últimos Resultados (5 jogos) -->
         <div class="card" style="padding:16px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
-            <span style="font-size:1.1rem;">✅</span>
             <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Últimos Resultados (5 Jogos)</h3>
           </div>
 
@@ -272,7 +266,7 @@ async function renderTeam(teamId, leagueId, season) {
                         <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.68rem;font-weight:800;line-height:1;">
                           ${outcomeLetter}
                         </span>
-                        <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
+                        <span class="fixture-card-date-badge">${icon("calendar", 13)} ${dateFormatted}</span>
                       </div>
                     </div>
                     <div class="fixture-card-matchup">
@@ -283,7 +277,7 @@ async function renderTeam(teamId, leagueId, season) {
                       <div class="fixture-card-score-box">
                         <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
                         <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}">
-                          <span style="font-size:0.6rem;line-height:1;">▶</span>
+                          ${icon("play", 10)}
                           <span>Melhores Momentos</span>
                         </button>
                       </div>

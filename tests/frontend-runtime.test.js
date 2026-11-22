@@ -448,7 +448,7 @@ test('fixture hero goals: chronological mobile list and VAR cancelled goals', ()
   const fixtureSrc = fs.readFileSync('public/js/fixture.js', 'utf8');
   const start = fixtureSrc.indexOf('function isCancelledGoalEvent');
   const end = fixtureSrc.indexOf('function renderFixtureEvents');
-  const ctx = vm.createContext({ escapeHtml: s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`) });
+  const ctx = vm.createContext({ escapeHtml: s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`), icon: name => `<svg data-icon="${name}"></svg>` });
   vm.runInContext(fixtureSrc.slice(start, end) + '\nthis.renderHeroGoals = renderHeroGoals; this.sortByMatchTime = sortByMatchTime; this.isCancelledGoalEvent = isCancelledGoalEvent; this.varDetailLabel = varDetailLabel;', ctx);
 
   // Inter 1 x 1 Club Brugge (fixture 1635671): Tresoldi (Brugge) 30' pênalti, Lautaro (Inter) 44'.

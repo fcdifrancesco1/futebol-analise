@@ -225,15 +225,15 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
         <p class="page-eyebrow" style="margin:0;">${escapeHtml(fx.league.name)} · ${formatRoundName(fx.league.round)} · ${date} · ${time}${fx.fixture.venue?.name ? " · " + escapeHtml(fx.fixture.venue.name) : ""}</p>
         <div style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap;">
           <button class="day-nav-btn day-refresh-btn" id="btn-refresh-fixture" title="Atualizar dados e eventos agora" style="padding:6px 12px;font-size:0.82rem;">
-            <span class="refresh-spin-icon">🔄</span> Atualizar
+            <span class="refresh-spin-icon">${icon("refresh", 14)}</span> Atualizar
           </button>
           ${isMatchOver ? `
             <span class="badge" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);color:var(--chalk-dim);padding:6px 12px;border-radius:8px;font-size:0.8rem;">
-              🏁 Partida Encerrada
+              Partida Encerrada
             </span>
           ` : `
             <button class="btn ${isFavFixture ? 'active-fav' : 'ghost'} small" id="btn-toggle-fixture-fav" style="display:inline-flex;align-items:center;gap:6px;">
-              ${isFavFixture ? '🔔 Alertas Ativados (Jogo)' : '🔔 Seguir Jogo (Gols & Escalações)'}
+              ${icon("bell", 14)} ${isFavFixture ? 'Alertas ativados' : 'Seguir jogo (gols e escalações)'}
             </button>
           `}
           ${isLive ? `
@@ -382,9 +382,9 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           });
           await NotificationManager.updateBellUI();
           if (pushOk) {
-            toast(`🔔 Alertas ativados para ${fx.teams.home.name} x ${fx.teams.away.name}! Você receberá avisos de Escalações, Gols e Lances.`, false);
+            toast(`Alertas ativados para ${fx.teams.home.name} x ${fx.teams.away.name}! Você receberá avisos de Escalações, Gols e Lances.`, false);
           } else {
-            toast(`⭐ Partida adicionada aos seus jogos! Alertas Push do navegador indisponíveis no momento.`, false);
+            toast(`Partida adicionada aos seus jogos! Alertas Push do navegador indisponíveis no momento.`, false);
           }
         }
         renderFixture(fixtureId, true);
@@ -636,7 +636,7 @@ function openPlayerMatchModal(playerId, teamId, leagueId, season, pData, pObj, t
       <div style="margin-bottom:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;display:flex;align-items:center;gap:6px;">
-            🔥 SIMULAÇÃO DE MAPA DE CALOR
+            SIMULAÇÃO DE MAPA DE CALOR
           </span>
           <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--cyan);">Ataque ➔</span>
         </div>
@@ -651,7 +651,7 @@ function openPlayerMatchModal(playerId, teamId, leagueId, season, pData, pObj, t
         <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;display:flex;align-items:center;gap:6px;">
-              🎯 NOTA HEURÍSTICA FUTSTATS
+              NOTA HEURÍSTICA FUTSTATS
             </span>
             <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--chalk-dim);">
               Base: 6.0 · Nota: <strong style="color:${ratingNum >= 7.5 ? 'var(--emerald)' : ratingNum >= 6.5 ? 'var(--gold)' : 'var(--terracotta)'};font-size:0.9rem;">${ratingStr}</strong>
@@ -659,19 +659,19 @@ function openPlayerMatchModal(playerId, teamId, leagueId, season, pData, pObj, t
           </div>
           <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:8px;font-size:0.75rem;">
             <div style="background:rgba(0,0,0,0.25);padding:6px 10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
-              <span style="color:var(--chalk-dim);">⚡ Lances Decisivos:</span>
+              <span style="color:var(--chalk-dim);">Lances Decisivos:</span>
               <span style="color:${detalhe.discreto >= 0 ? 'var(--emerald)' : 'var(--terracotta)'};font-family:var(--font-mono);font-weight:700;">${detalhe.discreto >= 0 ? '+' : ''}${detalhe.discreto.toFixed(2)}</span>
             </div>
             <div style="background:rgba(0,0,0,0.25);padding:6px 10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
-              <span style="color:var(--chalk-dim);">🏃 Volume & Duelos:</span>
+              <span style="color:var(--chalk-dim);">Volume & Duelos:</span>
               <span style="color:${detalhe.volume >= 0 ? 'var(--emerald)' : 'var(--terracotta)'};font-family:var(--font-mono);font-weight:700;">${detalhe.volume >= 0 ? '+' : ''}${detalhe.volume.toFixed(2)}</span>
             </div>
             <div style="background:rgba(0,0,0,0.25);padding:6px 10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
-              <span style="color:var(--chalk-dim);">📐 Impacto de Passe:</span>
+              <span style="color:var(--chalk-dim);">Impacto de Passe:</span>
               <span style="color:${detalhe.passe >= 0 ? 'var(--emerald)' : 'var(--terracotta)'};font-family:var(--font-mono);font-weight:700;">${detalhe.passe >= 0 ? '+' : ''}${detalhe.passe.toFixed(2)}</span>
             </div>
             <div style="background:rgba(0,0,0,0.25);padding:6px 10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
-              <span style="color:var(--chalk-dim);">🛡️ Contexto Coletivo:</span>
+              <span style="color:var(--chalk-dim);">Contexto Coletivo:</span>
               <span style="color:${detalhe.contexto >= 0 ? 'var(--emerald)' : 'var(--terracotta)'};font-family:var(--font-mono);font-weight:700;">${detalhe.contexto >= 0 ? '+' : ''}${detalhe.contexto.toFixed(2)}</span>
             </div>
           </div>
@@ -680,44 +680,44 @@ function openPlayerMatchModal(playerId, teamId, leagueId, season, pData, pObj, t
 
       <!-- Grade de Estatísticas do Jogo -->
       <span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--gold);font-weight:700;display:block;margin-bottom:10px;">
-        📊 ESTATÍSTICAS NESTE CONFRONTO:
+        ESTATÍSTICAS NESTE CONFRONTO:
       </span>
       <div class="match-stat-chip-grid">
         <div class="match-stat-chip">
-          <span class="match-stat-chip-label">⚽ Gols</span>
+          <span class="match-stat-chip-label">Gols</span>
           <span class="match-stat-chip-val" style="color:#10B981;">${goals}</span>
         </div>
         <div class="match-stat-chip">
-          <span class="match-stat-chip-label">👟 Assistências</span>
+          <span class="match-stat-chip-label">Assistências</span>
           <span class="match-stat-chip-val" style="color:var(--cyan);">${assists}</span>
         </div>
         <div class="match-stat-chip">
-          <span class="match-stat-chip-label">🎯 Chutes (No Gol)</span>
+          <span class="match-stat-chip-label">Chutes (No Gol)</span>
           <span class="match-stat-chip-val">${shotsOn} / ${shotsTotal}</span>
         </div>
         <div class="match-stat-chip">
-          <span class="match-stat-chip-label">📐 Passes (Precisão)</span>
+          <span class="match-stat-chip-label">Passes (Precisão)</span>
           <span class="match-stat-chip-val">${passAcc ? passAcc + '%' : passesTotal}</span>
         </div>
         <div class="match-stat-chip">
-          <span class="match-stat-chip-label">🔑 Passes Decisivos</span>
+          <span class="match-stat-chip-label">Passes Decisivos</span>
           <span class="match-stat-chip-val">${keyPasses}</span>
         </div>
         <div class="match-stat-chip">
-          <span class="match-stat-chip-label">⚡ Dribles Certos</span>
+          <span class="match-stat-chip-label">Dribles Certos</span>
           <span class="match-stat-chip-val">${dribblesSuccess} / ${dribblesTotal}</span>
         </div>
         <div class="match-stat-chip">
-          <span class="match-stat-chip-label">🛡️ Desarmes / Intercep.</span>
+          <span class="match-stat-chip-label">Desarmes / Intercep.</span>
           <span class="match-stat-chip-val">${tackles + interceptions}</span>
         </div>
         <div class="match-stat-chip">
-          <span class="match-stat-chip-label">⚔️ Duelos Ganhos</span>
+          <span class="match-stat-chip-label">Duelos Ganhos</span>
           <span class="match-stat-chip-val">${duelsWon} / ${duelsTotal}</span>
         </div>
         <div class="match-stat-chip">
-          <span class="match-stat-chip-label">🟨 Cartões</span>
-          <span class="match-stat-chip-val">${yellowCards ? `🟨 ${yellowCards}` : '-'} ${redCards ? `🟥 ${redCards}` : ''}</span>
+          <span class="match-stat-chip-label">Cartões</span>
+          <span class="match-stat-chip-val">${yellowCards ? `<i class="ico-card yellow" aria-hidden="true"></i> ${yellowCards}` : '-'} ${redCards ? `<i class="ico-card red" aria-hidden="true"></i> ${redCards}` : ''}</span>
         </div>
       </div>
 
@@ -930,7 +930,7 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
     const redSoccerBall = `<svg width="15" height="15" viewBox="0 0 36 36" style="display:inline-block;vertical-align:middle;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.8));"><circle cx="18" cy="18" r="17" fill="#EF4444" stroke="#B91C1C" stroke-width="1.5"/><polygon points="18,11 23,15 21,21 15,21 13,15" fill="#7F1D1D" stroke="#FCA5A5" stroke-width="0.75"/><line x1="18" y1="11" x2="18" y2="2" stroke="#FCA5A5" stroke-width="1"/><line x1="23" y1="15" x2="31" y2="12" stroke="#FCA5A5" stroke-width="1"/><line x1="21" y1="21" x2="28" y2="28" stroke="#FCA5A5" stroke-width="1"/><line x1="15" y1="21" x2="8" y2="28" stroke="#FCA5A5" stroke-width="1"/><line x1="13" y1="15" x2="5" y2="12" stroke="#FCA5A5" stroke-width="1"/></svg>`;
 
     if (ev.goals > 0) {
-      return `<span class="pitch-goal-badge goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `<small style="font-size:0.55rem;font-weight:800;margin-left:1px;">${ev.goals}</small>` : ''}</span>`;
+      return `<span class="pitch-goal-badge goal" title="${ev.goals} Gol(s)">${icon("ball", 12)}${ev.goals > 1 ? `<small style="font-size:0.55rem;font-weight:800;margin-left:1px;">${ev.goals}</small>` : ''}</span>`;
     }
     if (ev.ownGoals > 0) {
       return `<span class="pitch-goal-badge own-goal" title="${ev.ownGoals} Gol(s) Contra">${redSoccerBall}${ev.ownGoals > 1 ? `<small style="font-size:0.55rem;font-weight:800;margin-left:1px;color:#EF4444;">${ev.ownGoals}</small>` : ''}</span>`;
@@ -942,10 +942,10 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
     const ev = playerEventsMap[pid];
     if (!ev) return "";
     if (ev.reds > 0) {
-      return `<span class="pitch-card-badge red" title="Cartão Vermelho">🟥</span>`;
+      return `<span class="pitch-card-badge red" title="Cartão Vermelho"><i class="ico-card red" aria-hidden="true"></i></span>`;
     }
     if (ev.yellows > 0) {
-      return `<span class="pitch-card-badge yellow" title="Cartão Amarelo">🟨</span>`;
+      return `<span class="pitch-card-badge yellow" title="Cartão Amarelo"><i class="ico-card yellow" aria-hidden="true"></i></span>`;
     }
     return "";
   }
@@ -966,11 +966,11 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
     const ev = playerEventsMap[pid];
     if (!ev) return "";
     const badges = [];
-    if (ev.goals > 0) badges.push(`<span class="event-pill goal" title="${ev.goals} Gol(s)">⚽${ev.goals > 1 ? `x${ev.goals}` : ''}</span>`);
-    if (ev.ownGoals > 0) badges.push(`<span class="event-pill own-goal" title="${ev.ownGoals} Gol(s) Contra">🔴${ev.ownGoals > 1 ? `x${ev.ownGoals}` : ''}</span>`);
-    if (ev.yellows > 0) badges.push(`<span class="event-pill yellow" title="Cartão Amarelo">🟨</span>`);
-    if (ev.reds > 0) badges.push(`<span class="event-pill red" title="Cartão Vermelho">🟥</span>`);
-    if (ev.subIn) badges.push(`<span class="event-pill sub-in" title="Entrou aos ${ev.subIn}'">⬆ ${ev.subIn}'</span>`);
+    if (ev.goals > 0) badges.push(`<span class="event-pill goal" title="${ev.goals} Gol(s)">${icon("ball", 12)}${ev.goals > 1 ? `x${ev.goals}` : ''}</span>`);
+    if (ev.ownGoals > 0) badges.push(`<span class="event-pill own-goal" title="${ev.ownGoals} Gol(s) Contra">${icon("ball", 12)}${ev.ownGoals > 1 ? `x${ev.ownGoals}` : ''}</span>`);
+    if (ev.yellows > 0) badges.push(`<span class="event-pill yellow" title="Cartão Amarelo"><i class="ico-card yellow" aria-hidden="true"></i></span>`);
+    if (ev.reds > 0) badges.push(`<span class="event-pill red" title="Cartão Vermelho"><i class="ico-card red" aria-hidden="true"></i></span>`);
+    if (ev.subIn) badges.push(`<span class="event-pill sub-in" title="Entrou aos ${ev.subIn}'">${ev.subIn}'</span>`);
     return badges.join("");
   }
 
@@ -1133,7 +1133,7 @@ function heroGoalItemHtml(g, side = "") {
     const label = varDetailLabel(g.detail);
     return `
       <div class="hero-goal-item is-cancelled${sideClass}" title="${escapeHtml(label)}">
-        <span class="hero-goal-icon">⚽</span>
+        <span class="hero-goal-icon">${icon("ball", 14)}</span>
         <span class="player-name">${escapeHtml(playerName)}</span>
         ${timeStr ? `<span class="time">${escapeHtml(timeStr)}</span>` : ""}
         <span class="cancel-tag">${escapeHtml(label.replace(/^Gol anulado/, "Anulado"))}</span>
@@ -1148,7 +1148,7 @@ function heroGoalItemHtml(g, side = "") {
   const tagStr = g.isShootout ? "" : `${timeStr}${isPen ? " (P)" : isOwnGoal ? " (GC)" : ""}`;
   return `
     <div class="hero-goal-item${sideClass}">
-      <span class="hero-goal-icon">⚽</span>
+      <span class="hero-goal-icon">${icon("ball", 14)}</span>
       <span class="player-name"${g.isPendingSummary ? ' style="opacity:0.85;font-style:italic;"' : ""}>${escapeHtml(playerName)}${assistHtml}</span>
       ${tagStr ? `<span class="time">${escapeHtml(tagStr)}</span>` : ""}
     </div>`;
@@ -1190,7 +1190,7 @@ function renderFixtureEvents(events, fx, isFinished = false) {
           return `
             <div class="fixture-row" style="grid-template-columns:44px auto 1fr auto;">
               <span class="fixture-date">${timeElapsed}</span>
-              <span>${e.type === "Goal" ? "⚽" : e.type === "Card" ? (e.detail === "Red Card" ? "🟥" : "🟨") : e.type === "Var" ? "📺" : "🔁"}</span>
+              <span>${e.type === "Goal" ? icon("ball", 14) : e.type === "Card" ? `<i class="ico-card ${e.detail === "Red Card" ? "red" : "yellow"}" aria-hidden="true"></i>` : e.type === "Var" ? "VAR" : icon("swap", 14)}</span>
               <div>
                 <strong>${escapeHtml(pName)}</strong>${hasAssist ? ` <span style="color:var(--chalk-dim);font-size:0.8rem;font-weight:400;">(${escapeHtml(String(rawAssist).trim())})</span>` : ''}
                 <span style="color:${isCancelledGoalEvent(e) ? "#EF4444" : "var(--chalk-dim)"};font-size:0.75rem;">(${escapeHtml(e.type === "Var" ? varDetailLabel(e.detail) : eventDetailPt(e.detail || e.type))})</span>

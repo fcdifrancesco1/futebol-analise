@@ -390,7 +390,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
       
       const compOptions = allOptions.map((st, idx) => `
         <option value="${idx}" ${idx === selectedIdx ? 'selected' : ''}>
-          ${idx === 0 ? '📊 Total Geral (Todas as Competições)' : `${escapeHtml(st.league.name)} — ${escapeHtml(st.team.name)}`}
+          ${idx === 0 ? 'Total Geral (Todas as Competições)' : `${escapeHtml(st.league.name)} — ${escapeHtml(st.team.name)}`}
         </option>
       `).join("");
 
@@ -409,7 +409,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
         topCardsHtml = `
           <div class="stat-card-modern cyan">
             <div class="stat-card-header">
-              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              
               <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
             </div>
             <div class="stat-card-main-val cyan">
@@ -419,13 +419,12 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
               }
             </div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `${s.games?.minutes ?? 0} minutos`}</span>
             </div>
           </div>
 
           <div class="stat-card-modern green">
             <div class="stat-card-header">
-              <span>🧤</span>
               <span>${isPerGame ? 'Defesas / Jogo' : 'Defesas Totais'}</span>
             </div>
             <div class="stat-card-main-val green">${fmt(s.goals?.saves)}</div>
@@ -436,7 +435,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
           <div class="stat-card-modern gold">
             <div class="stat-card-header">
-              <span>🥅</span>
               <span>${isPerGame ? 'Média Sofridos / Jogo' : 'Gols Sofridos'}</span>
             </div>
             <div class="stat-card-main-val gold">${fmt(s.goals?.conceded)}</div>
@@ -447,7 +445,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
           <div class="stat-card-modern cyan">
             <div class="stat-card-header">
-              <span>🛑</span>
               <span>Pênaltis Defendidos</span>
             </div>
             <div class="stat-card-main-val cyan">${s.penalty?.saved ?? 0}</div>
@@ -465,7 +462,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
         topCardsHtml = `
           <div class="stat-card-modern cyan">
             <div class="stat-card-header">
-              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              
               <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
             </div>
             <div class="stat-card-main-val cyan">
@@ -475,13 +472,12 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
               }
             </div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `${s.games?.minutes ?? 0} minutos`}</span>
             </div>
           </div>
 
           <div class="stat-card-modern green">
             <div class="stat-card-header">
-              <span>⚔️</span>
               <span>${isPerGame ? 'Desarmes / Jogo' : 'Desarmes Totais'}</span>
             </div>
             <div class="stat-card-main-val green">${fmt(s.tackles?.total)}</div>
@@ -492,7 +488,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
           <div class="stat-card-modern cyan">
             <div class="stat-card-header">
-              <span>🧤</span>
               <span>${isPerGame ? 'Interceptações / Jogo' : 'Interceptações'}</span>
             </div>
             <div class="stat-card-main-val cyan">${fmt(s.tackles?.interceptions)}</div>
@@ -503,7 +498,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
           <div class="stat-card-modern gold">
             <div class="stat-card-header">
-              <span>🛡️</span>
               <span>Duelos Vencidos</span>
             </div>
             <div class="stat-card-main-val gold">${duelPct}</div>
@@ -517,7 +511,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
         topCardsHtml = `
           <div class="stat-card-modern cyan">
             <div class="stat-card-header">
-              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              
               <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
             </div>
             <div class="stat-card-main-val cyan">
@@ -527,13 +521,12 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
               }
             </div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `${s.games?.minutes ?? 0} minutos`}</span>
             </div>
           </div>
 
           <div class="stat-card-modern gold">
             <div class="stat-card-header">
-              <span>⚽</span>
               <span>${isPerGame ? 'Média de Gols / Jogo' : 'Gols Marcados'}</span>
             </div>
             <div class="stat-card-main-val gold">${fmt(s.goals?.total)}</div>
@@ -544,7 +537,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
           <div class="stat-card-modern green">
             <div class="stat-card-header">
-              <span>👟</span>
               <span>${isPerGame ? 'Média de Assist. / Jogo' : 'Assistências'}</span>
             </div>
             <div class="stat-card-main-val green">${fmt(s.goals?.assists)}</div>
@@ -555,7 +547,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
           <div class="stat-card-modern cyan">
             <div class="stat-card-header">
-              <span>🎯</span>
               <span>Precisão de Passes</span>
             </div>
             <div class="stat-card-main-val cyan">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</div>
@@ -566,7 +557,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
           <div class="stat-card-modern gold">
             <div class="stat-card-header">
-              <span>⚔️</span>
               <span>${isPerGame ? 'Desarmes / Jogo' : 'Desarmes & Botes'}</span>
             </div>
             <div class="stat-card-main-val gold">${fmt(s.tackles?.total)}</div>
@@ -584,7 +574,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
         topCardsHtml = `
           <div class="stat-card-modern cyan">
             <div class="stat-card-header">
-              <span>${isPerGame ? '⏱️' : '🏃'}</span>
+              
               <span>${isPerGame ? 'Minutos por Jogo' : 'Jogos (Titular)'}</span>
             </div>
             <div class="stat-card-main-val cyan">
@@ -594,13 +584,12 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
               }
             </div>
             <div class="stat-split-bar">
-              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `⏱️ ${s.games?.minutes ?? 0} minutos`}</span>
+              <span>${isPerGame ? `Total de ${apps} jogos (${s.games?.lineups ?? 0} titular)` : `${s.games?.minutes ?? 0} minutos`}</span>
             </div>
           </div>
 
           <div class="stat-card-modern gold">
             <div class="stat-card-header">
-              <span>⚽</span>
               <span>${isPerGame ? 'Média de Gols / Jogo' : 'Gols Marcados'}</span>
             </div>
             <div class="stat-card-main-val gold">${fmt(s.goals?.total)}</div>
@@ -611,7 +600,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
           <div class="stat-card-modern green">
             <div class="stat-card-header">
-              <span>🎯</span>
               <span>Pontaria no Alvo</span>
             </div>
             <div class="stat-card-main-val green">${shotAccuracy}</div>
@@ -622,7 +610,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
           <div class="stat-card-modern cyan">
             <div class="stat-card-header">
-              <span>👟</span>
               <span>${isPerGame ? 'Média de Assist. / Jogo' : 'Assistências'}</span>
             </div>
             <div class="stat-card-main-val cyan">${fmt(s.goals?.assists)}</div>
@@ -642,13 +629,11 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           <div class="player-metrics-grid">
             <div class="player-metrics-card">
               <div class="player-metrics-header defense">
-                <span class="metrics-header-icon">🧤</span>
                 <span class="metrics-header-title">Desempenho no Gol & Defesas ${isPerGame ? '(Por Jogo)' : ''}</span>
               </div>
               <div class="player-metrics-list">
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🧤</span>
                     <span class="metric-label">Defesas Realizadas</span>
                   </div>
                   <span class="metric-val green">${fmt(s.goals?.saves)}</span>
@@ -656,7 +641,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🥅</span>
                     <span class="metric-label">Gols Sofridos</span>
                   </div>
                   <span class="metric-val gold">${fmt(s.goals?.conceded)}</span>
@@ -664,7 +648,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🛑</span>
                     <span class="metric-label">Pênaltis Defendidos</span>
                   </div>
                   <span class="metric-val">${s.penalty?.saved ?? 0}</span>
@@ -672,7 +655,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🛡️</span>
                     <span class="metric-label">Duelos & Saídas Ganhas</span>
                   </div>
                   <span class="metric-val">${fmt(s.duels?.won)}</span>
@@ -682,13 +664,11 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
             <div class="player-metrics-card">
               <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
-                <span class="metrics-header-icon">⚽</span>
                 <span class="metrics-header-title">Reposições & Disciplina ${isPerGame ? '(Por Jogo)' : ''}</span>
               </div>
               <div class="player-metrics-list">
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🎯</span>
                     <span class="metric-label">Passes Totais</span>
                   </div>
                   <span class="metric-val">${fmt(s.passes?.total)}</span>
@@ -696,7 +676,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">📊</span>
                     <span class="metric-label">Precisão de Passes</span>
                   </div>
                   <span class="metric-val">${s.passes?.accuracy ? s.passes.accuracy + '%' : '-'}</span>
@@ -704,7 +683,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🛡️</span>
                     <span class="metric-label">Faltas Sofridas</span>
                   </div>
                   <span class="metric-val">${fmt(s.fouls?.drawn)}</span>
@@ -712,7 +690,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🟨</span>
+                    <span class="metric-icon"><i class="ico-card yellow" aria-hidden="true"></i></span>
                     <span class="metric-label">Cartões Amarelos / Vermelhos</span>
                   </div>
                   <span class="metric-val" style="color:var(--gold);">
@@ -729,13 +707,11 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           <div class="player-metrics-grid">
             <div class="player-metrics-card">
               <div class="player-metrics-header defense">
-                <span class="metrics-header-icon">🛡️</span>
                 <span class="metrics-header-title">Desarmes, Cortes & Interceptações ${isPerGame ? '(Por Jogo)' : ''}</span>
               </div>
               <div class="player-metrics-list">
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">⚔️</span>
                     <span class="metric-label">Desarmes Totais</span>
                   </div>
                   <span class="metric-val green">${fmt(s.tackles?.total)}</span>
@@ -743,7 +719,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🧤</span>
                     <span class="metric-label">Interceptações</span>
                   </div>
                   <span class="metric-val green">${fmt(s.tackles?.interceptions)}</span>
@@ -751,7 +726,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🧱</span>
                     <span class="metric-label">Bloqueios de Chute</span>
                   </div>
                   <span class="metric-val">${fmt(s.tackles?.blocks)}</span>
@@ -759,7 +733,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🏆</span>
                     <span class="metric-label">Duelos Vencidos</span>
                   </div>
                   <span class="metric-val gold">${fmt(s.duels?.won)}</span>
@@ -769,13 +742,11 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
             <div class="player-metrics-card">
               <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
-                <span class="metrics-header-icon">⚡</span>
                 <span class="metrics-header-title">Construção, Apoio & Disciplina ${isPerGame ? '(Por Jogo)' : ''}</span>
               </div>
               <div class="player-metrics-list">
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">⚽</span>
                     <span class="metric-label">Gols Marcados</span>
                   </div>
                   <span class="metric-val gold">${fmt(s.goals?.total)}</span>
@@ -783,7 +754,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🎯</span>
                     <span class="metric-label">Passes Totais</span>
                   </div>
                   <span class="metric-val">${fmt(s.passes?.total)}</span>
@@ -791,7 +761,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">👟</span>
                     <span class="metric-label">Passes-Chave (Apoio)</span>
                   </div>
                   <span class="metric-val">${fmt(s.passes?.key)}</span>
@@ -799,7 +768,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">⚠️</span>
                     <span class="metric-label">Faltas Cometidas</span>
                   </div>
                   <span class="metric-val" style="color:var(--gold);">${fmt(s.fouls?.committed)}</span>
@@ -807,7 +775,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🟨</span>
+                    <span class="metric-icon"><i class="ico-card yellow" aria-hidden="true"></i></span>
                     <span class="metric-label">Cartões Amarelos / Vermelhos</span>
                   </div>
                   <span class="metric-val" style="color:var(--gold);">
@@ -824,13 +792,11 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           <div class="player-metrics-grid">
             <div class="player-metrics-card">
               <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(255,184,0,0.15), transparent);border-left:3px solid var(--gold);">
-                <span class="metrics-header-icon">🧠</span>
                 <span class="metrics-header-title">Criação & Transição Ofensiva ${isPerGame ? '(Por Jogo)' : ''}</span>
               </div>
               <div class="player-metrics-list">
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">⚽</span>
                     <span class="metric-label">Gols Marcados</span>
                   </div>
                   <span class="metric-val gold">${fmt(s.goals?.total)}</span>
@@ -838,7 +804,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">👟</span>
                     <span class="metric-label">Passes-Chave (Key Passes)</span>
                   </div>
                   <span class="metric-val gold">${fmt(s.passes?.key)}</span>
@@ -846,7 +811,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🎁</span>
                     <span class="metric-label">Assistências para Gol</span>
                   </div>
                   <span class="metric-val green">${fmt(s.goals?.assists)}</span>
@@ -854,7 +818,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">⚡</span>
                     <span class="metric-label">Dribles Certos (1x1)</span>
                   </div>
                   <span class="metric-val">${fmt(s.dribbles?.success)}</span>
@@ -862,7 +825,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🎯</span>
                     <span class="metric-label">Chutes no Alvo</span>
                   </div>
                   <span class="metric-val">${fmt(s.shots?.on)}</span>
@@ -872,13 +834,11 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
             <div class="player-metrics-card">
               <div class="player-metrics-header defense">
-                <span class="metrics-header-icon">🛡️</span>
                 <span class="metrics-header-title">Contenção, Desarmes & Duelos ${isPerGame ? '(Por Jogo)' : ''}</span>
               </div>
               <div class="player-metrics-list">
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">⚔️</span>
                     <span class="metric-label">Desarmes Totais</span>
                   </div>
                   <span class="metric-val green">${fmt(s.tackles?.total)}</span>
@@ -886,7 +846,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🧤</span>
                     <span class="metric-label">Interceptações</span>
                   </div>
                   <span class="metric-val green">${fmt(s.tackles?.interceptions)}</span>
@@ -894,7 +853,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🏆</span>
                     <span class="metric-label">Duelos Ganhos</span>
                   </div>
                   <span class="metric-val">${fmt(s.duels?.won)}</span>
@@ -902,7 +860,7 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🟨</span>
+                    <span class="metric-icon"><i class="ico-card yellow" aria-hidden="true"></i></span>
                     <span class="metric-label">Cartões Amarelos / Vermelhos</span>
                   </div>
                   <span class="metric-val" style="color:var(--gold);">
@@ -922,13 +880,11 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
           <div class="player-metrics-grid">
             <div class="player-metrics-card">
               <div class="player-metrics-header attack">
-                <span class="metrics-header-icon">🔥</span>
                 <span class="metrics-header-title">Finalizações & Faro de Gol ${isPerGame ? '(Por Jogo)' : ''}</span>
               </div>
               <div class="player-metrics-list">
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">⚽</span>
                     <span class="metric-label">Gols Marcados</span>
                   </div>
                   <span class="metric-val gold">${fmt(s.goals?.total)}</span>
@@ -936,7 +892,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🎯</span>
                     <span class="metric-label">Chutes no Alvo</span>
                   </div>
                   <span class="metric-val gold">${fmt(s.shots?.on)} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${fmt(s.shots?.total)} tot)</small></span>
@@ -944,7 +899,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">📊</span>
                     <span class="metric-label">Conversão de Chutes</span>
                   </div>
                   <span class="metric-val green">${convRate}</span>
@@ -952,7 +906,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🎖️</span>
                     <span class="metric-label">Pênaltis Sofridos</span>
                   </div>
                   <span class="metric-val">${fmt(s.penalty?.won)}</span>
@@ -962,13 +915,11 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
             <div class="player-metrics-card">
               <div class="player-metrics-header" style="background:linear-gradient(90deg, rgba(0,229,255,0.15), transparent);border-left:3px solid var(--cyan);">
-                <span class="metrics-header-icon">⚡</span>
                 <span class="metrics-header-title">Dribles, Criação & Participação ${isPerGame ? '(Por Jogo)' : ''}</span>
               </div>
               <div class="player-metrics-list">
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">⚡</span>
                     <span class="metric-label">Dribles Certos (1x1)</span>
                   </div>
                   <span class="metric-val">${fmt(s.dribbles?.success)} <small style="font-size:0.75rem;color:var(--chalk-dim);">(${fmt(s.dribbles?.attempts)} tent)</small></span>
@@ -976,7 +927,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">👟</span>
                     <span class="metric-label">Passes-Chave Criados</span>
                   </div>
                   <span class="metric-val">${fmt(s.passes?.key)}</span>
@@ -984,7 +934,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🛡️</span>
                     <span class="metric-label">Faltas Sofridas</span>
                   </div>
                   <span class="metric-val">${fmt(s.fouls?.drawn)}</span>
@@ -992,7 +941,6 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
 
                 <div class="player-metric-row">
                   <div class="metric-info">
-                    <span class="metric-icon">🏆</span>
                     <span class="metric-label">Duelos Físicos Ganhos</span>
                   </div>
                   <span class="metric-val">${fmt(s.duels?.won)}</span>

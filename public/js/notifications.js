@@ -399,7 +399,7 @@ const NotificationManager = {
             await this.saveToSupabase(endpoint, p256dh, auth, true);
           }
 
-          toast("🔔 Notificação de teste disparada com sucesso!", false);
+          toast("Notificação de teste disparada com sucesso!", false);
         } catch (err) {
           console.error("Erro ao testar notificação:", err);
           toast("Erro ao disparar notificação: " + err.message);
@@ -445,7 +445,7 @@ const NotificationManager = {
 
           await this.updateBellUI();
           closeModal();
-          toast("🔔 Preferências de alertas salvas com sucesso!", false);
+          toast("Preferências de alertas salvas com sucesso!", false);
         } catch (err) {
           console.error("Erro ao salvar ajustes:", err);
           toast("Erro ao salvar ajustes: " + (err.message || err));

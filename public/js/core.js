@@ -152,7 +152,7 @@ function updateCompareBadge() {
 function markUpdated(fromCache = false) {
   if (!quotaHint) quotaHint = document.getElementById("quota-hint");
   if (quotaHint) {
-    quotaHint.textContent = (fromCache ? "⚡ Cache " : "Atualizado ") + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    quotaHint.textContent = (fromCache ? "Cache " : "Atualizado ") + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   }
 }
 

@@ -125,7 +125,7 @@ function renderDaySpotlight(fixtures) {
         <div class="day-spotlight-score"><strong>${escapeHtml(score)}</strong><small>${hasScore ? escapeHtml(status.label) : kickoff}</small></div>
         <div class="day-spotlight-team away">${featured.teams.away.logo ? `<img src="${sanitizeUrl(featured.teams.away.logo)}" alt="" loading="lazy">` : ''}<strong>${escapeHtml(featured.teams.away.name)}</strong></div>
       </a>
-      <a class="day-spotlight-foot" href="#/jogo/${featured.fixture.id}">Ver detalhes da partida <span aria-hidden="true">↗</span></a>
+      <a class="day-spotlight-foot" href="#/jogo/${featured.fixture.id}">Ver detalhes da partida</a>
     </article>`;
 }
 
@@ -646,7 +646,6 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
       document.getElementById('day-visible-count').textContent = '0 JOGOS';
       content.innerHTML = `
         <div class="card" style="text-align:center;padding:48px 20px;color:var(--chalk-dim);">
-          <div style="font-size:2.4rem;margin-bottom:10px;">📅</div>
           <h3 style="color:var(--chalk);margin:0 0 6px 0;">Nenhum jogo programado para esta data</h3>
           <p style="margin:0;font-size:0.88rem;">Não há partidas das competições cobertas nesta data. Experimente navegar para outro dia.</p>
         </div>`;
@@ -740,7 +739,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                       ${scoreDisplay}
                       ${isFinished ? `
                         <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}">
-                          <span style="font-size:0.6rem;line-height:1;">▶</span>
+                          ${icon("play", 10)}
                           <span>Melhores Momentos</span>
                         </button>
                       ` : ''}
@@ -869,7 +868,7 @@ async function fetchLiveMatches(isForced = false) {
                 return `
                   <a class="fixture-row match-fixture-row match-colors" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
                     <div class="fixture-date-col">
-                      <span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${timeDisplay}</span>
+                      <span class="fixture-date" style="color:#10B981;font-weight:700;"><i class="live-dot" aria-hidden="true"></i>${timeDisplay}</span>
                     </div>
                     <div class="fixture-team-item right">
                       <span data-short="${teamShortName(f.teams.home.name)}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>

@@ -200,13 +200,13 @@ function leagueHighlights(sortedRows, finished) {
 
   const team = t => ({ name: t.team.name, logo: t.team.logo, id: t.team.id });
   return [
-    { icon: "⚽", title: "Melhor ataque", team: team(attack), value: `${attack.all.goals.for} gols`, sub: `${fmt(attack.all.goals.for / Math.max(1, games(attack)))} por jogo` },
-    { icon: "🧱", title: "Melhor defesa", team: team(defense), value: `${defense.all.goals.against} sofridos`, sub: `${fmt(defense.all.goals.against / Math.max(1, games(defense)))} por jogo` },
-    { icon: "🏟️", title: "Melhor mandante", team: team(home), value: `${homePts(home)} pts em casa`, sub: `${pct(homePts(home), (home.home?.played || 0) * 3)}% de aproveitamento` },
-    { icon: "✈️", title: "Melhor visitante", team: team(away), value: `${awayPts(away)} pts fora`, sub: `${pct(awayPts(away), (away.away?.played || 0) * 3)}% de aproveitamento` },
-    { icon: "🔥", title: "Maior invencibilidade", team: team(run), value: `${unbeaten(run)} ${unbeaten(run) === 1 ? "jogo" : "jogos"}`, sub: "sem perder (sequência atual)" },
-    { icon: "🥶", title: "Maior jejum de vitórias", team: team(drought), value: `${winless(drought)} ${winless(drought) === 1 ? "jogo" : "jogos"}`, sub: "sem vencer (sequência atual)" },
-    { icon: "📊", title: "Média de gols", value: `${fmt(goals / finished.length)} por jogo`, sub: `${goals} gols em ${finished.length} jogos` }
+    { title: "Melhor ataque", team: team(attack), value: `${attack.all.goals.for} gols`, sub: `${fmt(attack.all.goals.for / Math.max(1, games(attack)))} por jogo` },
+    { title: "Melhor defesa", team: team(defense), value: `${defense.all.goals.against} sofridos`, sub: `${fmt(defense.all.goals.against / Math.max(1, games(defense)))} por jogo` },
+    { title: "Melhor mandante", team: team(home), value: `${homePts(home)} pts em casa`, sub: `${pct(homePts(home), (home.home?.played || 0) * 3)}% de aproveitamento` },
+    { title: "Melhor visitante", team: team(away), value: `${awayPts(away)} pts fora`, sub: `${pct(awayPts(away), (away.away?.played || 0) * 3)}% de aproveitamento` },
+    { title: "Maior invencibilidade", team: team(run), value: `${unbeaten(run)} ${unbeaten(run) === 1 ? "jogo" : "jogos"}`, sub: "sem perder (sequência atual)" },
+    { title: "Maior jejum de vitórias", team: team(drought), value: `${winless(drought)} ${winless(drought) === 1 ? "jogo" : "jogos"}`, sub: "sem vencer (sequência atual)" },
+    { title: "Média de gols", value: `${fmt(goals / finished.length)} por jogo`, sub: `${goals} gols em ${finished.length} jogos` }
   ];
 }
 
@@ -218,7 +218,7 @@ function renderLeagueHighlights(items, leagueId, season) {
       <div class="league-highlights">
         ${items.map(h => `
           <div class="card league-highlight">
-            <span class="league-highlight-title"><span aria-hidden="true">${h.icon}</span> ${escapeHtml(h.title)}</span>
+            <span class="league-highlight-title">${escapeHtml(h.title)}</span>
             ${h.team ? `<a class="league-highlight-team" href="#/time/${h.team.id}/${leagueId}/${season}"><img src="${h.team.logo || ""}" alt="" loading="lazy" data-image-fallback="hide"><span>${escapeHtml(h.team.name)}</span></a>` : ""}
             <strong class="league-highlight-value">${escapeHtml(h.value)}</strong>
             <span class="league-highlight-sub">${escapeHtml(h.sub)}</span>

@@ -8,18 +8,17 @@ async function renderMyTeam() {
     app.innerHTML = `
       <div class="page-head">
         <p class="page-eyebrow">Personalização</p>
-        <h1 class="page-title">Seu Time ⭐</h1>
+        <h1 class="page-title">Seu Time</h1>
         <p class="page-sub">Escolha o seu time do coração para acompanhar notícias em tempo real, próximos 5 jogos, últimos resultados, estatísticas e elenco.</p>
       </div>
 
       <div class="card" style="max-width:560px;margin:24px auto;padding:28px;text-align:center;">
-        <span style="font-size:3rem;display:block;margin-bottom:12px;">🛡️</span>
         <h2 style="font-size:1.25rem;font-weight:800;color:var(--chalk);margin-bottom:8px;">Nenhum time selecionado</h2>
         <p style="font-size:0.85rem;color:var(--chalk-dim);margin-bottom:20px;">
           Pesquise e selecione qualquer clube do mundo para transformar esta aba na central exclusiva do seu time.
         </p>
         <button class="btn primary" id="btn-select-fav-team-main" style="font-weight:700;padding:10px 24px;">
-          ⭐ Escolher Meu Time Agora
+          Escolher Meu Time Agora
         </button>
       </div>
     `;
@@ -42,7 +41,7 @@ async function renderMyTeam() {
 
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <button class="btn ghost small" id="btn-change-fav-team-tab" style="font-size:0.78rem;">
-          🔄 Trocar Time
+          Trocar Time
         </button>
       </div>
     </div>
@@ -51,11 +50,10 @@ async function renderMyTeam() {
     <div class="news-feed-card" style="margin-bottom:24px;">
       <div class="news-feed-header">
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:1.3rem;">📰</span>
           <div>
             <h2 style="font-size:1.1rem;font-weight:700;margin:0;color:var(--chalk);display:flex;align-items:center;gap:8px;">
               Últimas Notícias
-              <span style="font-size:0.68rem;background:rgba(239,68,68,0.2);color:#EF4444;border:1px solid rgba(239,68,68,0.4);padding:1px 6px;border-radius:10px;font-family:var(--font-mono);font-weight:700;">🔴 EM TEMPO REAL</span>
+              <span style="font-size:0.68rem;background:rgba(239,68,68,0.2);color:#EF4444;border:1px solid rgba(239,68,68,0.4);padding:1px 6px;border-radius:10px;font-family:var(--font-mono);font-weight:700;">EM TEMPO REAL</span>
             </h2>
             <span style="font-size:0.75rem;color:var(--chalk-dim);">As 6 manchetes mais recentes dos principais portais de notícias</span>
           </div>
@@ -144,7 +142,6 @@ async function renderMyTeam() {
       <!-- Acesso Rápido ao Elenco -->
       <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:24px;background:linear-gradient(90deg, rgba(0,229,255,0.08), rgba(255,184,0,0.08));border:1px solid rgba(0,229,255,0.25);flex-wrap:wrap;gap:12px;">
         <div style="display:flex;align-items:center;gap:12px;">
-          <span style="font-size:1.6rem;">👥</span>
           <div>
             <strong style="font-size:1rem;color:var(--chalk);display:block;">Elenco Atual de ${escapeHtml(teamFormattedName)}</strong>
             <span style="font-size:0.78rem;color:var(--chalk-dim);">Jogadores, fotos, números de camisa, idades e posições</span>
@@ -159,7 +156,6 @@ async function renderMyTeam() {
         <!-- 2. Próximas Partidas (5 jogos) -->
         <div class="card" style="padding:16px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
-            <span style="font-size:1.1rem;">⏳</span>
             <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Próximas Partidas (5 Jogos)</h3>
           </div>
 
@@ -184,7 +180,7 @@ async function renderMyTeam() {
                         <span>${escapeHtml(leagueName)}</span>
                       </div>
                       <div class="fixture-card-top-right">
-                        <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
+                        <span class="fixture-card-date-badge">${icon("calendar", 13)} ${dateFormatted}</span>
                       </div>
                     </div>
                     <div class="fixture-card-matchup">
@@ -214,7 +210,6 @@ async function renderMyTeam() {
         <!-- 3. Últimos Resultados (5 jogos) -->
         <div class="card" style="padding:16px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:10px;">
-            <span style="font-size:1.1rem;">✅</span>
             <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--chalk);">Últimos Resultados (5 Jogos)</h3>
           </div>
 
@@ -262,7 +257,7 @@ async function renderMyTeam() {
                         <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder};border-radius:4px;font-family:var(--font-mono);font-size:0.68rem;font-weight:800;line-height:1;">
                           ${outcomeLetter}
                         </span>
-                        <span class="fixture-card-date-badge">📅 ${dateFormatted}</span>
+                        <span class="fixture-card-date-badge">${icon("calendar", 13)} ${dateFormatted}</span>
                       </div>
                     </div>
                     <div class="fixture-card-matchup">
@@ -273,7 +268,7 @@ async function renderMyTeam() {
                       <div class="fixture-card-score-box">
                         <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
                         <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}">
-                          <span style="font-size:0.6rem;line-height:1;">▶</span>
+                          ${icon("play", 10)}
                           <span>Melhores Momentos</span>
                         </button>
                       </div>
@@ -299,7 +294,6 @@ async function renderMyTeam() {
         <div class="card" style="padding:20px;margin-bottom:24px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:12px;flex-wrap:wrap;gap:8px;">
             <div style="display:flex;align-items:center;gap:10px;">
-              <span style="font-size:1.3rem;">📊</span>
               <div>
                 <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:var(--chalk);">Estatísticas Gerais na Temporada</h3>
                 <span style="font-size:0.75rem;color:var(--chalk-dim);">Todas as Competições Oficiais · Temporada ${season}</span>
@@ -320,23 +314,23 @@ async function renderMyTeam() {
 
           <div class="match-stat-chip-grid" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;">
             <div class="match-stat-chip">
-              <span class="match-stat-chip-label">🏆 Jogos / Vitórias</span>
+              <span class="match-stat-chip-label">Jogos / Vitórias</span>
               <span class="match-stat-chip-val">${totalPlayed}J · <span style="color:#10B981;">${totalWins}V</span></span>
             </div>
             <div class="match-stat-chip">
-              <span class="match-stat-chip-label">🤝 Empates / Derrotas</span>
+              <span class="match-stat-chip-label">Empates / Derrotas</span>
               <span class="match-stat-chip-val"><span style="color:#FFB800;">${totalDraws}E</span> · <span style="color:#EF4444;">${totalLoses}D</span></span>
             </div>
             <div class="match-stat-chip">
-              <span class="match-stat-chip-label">⚽ Gols Pró (Média)</span>
+              <span class="match-stat-chip-label">Gols Pró (Média)</span>
               <span class="match-stat-chip-val" style="color:var(--cyan);">${totalGf} (${ptDecimal(avgGf, 1)})</span>
             </div>
             <div class="match-stat-chip">
-              <span class="match-stat-chip-label">🛡️ Gols Contra (Média)</span>
+              <span class="match-stat-chip-label">Gols Contra (Média)</span>
               <span class="match-stat-chip-val">${totalGa} (${ptDecimal(avgGa, 1)})</span>
             </div>
             <div class="match-stat-chip">
-              <span class="match-stat-chip-label">🧤 Jogos sem Sofrer Gols</span>
+              <span class="match-stat-chip-label">Jogos sem Sofrer Gols</span>
               <span class="match-stat-chip-val" style="color:var(--gold);">${totalCleanSheets}</span>
             </div>
             ${(() => {
@@ -346,11 +340,11 @@ async function renderMyTeam() {
               const awayPctColor = awayPct >= 50 ? "#10B981" : "#EF4444";
               return `
                 <div class="match-stat-chip">
-                  <span class="match-stat-chip-label">🏟️ Vitórias em Casa</span>
+                  <span class="match-stat-chip-label">Vitórias em Casa</span>
                   <span class="match-stat-chip-val">${homeWins} de ${homePlayed} · <span style="color:${homePctColor};font-weight:800;">${homePct}%</span></span>
                 </div>
                 <div class="match-stat-chip">
-                  <span class="match-stat-chip-label">✈️ Vitórias Fora</span>
+                  <span class="match-stat-chip-label">Vitórias Fora</span>
                   <span class="match-stat-chip-val">${awayWins} de ${awayPlayed} · <span style="color:${awayPctColor};font-weight:800;">${awayPct}%</span></span>
                 </div>
               `;

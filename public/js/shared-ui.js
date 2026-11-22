@@ -160,7 +160,7 @@ function getMatchStatusCategory(fixture) {
       isStaleLive: false,
       label: timeDisplay,
       short,
-      badgeHtml: `<span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${timeDisplay}</span>`
+      badgeHtml: `<span class="fixture-date" style="color:#10B981;font-weight:700;"><i class="live-dot" aria-hidden="true"></i>${timeDisplay}</span>`
     };
   }
 
@@ -381,6 +381,24 @@ function breadcrumbs(crumbs) {
     </div>`;
 }
 
+// Ícones de traço (no lugar de emojis): desenho único, herdam a cor do texto.
+// Caminhos no estilo Lucide (ISC), redesenhados em 24x24.
+const ICON_PATHS = {
+  star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3" fill="currentColor"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  ball: '<circle cx="12" cy="12" r="10"/><path d="m12 7 4.2 3-1.6 5h-5.2l-1.6-5z" fill="currentColor"/><path d="M12 2v5M16.2 10l5.3-1.7M14.6 15l3.3 4.6M9.4 15l-3.3 4.6M7.8 10 2.5 8.3"/>',
+  swap: '<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
+  trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-1 1.2C7.9 18.8 7 20.2 7 22M14 14.7V17c0 .6.5 1 1 1.2 1.1.6 2 2 2 3.8"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>'
+};
+function icon(name, size = 16) {
+  return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name] || ""}</svg>`;
+}
+
 function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -518,7 +536,7 @@ function updateFavoriteTeamHeader() {
     `;
     btn.title = `Seu Time: ${formatTeamName(fav.name)} (Clique para trocar)`;
   } else {
-    btn.innerHTML = `<span class="fav-team-label">⭐ Escolher Time</span>`;
+    btn.innerHTML = `<span class="fav-team-label">${icon("star", 14)} Escolher time</span>`;
     btn.title = "Escolha seu time do coração";
   }
 }
@@ -544,9 +562,8 @@ function showOnboardingModal(isChange = false) {
     <div class="onboarding-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:1.6rem;">⭐</span>
           <div>
-            <h3 style="margin:0;font-size:1.2rem;font-weight:800;color:var(--chalk);">${isChange ? 'Trocar Time do Coração' : 'Bem-vindo ao FutStats! ⚽'}</h3>
+            <h3 style="margin:0;font-size:1.2rem;font-weight:800;color:var(--chalk);">${isChange ? 'Trocar Time do Coração' : 'Bem-vindo ao FutStats!'}</h3>
             <p style="margin:2px 0 0;font-size:0.8rem;color:var(--chalk-dim);">${isChange ? 'Escolha o novo clube para acompanhar notícias e receber alertas.' : 'Escolha seu time para receber notícias e alertas em tempo real.'}</p>
           </div>
         </div>
@@ -556,7 +573,7 @@ function showOnboardingModal(isChange = false) {
       <!-- Barra de busca com auto-complete -->
       <div style="margin-top:14px;position:relative;">
         <div style="display:flex;align-items:center;background:rgba(255,255,255,0.06);border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:0 12px;">
-          <span style="font-size:1rem;color:var(--chalk-dim);margin-right:8px;">🔍</span>
+          <span style="color:var(--chalk-dim);margin-right:8px;display:inline-flex;">${icon("search", 16)}</span>
           <input type="text" id="input-onboarding-search" placeholder="Busque qualquer clube (ex: Corinthians, Chelsea, Grêmio...)" autocomplete="off" style="width:100%;background:transparent;border:none;color:var(--chalk);padding:10px 0;font-family:var(--font-body);font-size:0.88rem;outline:none;">
         </div>
         <div id="onboarding-search-results" style="margin-top:10px;display:none;max-height:220px;overflow-y:auto;"></div>
@@ -594,7 +611,7 @@ function showOnboardingModal(isChange = false) {
       NotificationManager.syncPreferences().catch(err => toast("Não foi possível sincronizar alertas: " + err.message));
     }
     backdropEl.remove();
-    toast(`⭐ ${team.name} definido como seu time do coração!`, false);
+    toast(`${team.name} definido como seu time do coração!`, false);
     if (!location.hash || location.hash === "#/") {
       renderHome();
     }
@@ -639,7 +656,7 @@ function showOnboardingModal(isChange = false) {
 
     if (popularSection) popularSection.style.display = "none";
     resultsContainer.style.display = "block";
-    resultsContainer.innerHTML = `<div style="padding:10px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">🔍 Buscando clubes...</div>`;
+    resultsContainer.innerHTML = `<div style="padding:10px;text-align:center;color:var(--chalk-dim);font-size:0.8rem;">Buscando clubes...</div>`;
 
     searchDebounce = setTimeout(async () => {
       try {
@@ -661,7 +678,7 @@ function showOnboardingModal(isChange = false) {
                   <div style="font-size:0.7rem;color:var(--gold);">${escapeHtml(t.country || "")}</div>
                 </div>
               </div>
-              <span style="font-size:0.75rem;color:var(--cyan);font-weight:700;">Escolher ⭐</span>
+              <span style="font-size:0.75rem;color:var(--cyan);font-weight:700;">Escolher</span>
             </div>
           `;
         }).join("");
@@ -713,7 +730,6 @@ async function loadTeamNews(teamName, containerId) {
               <span class="news-source-badge">${escapeHtml(item.source)}</span>
               <div style="display:flex;align-items:center;gap:6px;">
                 <span>${escapeHtml(item.timeAgo)}</span>
-                <span style="color:var(--cyan);font-weight:700;">↗</span>
               </div>
             </div>
           </a>

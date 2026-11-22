@@ -10,7 +10,7 @@
   --line-strong: #233150;
   --chalk: #eef2fa;
   --chalk-dim: #8d9abb;
-  --chalk-muted: #5e6b8a;
+  --chalk-muted: #7c89a8; /* 5,1:1 sobre o cartão marinho (antes #5e6b8a, 3,4:1) */
   --gold: #f5b301;
   --gold-soft: rgba(245, 179, 1, .14);
   --gold-border: rgba(245, 179, 1, .42);
@@ -361,3 +361,21 @@ a.fixture-card-compact.match-colors:hover { filter: brightness(1.15); }
 /* cartões de número do time e do jogador: faixa no topo nas cores do clube, números em giz */
 .club-stat-grid .stat-card-modern::before { height: 4px; background: linear-gradient(90deg, var(--c1, var(--gold)), color-mix(in srgb, var(--c1, var(--gold)), #fff 40%)); }
 .club-stat-grid .stat-card-main-val { color: var(--chalk); font-family: var(--font-display); }
+
+/* ---------- mais calmo: ícones de traço no lugar de emojis, texto legível ---------- */
+.ico { display: inline-block; flex: none; vertical-align: -0.15em; }
+.ico-card { display: inline-block; width: 9px; height: 12px; border-radius: 2px; vertical-align: -1px; box-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
+.ico-card.yellow { background: #facc15; }
+.ico-card.red { background: #ef4444; }
+.live-dot { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #ef4444; vertical-align: 1px; }
+.fixture-card-date-badge, .fav-team-label, #btn-toggle-team-fav, .date-icon { display: inline-flex; align-items: center; gap: 5px; }
+.btn-fixture-highlights-pill { display: inline-flex; align-items: center; gap: 5px; }
+/* nome da marca sem texto em degradê (o "Stats" já tem a cor própria) */
+.brand-name { background: none; -webkit-text-fill-color: currentColor; }
+/* barra inferior: ícones desenhados, rótulos com 11px no mínimo */
+.bottom-nav-icon { display: inline-flex; height: 24px; align-items: center; font-size: 0; }
+.bottom-nav-label, .mobile-more summary .bottom-nav-label { font-size: 11px; font-weight: 600; }
+.bottom-nav-item.active .bottom-nav-icon { transform: none; filter: none; }
+.bell-icon { display: inline-flex; }
+/* celular: o botão do time favorito mostra só a estrela desenhada (o ::before antigo usava emoji) */
+@media (max-width: 760px) { .fav-team-label::before { content: none; } .fav-team-label .ico { width: 18px; height: 18px; } }

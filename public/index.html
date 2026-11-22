@@ -15,12 +15,12 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=112">
   <link rel="stylesheet" href="/css/features.css?v=105">
   <link rel="stylesheet" href="/css/accessibility.css?v=105">
   <link rel="stylesheet" href="/css/redesign.css?v=119">
-  <link rel="stylesheet" href="/css/courtside.css?v=13">
+  <link rel="stylesheet" href="/css/courtside.css?v=15">
 </head>
 <body>
   <div class="app-wrapper">
@@ -42,15 +42,15 @@
         <div style="display: flex; align-items: center; gap: 8px;">
           <!-- Botão do Time Favorito -->
           <button class="fav-team-header-btn" id="btn-fav-team-header" title="Seu Time Favorito">
-            <span class="fav-team-label">⭐ Escolher Time</span>
+            <span class="fav-team-label"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Escolher time</span>
           </button>
 
           <!-- Botão do Sininho no Topo -->
           <button class="btn-notification-bell" id="btn-open-notifications" title="Central de Notificações">
-            <span class="bell-icon">🔔</span>
+            <span class="bell-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
             <span class="bell-status-dot" id="bell-active-dot" hidden></span>
           </button>
-          <span class="quota-pill" id="quota-hint">⚡ Conectado</span>
+          <span class="quota-pill" id="quota-hint">Conectado</span>
         </div>
       </div>
     </header>
@@ -61,18 +61,18 @@
     <!-- Menu Inferior Mobile -->
     <nav class="mobile-bottom-nav" aria-label="Navegação principal no celular">
       <button class="bottom-nav-item active" data-nav="today">
-        <span class="bottom-nav-icon">📅</span>
+        <span class="bottom-nav-icon"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
         <span class="bottom-nav-label">Jogos</span>
       </button>
       <button class="bottom-nav-item" data-nav="live">
-        <span class="bottom-nav-icon">●</span>
+        <span class="bottom-nav-icon"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="9"/></svg></span>
         <span class="bottom-nav-label">Ao Vivo</span>
       </button>
       <button class="bottom-nav-item" data-nav="home">
-        <span class="bottom-nav-icon">🏆</span>
+        <span class="bottom-nav-icon"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-1 1.2C7.9 18.8 7 20.2 7 22M14 14.7V17c0 .6.5 1 1 1.2 1.1.6 2 2 2 3.8"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
         <span class="bottom-nav-label">Ligas</span>
       </button>
-      <details class="mobile-more"><summary><span class="bottom-nav-icon">☰</span><span class="bottom-nav-label">Mais</span></summary><div class="mobile-more-links"><a href="#/meu-time" aria-label="Abrir seu time">Seu Time</a></div></details>
+      <details class="mobile-more"><summary><span class="bottom-nav-icon"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16"/></svg></span><span class="bottom-nav-label">Mais</span></summary><div class="mobile-more-links"><a href="#/meu-time" aria-label="Abrir seu time">Seu Time</a></div></details>
     </nav>
   </div>
 
@@ -81,7 +81,7 @@
     <div class="notif-modal-card">
       <div class="notif-modal-header">
         <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:1.4rem;">🔔</span>
+          <span style="display:inline-flex;color:var(--gold);"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
           <h3 style="margin:0;font-size:1.1rem;font-weight:700;">Central de Notificações</h3>
         </div>
         <button class="btn-modal-close" id="btn-close-notifications">✕</button>
@@ -104,12 +104,12 @@
         <div>
           <label style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);text-transform:uppercase;font-weight:700;display:block;margin-bottom:8px;">Eventos Desejados</label>
           <div class="notif-checkbox-grid">
-            <label class="notif-checkbox-item"><input type="checkbox" id="pref-goals" checked> ⚽ Gols</label>
-            <label class="notif-checkbox-item"><input type="checkbox" id="pref-lineups" checked> 📋 Escalações Confirmadas</label>
-            <label class="notif-checkbox-item"><input type="checkbox" id="pref-kickoff" checked> ⏱️ Início de Jogo</label>
-            <label class="notif-checkbox-item"><input type="checkbox" id="pref-halftime" checked> ⏸️ Intervalo</label>
-            <label class="notif-checkbox-item"><input type="checkbox" id="pref-fulltime" checked> 🏁 Fim de Jogo</label>
-            <label class="notif-checkbox-item"><input type="checkbox" id="pref-redcards" checked> 🟥 Cartões Vermelhos</label>
+            <label class="notif-checkbox-item"><input type="checkbox" id="pref-goals" checked> Gols</label>
+            <label class="notif-checkbox-item"><input type="checkbox" id="pref-lineups" checked> Escalações confirmadas</label>
+            <label class="notif-checkbox-item"><input type="checkbox" id="pref-kickoff" checked> Início de jogo</label>
+            <label class="notif-checkbox-item"><input type="checkbox" id="pref-halftime" checked> Intervalo</label>
+            <label class="notif-checkbox-item"><input type="checkbox" id="pref-fulltime" checked> Fim de jogo</label>
+            <label class="notif-checkbox-item"><input type="checkbox" id="pref-redcards" checked> Cartões vermelhos</label>
           </div>
         </div>
 
@@ -131,7 +131,7 @@
 
         <!-- Botões de Ação & Teste -->
         <div style="display:flex;gap:10px;margin-top:6px;">
-          <button class="btn ghost small" id="btn-test-notification" style="flex:1;">🔔 Testar Alerta</button>
+          <button class="btn ghost small" id="btn-test-notification" style="flex:1;">Testar alerta</button>
           <button class="btn small" id="btn-save-notif" style="flex:1;">Salvar Ajustes</button>
         </div>
       </div>
@@ -142,18 +142,18 @@
 
   <script defer src="/js/cache.js?v=106"></script>
   <script defer src="/js/models.js?v=106"></script>
-  <script defer src="/js/core.js?v=105"></script>
-  <script defer src="/js/notifications.js?v=110"></script>
+  <script defer src="/js/core.js?v=106"></script>
+  <script defer src="/js/notifications.js?v=111"></script>
   <script defer src="/js/team-colors.js?v=4"></script>
   <script defer src="/js/goal-rules.js?v=1"></script>
-  <script defer src="/js/shared-ui.js?v=109"></script>
-  <script defer src="/js/favorite-team.js?v=108"></script>
-  <script defer src="/js/leagues.js?v=113"></script>
-  <script defer src="/js/league-insights.js?v=5"></script>
-  <script defer src="/js/players.js?v=110"></script>
-  <script defer src="/js/teams.js?v=112"></script>
-  <script defer src="/js/matches.js?v=127"></script>
-  <script defer src="/js/fixture.js?v=116"></script>
+  <script defer src="/js/shared-ui.js?v=110"></script>
+  <script defer src="/js/favorite-team.js?v=109"></script>
+  <script defer src="/js/leagues.js?v=114"></script>
+  <script defer src="/js/league-insights.js?v=6"></script>
+  <script defer src="/js/players.js?v=111"></script>
+  <script defer src="/js/teams.js?v=113"></script>
+  <script defer src="/js/matches.js?v=128"></script>
+  <script defer src="/js/fixture.js?v=117"></script>
   <script defer src="/js/comparison.js?v=106"></script>
   <script defer src="/js/lineups.js?v=105"></script>
   <script defer src="/js/broadcast.js?v=105"></script>
