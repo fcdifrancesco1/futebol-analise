@@ -743,13 +743,14 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                 const isLive = statusInfo.isLive;
                 const isFinished = statusInfo.isFinished;
                 const statusBadge = statusInfo.badgeHtml;
+                const goalSide = isLive ? liveGoalSide(f) : "";
 
                 const scoreDisplay = (isFinished || isLive)
                   ? `<span class="fixture-score ${isLive ? 'live-score' : ''}">${scoreWithPenaltiesHtml(f, 0)}</span>`
                   : `<span class="fixture-score" style="color:var(--chalk-dim);font-size:0.85rem;">vs</span>`;
 
                 return `
-                  <div class="fixture-row match-fixture-row match-colors has-row-link" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}">
+                  <div class="fixture-row match-fixture-row match-colors has-row-link${goalSide ? ` goal-${goalSide}` : ''}" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}">
                     <a class="fixture-row-link" href="#/jogo/${f.fixture.id}" aria-label="Ver partida ${escapeHtml(formatTeamName(f.teams.home.name))} x ${escapeHtml(formatTeamName(f.teams.away.name))}"></a>
                     <div class="fixture-date-col">
                       ${statusBadge}
@@ -760,6 +761,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                     </div>
                     <div class="fixture-score-col">
                       ${scoreDisplay}
+                      ${goalMarkup(f, goalSide)}
                       ${isFinished ? `
                         <button type="button" class="btn-fixture-highlights-pill is-icon" title="Buscar melhores momentos no YouTube" aria-label="Buscar melhores momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}">
                           ${icon("play", 10)}
@@ -886,9 +888,10 @@ async function fetchLiveMatches(isForced = false) {
               ${matches.map(f => {
                 const statusInfo = getMatchStatusCategory(f.fixture);
                 const timeDisplay = statusInfo.label;
+                const goalSide = liveGoalSide(f);
 
                 return `
-                  <a class="fixture-row match-fixture-row match-colors" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
+                  <a class="fixture-row match-fixture-row match-colors${goalSide ? ` goal-${goalSide}` : ''}" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}" href="#/jogo/${f.fixture.id}" title="Clique para abrir detalhes do jogo">
                     <div class="fixture-date-col">
                       <span class="fixture-date" style="color:#10B981;font-weight:700;"><i class="live-dot" aria-hidden="true"></i>${timeDisplay}</span>
                     </div>
@@ -898,6 +901,7 @@ async function fetchLiveMatches(isForced = false) {
                     </div>
                     <div class="fixture-score-col">
                       <span class="fixture-score live-score">${scoreWithPenaltiesHtml(f, 0)}</span>
+                      ${goalMarkup(f, goalSide)}
                     </div>
                     <div class="fixture-team-item">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
@@ -918,6 +922,25 @@ async function fetchLiveMatches(isForced = false) {
       content.innerHTML = errorBox(err.message);
     }
   }
+}
+
+// Placar já visto por jogo ao vivo: quando sobe entre duas atualizações, o lado de quem marcou acende.
+// Na primeira vez que o jogo aparece não há comparação, então abrir a tela nunca "comemora" gol antigo.
+const seenLiveScores = new Map();
+function liveGoalSide(f) {
+  const id = f?.fixture?.id;
+  if (id == null) return "";
+  const h = Number(f.goals?.home) || 0, a = Number(f.goals?.away) || 0;
+  const prev = seenLiveScores.get(id);
+  seenLiveScores.set(id, { h, a });
+  if (!prev) return "";
+  return h > prev.h ? "home" : a > prev.a ? "away" : "";
+}
+
+function goalMarkup(f, side) {
+  if (!side) return "";
+  const team = formatTeamName(side === "home" ? f.teams.home.name : f.teams.away.name);
+  return `<span class="goal-tag" aria-hidden="true">GOL</span><span class="sr-only" role="status">Gol do ${escapeHtml(team)}</span>`;
 }
 
 function startLiveAutoRefresh(refreshFn) {

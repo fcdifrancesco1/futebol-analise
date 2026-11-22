@@ -444,6 +444,18 @@ test('day spotlight prioritizes favorite teams, prominent competitions and compl
   assert.ok(vm.runInContext("isSpotlightFinal('Final') && !isSpotlightFinal('Semi-finals') && !isSpotlightFinal('Quarter-finals')", context));
 });
 
+test('live goal highlight fires only when the score rises between refreshes', () => {
+  const context = vm.createContext({ formatTeamName: n => n, escapeHtml: s => s });
+  vm.runInContext(fs.readFileSync('public/js/matches.js', 'utf8'), context);
+  const side = (h, a) => vm.runInContext(`liveGoalSide({ fixture: { id: 9 }, goals: { home: ${h}, away: ${a} } })`, context);
+  assert.equal(side(1, 0), '');      // primeira vez: gol antigo não comemora
+  assert.equal(side(1, 0), '');      // sem mudança
+  assert.equal(side(1, 1), 'away');
+  assert.equal(side(2, 1), 'home');
+  assert.equal(side(2, 1), '');
+  assert.match(vm.runInContext("goalMarkup({ teams: { home: { name: 'Palmeiras' }, away: { name: 'Flamengo' } } }, 'away')", context), /GOL[\s\S]*Gol do Flamengo/);
+});
+
 test('fixture hero goals: chronological mobile list and VAR cancelled goals', () => {
   const fixtureSrc = fs.readFileSync('public/js/fixture.js', 'utf8');
   const start = fixtureSrc.indexOf('function isCancelledGoalEvent');

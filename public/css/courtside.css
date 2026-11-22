@@ -400,3 +400,18 @@ input::placeholder, textarea::placeholder { color: var(--chalk-dim); opacity: 1;
 .pen-score { font-size: 11px; }
 .league-highlight-title { font-size: 11px; }
 .league-highlight-sub { font-size: 12px; }
+
+/* Gol ao vivo: o lado de quem marcou acende na cor do próprio clube e o selo GOL aparece sobre o placar */
+.fixture-score-col { position: relative; }
+.fixture-row.goal-home .fixture-team-item.right { --goal-c: var(--h1); }
+.fixture-row.goal-away .fixture-team-item:not(.right) { --goal-c: var(--a1); }
+.fixture-row.goal-home .fixture-team-item.right,
+.fixture-row.goal-away .fixture-team-item:not(.right) { border-radius: 6px; animation: goal-flash 1.2s cubic-bezier(.16, 1, .3, 1) 3; }
+@keyframes goal-flash { 0% { background: color-mix(in srgb, var(--goal-c, #fff), #fff 45%); } 100% { background: transparent; } }
+.goal-tag { position: absolute; left: 50%; top: -12px; transform: translateX(-50%); z-index: 2; pointer-events: none; font-family: var(--font-display); font-weight: 700; font-size: 11px; line-height: 1; letter-spacing: .06em; color: #fff; background: var(--terracotta); border-radius: 4px; padding: 2px 6px; box-shadow: 0 2px 6px -2px rgba(0, 0, 0, .6); animation: goal-tag 8s cubic-bezier(.16, 1, .3, 1) forwards; }
+@keyframes goal-tag { 0% { transform: translate(-50%, 4px) scale(.85); opacity: 0; } 6% { transform: translate(-50%, 0) scale(1); opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .goal-tag { animation: none !important; }
+  .fixture-row.goal-home .fixture-team-item.right,
+  .fixture-row.goal-away .fixture-team-item:not(.right) { animation: none !important; background: rgba(255, 255, 255, .16); }
+}
