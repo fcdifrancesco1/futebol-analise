@@ -430,6 +430,18 @@ test('day spotlight prioritizes favorite teams, prominent competitions and compl
   html = vm.runInContext('renderDaySpotlight(fixtures)', context);
   assert.match(html, /Senegal/);
   assert.match(html, /AO VIVO/);
+
+  // Cenário 4: Brasileirão agendado supera Premier ao vivo; final supera rodada comum
+  const br = [
+    { fixture: { id: 3, date: '2026-11-21T12:00:00Z', status: { short: '1H' } }, league: { id: 39, name: 'Premier League', round: 'Regular Season - 11' },
+      teams: { home: { id: 50, name: 'Manchester City', logo: 'x.png' }, away: { id: 36, name: 'Fulham', logo: 'y.png' } } },
+    { fixture: { id: 4, date: '2026-11-21T19:30:00Z', status: { short: 'NS' } }, league: { id: 71, name: 'Serie A', round: 'Regular Season - 36' },
+      teams: { home: { id: 121, name: 'Palmeiras', logo: 'p.png' }, away: { id: 127, name: 'Flamengo', logo: 'f.png' } } }
+  ];
+  context.fixtures = br;
+  html = vm.runInContext('renderDaySpotlight(fixtures)', context);
+  assert.match(html, /Palmeiras/);
+  assert.ok(vm.runInContext("isSpotlightFinal('Final') && !isSpotlightFinal('Semi-finals') && !isSpotlightFinal('Quarter-finals')", context));
 });
 
 test('fixture hero goals: chronological mobile list and VAR cancelled goals', () => {
@@ -603,4 +615,14 @@ test('crest colors skip white and transparent pixels and prefer the vivid color 
   assert.equal(pickCrestColors(Uint8ClampedArray.from(px(50, [255, 255, 255, 255]))), null);
   // time fora das tabelas: variável CSS com a cor neutra até o escudo ser lido
   assert.deepEqual(teamColors(424242), ['var(--tc424242a, #1d2a45)', 'var(--tc424242b, #101828)']);
+});
+
+test('teamShortName: siglas sem colisão nos principais campeonatos', () => {
+  const vm = require('node:vm');
+  const ctx = { window: {}, document: { getElementById: () => null }, console };
+  vm.createContext(ctx);
+  vm.runInContext(require('node:fs').readFileSync(require('node:path').join(__dirname, '../public/js/shared-ui.js'), 'utf8'), ctx);
+  const pairs = [['Coritiba', 'CFC'], ['Corinthians', 'COR'], ['Atletico-MG', 'CAM'], ['Athletico Paranaense', 'CAP'],
+    ['Manchester City', 'MCI'], ['Manchester United', 'MUN'], ['AC Milan', 'MIL'], ['São Paulo', 'SAO'], ['Flamengo', 'FLA']];
+  for (const [name, code] of pairs) assert.equal(ctx.teamShortName(name), code, name);
 });

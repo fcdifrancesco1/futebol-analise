@@ -297,3 +297,55 @@ a.fixture-card-compact.match-colors:hover { filter: brightness(1.15); }
   .fixture-team-item span[data-short], .pp-opp[data-short] { font-size: 0; overflow: visible; }
   .fixture-team-item span[data-short]::before, .pp-opp[data-short]::before { content: attr(data-short); font-size: 13px; letter-spacing: .04em; }
 }
+
+/* ---------- celular: classificação ao vivo recolhível, barra de data compacta, filtros numa fileira ---------- */
+.day-standings-toggle { display: none; }
+.table-full-toggle { display: none; }
+@media (max-width: 760px) {
+  /* liga: tabela resumida (#, time, J, SG, Pts); "Tabela completa" abre o resto com rolagem lateral */
+  .table-full-toggle { display: inline-flex; margin-left: auto; }
+  #league-content:not(.standings-full) .x-col, .league-projection-table .x-col { display: none; }
+  .team-cell span[data-short] { font-size: 0; }
+  .team-cell span[data-short]::before { content: attr(data-short); font-size: 13px; font-weight: 800; letter-spacing: .04em; }
+
+  .day-sidebar { display: block; position: static; padding-top: 0; margin-bottom: 12px; }
+  .day-standings-card { padding: 0; }
+  .day-standings-head { margin: 0; padding: 4px 6px 4px 4px; }
+  .day-standings-head .page-eyebrow { display: none; }
+  .day-standings-toggle { display: flex; flex: 1; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--chalk); font: 700 15px var(--font-display); letter-spacing: .05em; text-transform: uppercase; text-align: left; cursor: pointer; }
+  .day-standings-toggle::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--cs-pitch-2); flex: none; }
+  .day-standings-toggle::after { content: ''; width: 8px; height: 8px; margin-left: auto; border-right: 2px solid var(--chalk-dim); border-bottom: 2px solid var(--chalk-dim); transform: rotate(45deg) translateY(-3px); transition: transform .2s; }
+  .day-standings-card.is-open .day-standings-toggle::after { transform: rotate(-135deg) translateY(-2px); }
+  .day-standings-card:not(.is-open) .day-standings-controls, .day-standings-card:not(.is-open) #day-standings-body { display: none; }
+  .day-standings-card.is-open #day-standings-body { padding: 0 12px 12px; }
+  .day-standings-card.is-open a.day-standings-title { margin: 0 -12px 10px; }
+  .day-standings-btn { width: 40px; height: 40px; }
+
+  /* barra de data: dias numa linha, data + atualizar (só ícone) na outra */
+  .day-selector-bar { gap: 6px; padding: 6px; }
+  .day-current-display { display: flex; align-items: center; gap: 6px; padding: 0; }
+  .day-date-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .day-date-picker { flex: 1; min-width: 0; min-height: 40px; }
+  .day-refresh-btn { flex: none; width: 44px; min-height: 40px; padding: 0; }
+  .day-refresh-btn span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .day-refresh-btn .refresh-spin-icon { font-size: 18px; }
+
+  /* filtros: uma fileira rolável em vez de grade 2x2 */
+  .day-filter-row { margin-bottom: 10px; }
+  .matches-day-filters, #day-status-filters { display: flex; flex-wrap: nowrap; gap: 6px; width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .matches-day-filters::-webkit-scrollbar { display: none; }
+  .matches-day-filter-btn { flex: none; min-height: 36px; white-space: nowrap; }
+
+  /* destaque do dia mais baixo */
+  .day-spotlight { margin-bottom: 14px; }
+  .day-spotlight-main { padding: 12px 10px; }
+  .day-spotlight.match-hero .day-spotlight-team img { width: 34px; height: 34px; }
+  .day-spotlight-score strong, .day-spotlight.match-hero .day-spotlight-score strong { font-size: 36px; }
+  .day-spotlight-score small { margin-top: 4px; }
+  .day-spotlight-foot { padding: 8px 13px; }
+}
+@media (max-width: 760px) {
+  .league-projection-table th, .league-projection-table td { padding: 8px 5px; font-size: 12.5px; }
+  .league-projection-table th span[data-short] { font-size: 0; }
+  .league-projection-table th span[data-short]::before { content: attr(data-short); font-size: 11px; }
+}

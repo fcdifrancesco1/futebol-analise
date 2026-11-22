@@ -388,9 +388,26 @@ function sanitizeUrl(url) {
   return "#";
 }
 
-// Sigla de 3 letras para a classificação no celular (o escudo ao lado desfaz ambiguidades).
+// Sigla de 3 letras para times no celular. Primeiras letras do nome, exceto:
+// - siglas consagradas que evitam colisões no mesmo campeonato (CFC x COR, CAP x CAM);
+// - prefixo de sigla ("AC Milan", "RB Leipzig") é descartado;
+// - prefixo comum ("Manchester City", "Real Madrid", "Atletico-MG") vira inicial + 2 letras do nome seguinte.
+const TEAM_SHORT_OVERRIDES = {
+  "coritiba": "CFC", "corinthians": "COR", "athletico paranaense": "CAP", "atletico paranaense": "CAP",
+  "atletico mg": "CAM", "atletico goianiense": "ACG", "rb bragantino": "RBB", "red bull bragantino": "RBB",
+  "atletico madrid": "ATM", "bayern munchen": "BAY", "bayern munich": "BAY"
+};
+const TEAM_SHORT_PREFIXES = new Set(["manchester", "real", "atletico", "athletic", "athletico", "borussia", "bayer", "eintracht", "sporting", "west", "olympique", "racing", "deportivo"]);
 function teamShortName(name) {
-  return String(name || "").normalize("NFD").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
+  const words = String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[\s\-.]+/).filter(Boolean);
+  const key = words.join(" ").toLowerCase();
+  if (TEAM_SHORT_OVERRIDES[key]) return TEAM_SHORT_OVERRIDES[key];
+  if (words.length > 1 && /^[A-Z]{2,3}$/.test(words[0])) words.shift();
+  const letters = w => w.replace(/[^A-Za-z]/g, "");
+  if (words.length > 1 && TEAM_SHORT_PREFIXES.has(words[0].toLowerCase()) && letters(words[1]).length >= 2) {
+    return (letters(words[0])[0] + letters(words[1]).slice(0, 2)).toUpperCase();
+  }
+  return letters(words.join("")).slice(0, 3).toUpperCase();
 }
 
 function formatTeamName(name) {

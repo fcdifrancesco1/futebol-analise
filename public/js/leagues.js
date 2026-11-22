@@ -342,6 +342,7 @@ async function renderLeague(leagueId, season) {
           <button class="table-filter-btn ${state.currentTableFilter === 'all' ? 'active' : ''}" data-filter="all">Geral</button>
           <button class="table-filter-btn ${state.currentTableFilter === 'home' ? 'active' : ''}" data-filter="home">Mandante</button>
           <button class="table-filter-btn ${state.currentTableFilter === 'away' ? 'active' : ''}" data-filter="away">Visitante</button>
+          <button class="table-filter-btn table-full-toggle" type="button" data-toggle="full" aria-pressed="false" aria-controls="league-content" title="Mostrar todas as colunas">Completa</button>
         </div>
 
         <div id="league-content">${skeletonTable()}</div>
@@ -360,8 +361,15 @@ async function renderLeague(leagueId, season) {
   document.getElementById("table-filters").addEventListener("click", (e) => {
     const btn = e.target.closest(".table-filter-btn");
     if (!btn) return;
+    // celular: a tabela resumida (J, SG, Pts) abre todas as colunas sem recarregar
+    if (btn.dataset.toggle === "full") {
+      const on = document.getElementById("league-content")?.classList.toggle("standings-full");
+      btn.classList.toggle("active", !!on);
+      btn.setAttribute("aria-pressed", String(!!on));
+      return;
+    }
     state.currentTableFilter = btn.dataset.filter;
-    document.querySelectorAll(".table-filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+    document.querySelectorAll(".table-filter-btn[data-filter]").forEach(b => b.classList.toggle("active", b === btn));
     renderStandingsFromCache(leagueId, season);
   });
 
@@ -712,16 +720,16 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
           </div>
         </td>
         <td>${stat.played}</td>
-        <td>${stat.win}</td>
-        <td>${stat.draw}</td>
-        <td>${stat.lose}</td>
-        <td>${stat.goals.for}</td>
-        <td>${stat.goals.against}</td>
+        <td class="x-col">${stat.win}</td>
+        <td class="x-col">${stat.draw}</td>
+        <td class="x-col">${stat.lose}</td>
+        <td class="x-col">${stat.goals.for}</td>
+        <td class="x-col">${stat.goals.against}</td>
         <td>${diff > 0 ? "+" : ""}${diff}</td>
         <td><strong>${pts}</strong></td>
-        <td class="aprov-cell">${aprov}%</td>
-        ${showDist ? `<td class="dist-cell">${leagueDistanceHtml(leagueDistance(sortedTable, idx, zones))}</td>` : ""}
-        <td>${formPills}</td>
+        <td class="aprov-cell x-col">${aprov}%</td>
+        ${showDist ? `<td class="dist-cell x-col">${leagueDistanceHtml(leagueDistance(sortedTable, idx, zones))}</td>` : ""}
+        <td class="x-col">${formPills}</td>
       </tr>`;
   }).join("");
 
@@ -734,11 +742,11 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
             <th class="pos-cell">#</th>
             ${showMove ? `<th class="move-cell" title="Variação desde a rodada anterior" aria-label="Variação desde a rodada anterior"></th>` : ""}
             <th class="team-cell">Time</th>
-            <th>J</th><th>V</th><th>E</th><th>D</th>
-            <th>GP</th><th>GC</th><th>SG</th><th>Pts</th>
-            <th title="Aproveitamento dos pontos disputados">%</th>
-            ${showDist ? `<th title="Pontos até a zona de cima (G) ou para sair do rebaixamento (Z)">Dist.</th>` : ""}
-            <th>Últ. 5</th>
+            <th>J</th><th class="x-col">V</th><th class="x-col">E</th><th class="x-col">D</th>
+            <th class="x-col">GP</th><th class="x-col">GC</th><th>SG</th><th>Pts</th>
+            <th class="x-col" title="Aproveitamento dos pontos disputados">%</th>
+            ${showDist ? `<th class="x-col" title="Pontos até a zona de cima (G) ou para sair do rebaixamento (Z)">Dist.</th>` : ""}
+            <th class="x-col">Últ. 5</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>

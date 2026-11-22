@@ -34,6 +34,9 @@ function formatDateDisplayBR(dateStr) {
 // ponytail: peso de relevância para seleção inteligente do jogo destaque
 const SPOTLIGHT_TIER_1_LEAGUES = new Set([2, 1, 13, 71, 39, 140, 4, 9, 14]);
 const SPOTLIGHT_TIER_2_LEAGUES = new Set([135, 78, 61, 73, 3, 5, 10]);
+// Torcedor brasileiro: depois do time favorito, competições nacionais e decisões vêm antes do status
+const SPOTLIGHT_BRAZIL_LEAGUES = new Set([71, 72, 73, 13, 11]);
+const isSpotlightFinal = round => /\bfinal\b/i.test(round) && !/semi|quarter|1\/\d|8th|16/i.test(round);
 
 function getSpotlightScore(f, favTeamId = null, favFixtureIds = new Set()) {
   let score = 0;
@@ -51,7 +54,12 @@ function getSpotlightScore(f, favTeamId = null, favFixtureIds = new Set()) {
     score += 500;
   }
 
-  // 3. Status da partida (Ao vivo > Agendado > Encerrado)
+  // 3. Competições brasileiras e finais
+  const round = String(f.league?.round || '');
+  if (SPOTLIGHT_BRAZIL_LEAGUES.has(Number(f.league?.id))) score += 400;
+  if (isSpotlightFinal(round)) score += 350;
+
+  // 4. Status da partida (Ao vivo > Agendado > Encerrado)
   const statusCat = typeof getMatchStatusCategory === 'function' ? getMatchStatusCategory(f.fixture) : null;
   if (statusCat?.isLive) {
     score += 300;
@@ -79,7 +87,6 @@ function getSpotlightScore(f, favTeamId = null, favFixtureIds = new Set()) {
   }
 
   // 6. Penalização para fases muito preliminares (ex: 1/128-finals)
-  const round = String(f.league?.round || '');
   if (/\b(?:1\/128|1\/64|prelimin|qualif)/i.test(round)) {
     score -= 35;
   }
@@ -418,6 +425,7 @@ function fitDayStandings() {
   const aside = card?.closest(".day-sidebar");
   const tbody = card?.querySelector(".day-standings-table tbody");
   if (!card || !aside || !tbody || !tbody.rows.length || aside.offsetParent === null) return;
+  if (getComputedStyle(aside).position !== "sticky") { card.style.removeProperty("--ds-row"); aside.style.top = ""; return; } // celular: lista corrida
   card.style.removeProperty("--ds-row");
   const view = globalThis.innerHeight || 800;
   const fixed = card.offsetHeight - tbody.offsetHeight;
@@ -459,6 +467,13 @@ function setupDayStandings(fixtures, doc = globalThis.document) {
       const btn = e.target.closest("[data-standings]");
       if (!btn) return;
       const action = btn.dataset.standings;
+      // celular: a classificação fica recolhida no topo; ao abrir para ler, a troca automática pausa
+      if (action === "toggle") {
+        const open = card.classList.toggle("is-open");
+        btn.setAttribute("aria-expanded", String(open));
+        if (open && !dayStandings.userPaused) card.querySelector('[data-standings="pause"]')?.click();
+        return;
+      }
       if (action === "pause") {
         dayStandings.userPaused = !dayStandings.userPaused;
         btn.setAttribute("aria-pressed", String(dayStandings.userPaused));
@@ -494,6 +509,7 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
       <aside class="day-sidebar" aria-label="Classificação dos campeonatos">
         <div class="day-rail-card day-standings-card" id="day-standings">
           <div class="day-standings-head">
+            <button type="button" class="day-standings-toggle" data-standings="toggle" aria-expanded="false" aria-controls="day-standings-body">Classificação</button>
             <span class="page-eyebrow">CLASSIFICAÇÃO</span>
             <div class="day-standings-controls">
               <button type="button" class="day-standings-btn" data-standings="prev" aria-label="Campeonato anterior">‹</button>

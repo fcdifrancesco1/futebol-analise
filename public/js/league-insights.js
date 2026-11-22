@@ -367,12 +367,12 @@ function renderLeagueProjection(sortedRows, sim, schedule, zones, leagueId, seas
         <table class="standings-table league-projection-table">
           <thead><tr>
             <th class="pos-cell">#</th><th class="team-cell">Time</th><th title="Pontos atuais">Pts</th>
-            <th title="Pontos projetados ao fim da temporada">Projeção</th>
+            <th title="Pontos projetados ao fim da temporada"><span data-short="Proj.">Projeção</span></th>
             <th title="${isCup ? "Chance de terminar em 1º nesta fase" : "Chance de título"}">${firstLabel}</th>
             ${topLabel ? `<th title="Chance de terminar no ${topLabel}">${topLabel}</th>` : ""}
             ${downLabel ? `<th title="Chance de rebaixamento">${downLabel}</th>` : ""}
-            <th title="Jogos restantes">Rest.</th>
-            <th class="league-difficulty-col" title="Posição média atual dos próximos adversários (quanto menor, mais fortes). Difícil/Fácil compara com a média que o time teria enfrentando todos os outros.">Adversários</th>
+            <th class="x-col" title="Jogos restantes">Rest.</th>
+            <th class="league-difficulty-col x-col" title="Posição média atual dos próximos adversários (quanto menor, mais fortes). Difícil/Fácil compara com a média que o time teria enfrentando todos os outros.">Adversários</th>
           </tr></thead>
           <tbody>
             ${sortedRows.map((t, i) => {
@@ -381,14 +381,14 @@ function renderLeagueProjection(sortedRows, sim, schedule, zones, leagueId, seas
               return `
               <tr data-team-id="${t.team.id}" data-league-id="${leagueId}" data-season="${season}">
                 <td class="pos-cell">${i + 1}</td>
-                <td class="team-cell"><div class="team-cell-inner"><img src="${t.team.logo}" alt="" loading="lazy"><span>${escapeHtml(t.team.name)}</span></div></td>
+                <td class="team-cell"><div class="team-cell-inner"><img src="${t.team.logo}" alt="" loading="lazy"><span data-short="${teamShortName(t.team.name)}">${escapeHtml(t.team.name)}</span></div></td>
                 <td><strong>${t.points}</strong></td>
                 <td>${s.projected != null ? Math.round(s.projected) : "–"}</td>
                 <td class="league-chance ${s.title >= 0.5 ? "hi" : ""}">${leaguePercent(s.title)}</td>
                 ${topLabel ? `<td class="league-chance ${s.top >= 0.5 ? "hi" : ""}">${leaguePercent(s.top)}</td>` : ""}
                 ${downLabel ? `<td class="league-chance down ${s.down >= 0.5 ? "hi" : ""}">${leaguePercent(s.down)}</td>` : ""}
-                <td>${sch.games ?? 0}</td>
-                <td class="league-difficulty-col">${sch.avg != null
+                <td class="x-col">${sch.games ?? 0}</td>
+                <td class="league-difficulty-col x-col">${sch.avg != null
                   ? `<span class="league-difficulty ${sch.level}" title="Posição média dos adversários: ${sch.avg.toFixed(1).replace(".", ",")}º">${levelLabel[sch.level]} · ${sch.avg.toFixed(1).replace(".", ",")}º</span>`
                   : "–"}</td>
               </tr>`;
