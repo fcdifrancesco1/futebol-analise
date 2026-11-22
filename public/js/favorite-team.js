@@ -247,7 +247,8 @@ async function renderMyTeam() {
                 }
 
                 return `
-                  <a class="fixture-card-compact match-colors" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}" href="#/jogo/${f.fixture.id}" title="Ver detalhes de ${escapeHtml(leagueName)}">
+                  <div class="fixture-card-compact match-colors has-row-link" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}">
+                    <a class="fixture-row-link" href="#/jogo/${f.fixture.id}" aria-label="Ver partida ${escapeHtml(formatTeamName(f.teams.home.name))} x ${escapeHtml(formatTeamName(f.teams.away.name))}"></a>
                     <div class="fixture-card-topbar">
                       <div class="fixture-card-league" title="${escapeHtml(leagueName)}">
                         ${leagueLogo ? `<img src="${leagueLogo}" alt="" class="fixture-card-league-logo" data-image-fallback="hide">` : ''}
@@ -277,7 +278,7 @@ async function renderMyTeam() {
                         <span class="fixture-team-name" data-short="${teamShortName(f.teams.away.name)}" title="${escapeHtml(formatTeamName(f.teams.away.name))}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                       </div>
                     </div>
-                  </a>
+                  </div>
                 `;
               }).join("")}
             </div>

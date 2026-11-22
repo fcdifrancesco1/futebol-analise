@@ -494,6 +494,26 @@ function setupDayStandings(fixtures, doc = globalThis.document) {
   showDayStandingsSlide(0);
 }
 
+// Ao vivo sem jogos: diz o próximo jogo de hoje (mesma consulta da página do dia, já em cache)
+async function liveEmptyStateHtml(knownLeagueIds) {
+  let next = null;
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
+    const today = await apiGet("fixtures", { date: getLocalDateString(new Date()), timezone: tz }, 3);
+    next = filterSeniorNationalFixtures(today)
+      .filter(f => knownLeagueIds.has(f.league?.id) && getMatchStatusCategory(f.fixture).isScheduled && new Date(f.fixture.date) > Date.now())
+      .sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date))[0] || null;
+  } catch { next = null; }
+  const nextHtml = next
+    ? `<p style="margin:12px 0 0;">Próximo jogo: <a href="#/jogo/${next.fixture.id}" style="color:var(--gold);font-weight:700;">${escapeHtml(formatTeamName(next.teams.home.name))} x ${escapeHtml(formatTeamName(next.teams.away.name))}</a>, às ${new Date(next.fixture.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} (${escapeHtml(next.league?.name || "")}).</p>`
+    : `<p style="margin:12px 0 0;">Não há mais jogos marcados para hoje nas ligas cobertas.</p>`;
+  return `<div class="card" style="text-align:center;padding:36px 20px;color:var(--chalk-dim);">
+    <p style="margin:0;color:var(--chalk);font-weight:700;">Nenhum jogo ao vivo agora.</p>
+    ${nextHtml}
+    <p style="margin:14px 0 0;"><a href="#/" style="color:var(--gold);">Ver todos os jogos de hoje</a></p>
+  </div>`;
+}
+
 async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
   const view = captureView();
   const app = view.root;
@@ -656,6 +676,8 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
     // Atualiza contadores dos botões de filtro se existirem
     document.querySelector('[data-filter="all"]').textContent = `Todos (${relevant.length})`;
     document.querySelector('[data-filter="live"]').textContent = `● Ao Vivo (${liveCount})`;
+    // o ponto vermelho da aba "Ao Vivo" só aparece quando há jogo rolando hoje
+    window.document.querySelectorAll('.live-indicator').forEach(el => { el.hidden = !liveCount; });
     document.querySelector('[data-filter="scheduled"]').textContent = `Próximos (${scheduledCount})`;
     document.querySelector('[data-filter="finished"]').textContent = `Resultados (${finishedCount})`;
 
@@ -727,7 +749,8 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                   : `<span class="fixture-score" style="color:var(--chalk-dim);font-size:0.85rem;">vs</span>`;
 
                 return `
-                  <a class="fixture-row match-fixture-row match-colors" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}" href="#/jogo/${f.fixture.id}" title="Clique para abrir estatísticas do confronto">
+                  <div class="fixture-row match-fixture-row match-colors has-row-link" style="${matchColorVars(f.teams.home.id, f.teams.away.id)}">
+                    <a class="fixture-row-link" href="#/jogo/${f.fixture.id}" aria-label="Ver partida ${escapeHtml(formatTeamName(f.teams.home.name))} x ${escapeHtml(formatTeamName(f.teams.away.name))}"></a>
                     <div class="fixture-date-col">
                       ${statusBadge}
                     </div>
@@ -747,7 +770,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
                       <span data-short="${teamShortName(f.teams.away.name)}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
-                  </a>`;
+                  </div>`;
               }).join("")}
             </div>
           </div>
@@ -822,7 +845,7 @@ async function fetchLiveMatches(isForced = false) {
     });
 
     if (!relevant.length) {
-      content.innerHTML = `<div class="card" style="text-align:center;padding:40px 20px;color:var(--chalk-dim);">Nenhum jogo ao vivo acontecendo nas ligas cobertas no momento.</div>`;
+      content.innerHTML = await liveEmptyStateHtml(knownLeagueIds);
       return;
     }
 
