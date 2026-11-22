@@ -267,7 +267,7 @@ async function renderMyTeam() {
                       </div>
                       <div class="fixture-card-score-box">
                         <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
-                        <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}">
+                        <button type="button" class="btn-fixture-highlights-pill" title="Buscar melhores momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}">
                           ${icon("play", 10)}
                           <span>Melhores Momentos</span>
                         </button>

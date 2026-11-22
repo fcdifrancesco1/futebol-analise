@@ -156,11 +156,6 @@ async function renderTeam(teamId, leagueId, season) {
         </div>
       </div>
 
-      <h2 class="section-title">Últimas Notícias do ${escapeHtml(formatTeamName(t.name))}</h2>
-      <div id="team-page-news-container" class="news-feed-card" style="margin-bottom:20px;">
-        <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Carregando manchetes...</div>
-      </div>
-
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;margin-bottom:24px;">
         <!-- 1. Próximas Partidas (5 jogos) -->
         <div class="card" style="padding:16px;">
@@ -276,7 +271,7 @@ async function renderTeam(teamId, leagueId, season) {
                       </div>
                       <div class="fixture-card-score-box">
                         <span class="fixture-score" style="padding:2px 8px;min-width:44px;">${homeGoals} : ${awayGoals}</span>
-                        <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}">
+                        <button type="button" class="btn-fixture-highlights-pill" title="Buscar melhores momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${leagueName}`)}">
                           ${icon("play", 10)}
                           <span>Melhores Momentos</span>
                         </button>
@@ -296,6 +291,11 @@ async function renderTeam(teamId, leagueId, season) {
             </div>
           `}
         </div>
+      </div>
+
+      <h2 class="section-title">Últimas Notícias do ${escapeHtml(formatTeamName(t.name))}</h2>
+      <div id="team-page-news-container" class="news-feed-card" style="margin-bottom:20px;">
+        <div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Carregando manchetes...</div>
       </div>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">

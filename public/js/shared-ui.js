@@ -713,11 +713,15 @@ async function loadTeamNews(teamName, containerId) {
     const data = await resp.json();
     let items = data.items || [];
 
-    // Ordena da mais nova para mais velha e limita a exatamente 6 notícias
-    items = items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 6);
+    // Só notícias dos últimos 14 dias, sem palpites de aposta; da mais nova para a mais velha, até 6
+    const NEWS_MAX_AGE = 14 * 24 * 3600 * 1000;
+    const tsMs = t => (t && t < 1e12 ? t * 1000 : t) || 0;
+    items = items
+      .filter(it => Date.now() - tsMs(it.timestamp) < NEWS_MAX_AGE && !/palpite|aposta|\bodds\b|\bbet\b/i.test(it.title || ""))
+      .sort((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp)).slice(0, 6);
 
     if (!items.length) {
-      container.innerHTML = `<div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Nenhuma notícia recente encontrada no momento.</div>`;
+      container.innerHTML = `<div style="padding:16px;text-align:center;color:var(--chalk-dim);font-size:0.85rem;">Nenhuma notícia dos últimos 14 dias sobre este time.</div>`;
       return;
     }
 

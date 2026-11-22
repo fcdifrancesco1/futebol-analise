@@ -379,3 +379,6 @@ a.fixture-card-compact.match-colors:hover { filter: brightness(1.15); }
 .bell-icon { display: inline-flex; }
 /* celular: o botão do time favorito mostra só a estrela desenhada (o ::before antigo usava emoji) */
 @media (max-width: 760px) { .fav-team-label::before { content: none; } .fav-team-label .ico { width: 18px; height: 18px; } }
+
+/* lista do dia: melhores momentos só com o ícone (o nome vai no aria-label) */
+.btn-fixture-highlights-pill.is-icon { width: 30px; height: 22px; padding: 0; justify-content: center; border-radius: 6px; }

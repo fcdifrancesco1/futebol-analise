@@ -738,9 +738,8 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                     <div class="fixture-score-col">
                       ${scoreDisplay}
                       ${isFinished ? `
-                        <button type="button" class="btn-fixture-highlights-pill" title="Assistir aos Melhores Momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}">
+                        <button type="button" class="btn-fixture-highlights-pill is-icon" title="Buscar melhores momentos no YouTube" aria-label="Buscar melhores momentos no YouTube" data-action="highlights" data-url="https://www.youtube.com/results?search_query=${encodeURIComponent(`Melhores Momentos ${f.teams.home.name} x ${f.teams.away.name} ${f.league?.name || ''}`)}">
                           ${icon("play", 10)}
-                          <span>Melhores Momentos</span>
                         </button>
                       ` : ''}
                     </div>
