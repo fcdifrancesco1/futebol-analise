@@ -691,6 +691,9 @@ function standingsMovementByRound(finished, templateTable, leagueId, currentIds)
   return new Map(currentIds.map((id, i) => [id, prevPos.has(id) ? prevPos.get(id) - i : 0]));
 }
 
+// Forma recente: a API usa W/D/L (D = draw); na tela, V/E/D como nas colunas da tabela
+const FORM_RESULT_PT = { W: ["V", "Vitória"], D: ["E", "Empate"], L: ["D", "Derrota"] };
+
 // extras (opcional, só na visão "Geral" de tabela única): { movement, zones }
 function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all", finishedFixtures = [], extras = null) {
   const sortedTable = sortStandingsByLeagueRules(table, leagueId, finishedFixtures, filter);
@@ -706,7 +709,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
     const zone = filter === "all" ? zones?.byPos?.[idx] : null;
 
     const formPills = (row.form || "").split("").slice(-5).map(c =>
-      `<span class="form-pill ${c}" title="${c}">${c}</span>`
+      `<span class="form-pill ${c}" title="${FORM_RESULT_PT[c]?.[1] || c}">${FORM_RESULT_PT[c]?.[0] || c}</span>`
     ).join("");
 
     return `
@@ -716,7 +719,7 @@ function renderStandingsTable(table, leagueId, season, groupLabel, filter = "all
         <td class="team-cell">
           <div class="team-cell-inner">
             <img src="${row.team.logo}" alt="" loading="lazy">
-            <span data-short="${teamShortName(row.team.name)}">${escapeHtml(row.team.name)}</span>
+            <span data-short="${teamShortName(row.team.name)}">${escapeHtml(formatTeamName(row.team.name))}</span>
           </div>
         </td>
         <td>${stat.played}</td>
@@ -928,7 +931,7 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                     : (statusInfo.isPostponed
                         ? `<span class="fixture-date" style="color:#F59E0B;font-weight:600;">${statusInfo.label}</span>`
                         : (statusInfo.isFinished
-                            ? `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;">${statusInfo.short}</span>`
+                            ? `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;">${statusInfo.label}</span>`
                             : `<span class="fixture-date">${date}<br>${time}</span>`));
 
                   return `
@@ -939,7 +942,7 @@ function renderGroupedFixtures(fixtures, isCup = false) {
                       </div>
 
                       <div class="fixture-team-item right">
-                        <span data-short="${teamShortName(f.teams.home.name)}">${escapeHtml(f.teams.home.name)}</span>
+                        <span data-short="${teamShortName(f.teams.home.name)}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                         <img src="${f.teams.home.logo}" alt="" loading="lazy">
                       </div>
 
@@ -947,7 +950,7 @@ function renderGroupedFixtures(fixtures, isCup = false) {
 
                       <div class="fixture-team-item">
                         <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                        <span data-short="${teamShortName(f.teams.away.name)}">${escapeHtml(f.teams.away.name)}</span>
+                        <span data-short="${teamShortName(f.teams.away.name)}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                       </div>
                     </a>`;
                 }).join("")}

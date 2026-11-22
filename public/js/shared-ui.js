@@ -99,6 +99,33 @@ function formatLiveMatchTime(status, events = null) {
   return `${elapsed}'`;
 }
 
+// Textos de status em pt-BR (a API manda códigos e "long" em inglês). O código (short)
+// continua sendo usado na lógica; só o que aparece na tela passa por aqui.
+const MATCH_STATUS_PT = {
+  NS: "Não iniciado", TBD: "Horário a definir", "1H": "1º tempo", HT: "Intervalo", "2H": "2º tempo",
+  ET: "Prorrogação", BT: "Intervalo da prorrogação", P: "Pênaltis", LIVE: "Ao vivo", SUSP: "Suspenso",
+  INT: "Interrompido", FT: "Encerrado", AET: "Encerrado na prorrogação", PEN: "Encerrado nos pênaltis",
+  PST: "Adiado", CANC: "Cancelado", ABD: "Abandonado", AWD: "W.O.", WO: "W.O."
+};
+const MATCH_FINISHED_SHORT_PT = { FT: "Fim", AET: "Fim (prorr.)", PEN: "Fim (pên.)", AWD: "W.O.", WO: "W.O." };
+function matchStatusLongPt(status) {
+  const short = String(status?.short || "").toUpperCase();
+  return MATCH_STATUS_PT[short] || String(status?.long || "");
+}
+
+// Detalhe de evento da partida em pt-BR ("Normal Goal", "Yellow Card", "Substitution 2"...)
+const EVENT_DETAIL_PT = {
+  "normal goal": "Gol", "own goal": "Gol contra", "penalty": "Pênalti", "missed penalty": "Pênalti perdido",
+  "yellow card": "Cartão amarelo", "red card": "Cartão vermelho", "second yellow card": "Segundo amarelo",
+  "goal": "Gol", "card": "Cartão", "subst": "Substituição", "var": "VAR"
+};
+function eventDetailPt(detail) {
+  const d = String(detail || "").trim();
+  const sub = d.match(/^substitution\s*(\d+)?$/i);
+  if (sub) return sub[1] ? `Substituição ${sub[1]}` : "Substituição";
+  return EVENT_DETAIL_PT[d.toLowerCase()] || d;
+}
+
 function getMatchStatusCategory(fixture) {
   if (!fixture) return { isLive: false, isFinished: false, isScheduled: true, isPostponed: false, isStaleLive: false, label: "NS", short: "NS", badgeHtml: `<span class="fixture-date">--:--</span>` };
   const status = fixture.status || {};
@@ -119,9 +146,9 @@ function getMatchStatusCategory(fixture) {
         isScheduled: false,
         isPostponed: false,
         isStaleLive: true,
-        label: "Encerrado",
+        label: "Fim",
         short: "FT",
-        badgeHtml: `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;" title="Partida encerrada (feed da transmissão finalizado em ${status.elapsed || 90}')">Encerrado</span>`
+        badgeHtml: `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;" title="Partida encerrada (feed da transmissão finalizado em ${status.elapsed || 90}')">Fim</span>`
       };
     }
     const timeDisplay = formatLiveMatchTime(status);
@@ -149,9 +176,9 @@ function getMatchStatusCategory(fixture) {
       isScheduled: false,
       isPostponed: false,
       isStaleLive: false,
-      label: short || "FT",
+      label: MATCH_FINISHED_SHORT_PT[short] || "Fim",
       short: short || "FT",
-      badgeHtml: `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;">${short || "FT"}</span>`
+      badgeHtml: `<span class="fixture-date" style="color:var(--chalk-dim);font-weight:600;" title="${matchStatusLongPt({ short: short || "FT" })}">${MATCH_FINISHED_SHORT_PT[short] || "Fim"}</span>`
     };
   }
 
@@ -410,9 +437,30 @@ function teamShortName(name) {
   return letters(words.join("")).slice(0, 3).toUpperCase();
 }
 
+// Número com vírgula decimal (pt-BR) para exibir; aceita número ou texto da API ("1.5").
+function ptDecimal(value, digits = 2) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : String(value ?? "");
+}
+
+// Valor já formatado como texto ("7.5", "12.4%"): troca só o ponto decimal por vírgula.
+function ptDecimalText(value) {
+  return String(value ?? "").replace(/(\d)\.(\d)/g, "$1,$2");
+}
+
+// A API escreve muitos clubes brasileiros sem acento ("Sao Paulo", "Gremio"): só palavras inteiras.
+const TEAM_NAME_ACCENTS = {
+  Sao: "São", Vitoria: "Vitória", Gremio: "Grêmio", Atletico: "Atlético", Ceara: "Ceará", Goias: "Goiás",
+  Cuiaba: "Cuiabá", America: "América", Avai: "Avaí", Criciuma: "Criciúma", Parana: "Paraná",
+  Nautico: "Náutico", Operario: "Operário", Maringa: "Maringá"
+};
+const TEAM_NAME_ACCENT_RE = new RegExp(`\\b(${Object.keys(TEAM_NAME_ACCENTS).join("|")})\\b`, "g");
 function formatTeamName(name) {
   if (!name) return "";
   return String(name)
+    .replace(/^Atletico Paranaense$/, "Athletico Paranaense")
+    .replace(/-sc$/i, "")
+    .replace(TEAM_NAME_ACCENT_RE, w => TEAM_NAME_ACCENTS[w])
     .replace(/\bDA\b/g, "da")
     .replace(/\bDE\b/g, "de")
     .replace(/\bDO\b/g, "do")

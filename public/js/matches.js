@@ -122,7 +122,7 @@ function renderDaySpotlight(fixtures) {
       <div class="day-spotlight-head"><span>${escapeHtml(featured.league?.name || 'Partida')} · ${escapeHtml(formatRoundName(featured.league?.round || ''))}</span><span class="day-spotlight-status ${status.isLive ? 'is-live' : ''}">${escapeHtml(statusText)}</span></div>
       <a class="day-spotlight-main" href="#/jogo/${featured.fixture.id}">
         <div class="day-spotlight-team">${featured.teams.home.logo ? `<img src="${sanitizeUrl(featured.teams.home.logo)}" alt="" loading="lazy">` : ''}<strong>${escapeHtml(featured.teams.home.name)}</strong></div>
-        <div class="day-spotlight-score"><strong>${escapeHtml(score)}</strong><small>${hasScore ? escapeHtml(status.short) : kickoff}</small></div>
+        <div class="day-spotlight-score"><strong>${escapeHtml(score)}</strong><small>${hasScore ? escapeHtml(status.label) : kickoff}</small></div>
         <div class="day-spotlight-team away">${featured.teams.away.logo ? `<img src="${sanitizeUrl(featured.teams.away.logo)}" alt="" loading="lazy">` : ''}<strong>${escapeHtml(featured.teams.away.name)}</strong></div>
       </a>
       <a class="day-spotlight-foot" href="#/jogo/${featured.fixture.id}">Ver detalhes da partida <span aria-hidden="true">↗</span></a>
@@ -733,7 +733,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                       ${statusBadge}
                     </div>
                     <div class="fixture-team-item right">
-                      <span data-short="${teamShortName(f.teams.home.name)}">${escapeHtml(f.teams.home.name)}</span>
+                      <span data-short="${teamShortName(f.teams.home.name)}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
                     <div class="fixture-score-col">
@@ -747,7 +747,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
                     </div>
                     <div class="fixture-team-item">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span data-short="${teamShortName(f.teams.away.name)}">${escapeHtml(f.teams.away.name)}</span>
+                      <span data-short="${teamShortName(f.teams.away.name)}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
                   </a>`;
               }).join("")}
@@ -872,7 +872,7 @@ async function fetchLiveMatches(isForced = false) {
                       <span class="fixture-date" style="color:#10B981;font-weight:700;">🔴 ${timeDisplay}</span>
                     </div>
                     <div class="fixture-team-item right">
-                      <span data-short="${teamShortName(f.teams.home.name)}">${escapeHtml(f.teams.home.name)}</span>
+                      <span data-short="${teamShortName(f.teams.home.name)}">${escapeHtml(formatTeamName(f.teams.home.name))}</span>
                       <img src="${f.teams.home.logo}" alt="" loading="lazy">
                     </div>
                     <div class="fixture-score-col">
@@ -880,7 +880,7 @@ async function fetchLiveMatches(isForced = false) {
                     </div>
                     <div class="fixture-team-item">
                       <img src="${f.teams.away.logo}" alt="" loading="lazy">
-                      <span data-short="${teamShortName(f.teams.away.name)}">${escapeHtml(f.teams.away.name)}</span>
+                      <span data-short="${teamShortName(f.teams.away.name)}">${escapeHtml(formatTeamName(f.teams.away.name))}</span>
                     </div>
                   </a>
                 `;

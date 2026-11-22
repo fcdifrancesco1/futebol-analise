@@ -381,7 +381,7 @@ function renderLeagueProjection(sortedRows, sim, schedule, zones, leagueId, seas
               return `
               <tr data-team-id="${t.team.id}" data-league-id="${leagueId}" data-season="${season}">
                 <td class="pos-cell">${i + 1}</td>
-                <td class="team-cell"><div class="team-cell-inner"><img src="${t.team.logo}" alt="" loading="lazy"><span data-short="${teamShortName(t.team.name)}">${escapeHtml(t.team.name)}</span></div></td>
+                <td class="team-cell"><div class="team-cell-inner"><img src="${t.team.logo}" alt="" loading="lazy"><span data-short="${teamShortName(t.team.name)}">${escapeHtml(formatTeamName(t.team.name))}</span></div></td>
                 <td><strong>${t.points}</strong></td>
                 <td>${s.projected != null ? Math.round(s.projected) : "–"}</td>
                 <td class="league-chance ${s.title >= 0.5 ? "hi" : ""}">${leaguePercent(s.title)}</td>

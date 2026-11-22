@@ -73,9 +73,9 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
     const isFinished = statusInfo.isFinished;
 
     const liveTimeFormatted = formatLiveMatchTime(fx.fixture.status, events);
-    let statusText = escapeHtml(fx.fixture.status.long || "");
+    let statusText = escapeHtml(matchStatusLongPt(fx.fixture.status));
     if (isLive) {
-      statusText = `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${liveTimeFormatted} (${escapeHtml(fx.fixture.status.long || "")})</span>`;
+      statusText = `<span style="color:var(--gold);font-weight:700;">● AO VIVO ${liveTimeFormatted} (${escapeHtml(matchStatusLongPt(fx.fixture.status))})</span>`;
     } else if (statusInfo.isStaleLive) {
       statusText = `<span style="color:var(--chalk-dim);font-weight:600;">Partida Encerrada (${fx.fixture.status.elapsed}')</span>`;
     } else if (statusInfo.isPostponed) {
@@ -239,7 +239,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
           ${isLive ? `
             <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);padding:4px 12px;border-radius:999px;border:1px solid var(--gold-soft);">
               <span class="pulse-dot"></span>
-              <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">Auto-refresh (30s)</span>
+              <span style="font-family:var(--font-mono);font-size:0.72rem;color:var(--chalk-dim);">Atualiza a cada 30 s</span>
               <div style="width:40px;height:4px;background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden;">
                 <div style="height:100%;background:var(--gold);width:100%;" id="live-progress-bar"></div>
               </div>
@@ -309,7 +309,7 @@ async function renderFixture(fixtureId, isSilentRefresh = false) {
       <!-- Previsão Oficial -->
       ${pred ? `
         <div style="margin-bottom:24px;">
-          <h2 class="section-title">Previsão Oficial da API</h2>
+          <h2 class="section-title">Previsão do provedor de dados</h2>
           ${(() => {
             const pct = pred.predictions.percent;
             const probA = parseInt(pct.home);
@@ -441,8 +441,8 @@ function renderPreMatchStatsComparison(statsA, statsB, fx) {
 
   const metrics = [
     { label: "Aproveitamento no Campeonato", valA: `${winPctA}%`, valB: `${winPctB}%`, numA: winPctA, numB: winPctB, higherWins: true },
-    { label: "Média de Gols Pró / Jogo", valA: gfAvgA.toFixed(2), valB: gfAvgB.toFixed(2), numA: gfAvgA, numB: gfAvgB, higherWins: true },
-    { label: "Média de Gols Sofridos / Jogo", valA: gaAvgA.toFixed(2), valB: gaAvgB.toFixed(2), numA: gaAvgA, numB: gaAvgB, higherWins: false },
+    { label: "Média de Gols Pró / Jogo", valA: ptDecimal(gfAvgA, 2), valB: ptDecimal(gfAvgB, 2), numA: gfAvgA, numB: gfAvgB, higherWins: true },
+    { label: "Média de Gols Sofridos / Jogo", valA: ptDecimal(gaAvgA, 2), valB: ptDecimal(gaAvgB, 2), numA: gaAvgA, numB: gaAvgB, higherWins: false },
     { label: "Jogos sem Sofrer Gols", valA: statsA.clean_sheet.total, valB: statsB.clean_sheet.total, numA: statsA.clean_sheet.total, numB: statsB.clean_sheet.total, higherWins: true },
     { label: "Total de Vitórias", valA: statsA.fixtures.wins.total, valB: statsB.fixtures.wins.total, numA: statsA.fixtures.wins.total, numB: statsB.fixtures.wins.total, higherWins: true }
   ];
@@ -546,7 +546,7 @@ function renderLiveMatchStats(statsArr, fx) {
   }).join("");
 
   return `
-    <h2 class="section-title">Estatísticas do Jogo em Tempo Real</h2>
+    <h2 class="section-title">${getMatchStatusCategory(fx?.fixture).isLive ? "Estatísticas ao vivo" : "Estatísticas da partida"}</h2>
     <div class="card" style="padding:14px 10px;">
       <div class="fifa-stats-center" style="background:transparent;border:none;">
         ${rows}
@@ -971,7 +971,8 @@ function renderFixtureLineups(lineupsArr, events = [], leagueId, season, fixture
   }
 
   return `
-    <h2 class="section-title">Escalações & Campo Tático 2D (Clique no jogador para ver perfil)</h2>
+    <h2 class="section-title">Escalações</h2>
+    <p class="page-sub" style="margin:-6px 0 12px;font-size:13px;">Toque num jogador para ver o perfil.</p>
     <div class="fixture-lineups-grid">
       ${lineupsArr.map((l, teamIdx) => {
         const isAway = teamIdx === 1;
@@ -1188,7 +1189,7 @@ function renderFixtureEvents(events, fx, isFinished = false) {
               <span>${e.type === "Goal" ? "⚽" : e.type === "Card" ? (e.detail === "Red Card" ? "🟥" : "🟨") : e.type === "Var" ? "📺" : "🔁"}</span>
               <div>
                 <strong>${escapeHtml(pName)}</strong>${hasAssist ? ` <span style="color:var(--chalk-dim);font-size:0.8rem;font-weight:400;">(${escapeHtml(String(rawAssist).trim())})</span>` : ''}
-                <span style="color:${isCancelledGoalEvent(e) ? "#EF4444" : "var(--chalk-dim)"};font-size:0.75rem;">(${escapeHtml(e.type === "Var" ? varDetailLabel(e.detail) : (e.detail || e.type))})</span>
+                <span style="color:${isCancelledGoalEvent(e) ? "#EF4444" : "var(--chalk-dim)"};font-size:0.75rem;">(${escapeHtml(e.type === "Var" ? varDetailLabel(e.detail) : eventDetailPt(e.detail || e.type))})</span>
               </div>
               ${(isFinished && isGoal) ? `
                 <a href="${ytGoalUrl}" target="_blank" rel="noopener noreferrer" class="btn-goal-video" title="Ver vídeo do gol de ${escapeHtml(pName)} no YouTube">

@@ -626,3 +626,21 @@ test('teamShortName: siglas sem colisão nos principais campeonatos', () => {
     ['Manchester City', 'MCI'], ['Manchester United', 'MUN'], ['AC Milan', 'MIL'], ['São Paulo', 'SAO'], ['Flamengo', 'FLA']];
   for (const [name, code] of pairs) assert.equal(ctx.teamShortName(name), code, name);
 });
+
+test('textos em pt-BR: status, eventos, decimais e nomes de clubes', () => {
+  const ctx = { window: {}, document: { getElementById: () => null }, console };
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync('public/js/shared-ui.js', 'utf8'), ctx);
+  assert.equal(ctx.matchStatusLongPt({ short: 'FT', long: 'Match Finished' }), 'Encerrado');
+  assert.equal(ctx.matchStatusLongPt({ short: 'XYZ', long: 'Other' }), 'Other');
+  assert.equal(ctx.getMatchStatusCategory({ status: { short: 'PEN' }, date: new Date().toISOString() }).label, 'Fim (pên.)');
+  assert.equal(ctx.eventDetailPt('Normal Goal'), 'Gol');
+  assert.equal(ctx.eventDetailPt('Yellow Card'), 'Cartão amarelo');
+  assert.equal(ctx.eventDetailPt('Substitution 3'), 'Substituição 3');
+  assert.equal(ctx.ptDecimal(1.3, 2), '1,30');
+  assert.equal(ctx.ptDecimal('1.5', 2), '1,50');
+  assert.equal(ctx.ptDecimalText('12.4%'), '12,4%');
+  assert.equal(ctx.formatTeamName('Sao Paulo'), 'São Paulo');
+  assert.equal(ctx.formatTeamName('Vasco DA Gama'), 'Vasco da Gama');
+  assert.equal(ctx.formatTeamName('Atletico Paranaense'), 'Athletico Paranaense');
+});

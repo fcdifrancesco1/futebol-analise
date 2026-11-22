@@ -85,11 +85,12 @@ async function renderTeam(teamId, leagueId, season) {
       csAway = cAway;
     }
 
-    const winPct = totalPlayed ? Math.round((totalWins / totalPlayed) * 100) : 0;
+    // aproveitamento = pontos conquistados / pontos disputados (mesma conta da tabela da liga)
+    const winPct = totalPlayed ? Math.round(((totalWins * 3 + totalDraws) / (totalPlayed * 3)) * 100) : 0;
     const isFav = state.favoriteTeams.some(fav => fav.id === teamId);
 
     content.innerHTML = `
-      ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league?.name || "Liga", href: `#/liga/${leagueId}/${season}` }, { label: t.name, href: "" }])}
+      ${breadcrumbs([{ label: "Ligas", href: "#/" }, { label: league?.name || "Liga", href: `#/liga/${leagueId}/${season}` }, { label: formatTeamName(t.name), href: "" }])}
       
       <div class="team-header club-hero" style="${teamColorVars(teamId)};display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;border-radius:var(--radius-lg);flex-wrap:wrap;">
         <img src="${t.logo}" alt="" style="width:64px;height:64px;object-fit:contain;">
@@ -127,10 +128,10 @@ async function renderTeam(teamId, leagueId, season) {
             <span>⚽</span>
             <span>Média Gols Pró</span>
           </div>
-          <div class="stat-card-main-val green">${gfAvg.toFixed(2)}</div>
+          <div class="stat-card-main-val green">${ptDecimal(gfAvg, 2)}</div>
           <div class="stat-split-bar">
-            <span>🏠 Casa ${gfHomeAvg}</span>
-            <span>✈️ Fora ${gfAwayAvg}</span>
+            <span>🏠 Casa ${ptDecimal(gfHomeAvg, 2)}</span>
+            <span>✈️ Fora ${ptDecimal(gfAwayAvg, 2)}</span>
           </div>
         </div>
 
@@ -139,10 +140,10 @@ async function renderTeam(teamId, leagueId, season) {
             <span>🛡️</span>
             <span>Média Gols Contra</span>
           </div>
-          <div class="stat-card-main-val red">${gaAvg.toFixed(2)}</div>
+          <div class="stat-card-main-val red">${ptDecimal(gaAvg, 2)}</div>
           <div class="stat-split-bar">
-            <span>🏠 Casa ${gaHomeAvg}</span>
-            <span>✈️ Fora ${gaAwayAvg}</span>
+            <span>🏠 Casa ${ptDecimal(gaHomeAvg, 2)}</span>
+            <span>✈️ Fora ${ptDecimal(gaAwayAvg, 2)}</span>
           </div>
         </div>
 

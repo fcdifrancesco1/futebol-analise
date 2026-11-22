@@ -263,8 +263,8 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
       { label: "Posse de Bola Média", valA: `${possA}%`, valB: `${possB}%`, aWins: possA > possB, bWins: possB > possA },
       { label: "Finalizações por Jogo", valA: shotsA, valB: shotsB, aWins: parseFloat(shotsA) > parseFloat(shotsB), bWins: parseFloat(shotsB) > parseFloat(shotsA) },
       { label: "Gols Esperados (xG)", valA: xGA, valB: xGB, aWins: parseFloat(xGA) > parseFloat(xGB), bWins: parseFloat(xGB) > parseFloat(xGA) },
-      { label: "Gols Marcados / Jogo", valA: gfA.toFixed(2), valB: gfB.toFixed(2), aWins: gfA > gfB, bWins: gfB > gfA },
-      { label: "Gols Sofridos / Jogo", valA: gaA.toFixed(2), valB: gaB.toFixed(2), aWins: gaA < gaB, bWins: gaB < gaA },
+      { label: "Gols Marcados / Jogo", valA: ptDecimal(gfA, 2), valB: ptDecimal(gfB, 2), aWins: gfA > gfB, bWins: gfB > gfA },
+      { label: "Gols Sofridos / Jogo", valA: ptDecimal(gaA, 2), valB: ptDecimal(gaB, 2), aWins: gaA < gaB, bWins: gaB < gaA },
       { label: "Passes por Partida", valA: passesA, valB: passesB, aWins: passesA > passesB, bWins: passesB > passesA },
       { label: "Escanteios / Jogo", valA: cornersA, valB: cornersB, aWins: parseFloat(cornersA) > parseFloat(cornersB), bWins: parseFloat(cornersB) > parseFloat(cornersA) },
       { label: "Faltas Cometidas / Jogo", valA: foulsA, valB: foulsB, aWins: parseFloat(foulsA) < parseFloat(foulsB), bWins: parseFloat(foulsB) < parseFloat(foulsA) },
@@ -274,18 +274,18 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
   } else if (activeTab === "shooting") {
     gaugesA = [
       { label: "Precisão de Chute", val: `${shotAccA}%`, pct: shotAccA, color: "var(--gold)" },
-      { label: "Média de Gols", val: gfA.toFixed(2), pct: Math.min(100, gfA * 35), color: "var(--gold)" }
+      { label: "Média de Gols", val: ptDecimal(gfA, 2), pct: Math.min(100, gfA * 35), color: "var(--gold)" }
     ];
     gaugesB = [
       { label: "Precisão de Chute", val: `${shotAccB}%`, pct: shotAccB, color: "var(--terracotta)" },
-      { label: "Média de Gols", val: gfB.toFixed(2), pct: Math.min(100, gfB * 35), color: "var(--terracotta)" }
+      { label: "Média de Gols", val: ptDecimal(gfB, 2), pct: Math.min(100, gfB * 35), color: "var(--terracotta)" }
     ];
     statRows = [
       { label: "Gols Marcados (Total)", valA: statsA.goals.for.total.total, valB: statsB.goals.for.total.total, aWins: statsA.goals.for.total.total > statsB.goals.for.total.total, bWins: statsB.goals.for.total.total > statsA.goals.for.total.total },
       { label: "Gols Esperados (xG Estimado)", valA: xGA, valB: xGB, aWins: parseFloat(xGA) > parseFloat(xGB), bWins: parseFloat(xGB) > parseFloat(xGA) },
       { label: "Finalizações Totais / Jogo", valA: shotsA, valB: shotsB, aWins: parseFloat(shotsA) > parseFloat(shotsB), bWins: parseFloat(shotsB) > parseFloat(shotsA) },
       { label: "Finalizações no Alvo / Jogo", valA: shotsOnA, valB: shotsOnB, aWins: parseFloat(shotsOnA) > parseFloat(shotsOnB), bWins: parseFloat(shotsOnB) > parseFloat(shotsA) },
-      { label: "Conversão de Chutes (%)", valA: `${((gfA / shotsA) * 100).toFixed(1)}%`, valB: `${((gfB / shotsB) * 100).toFixed(1)}%`, aWins: (gfA/shotsA) > (gfB/shotsB), bWins: (gfB/shotsB) > (gfA/shotsA) },
+      { label: "Conversão de Chutes (%)", valA: `${ptDecimal((gfA / shotsA) * 100, 1)}%`, valB: `${ptDecimal((gfB / shotsB) * 100, 1)}%`, aWins: (gfA/shotsA) > (gfB/shotsB), bWins: (gfB/shotsB) > (gfA/shotsA) },
       { label: "Pênaltis Convertidos", valA: statsA.penalty?.scored?.total ?? "-", valB: statsB.penalty?.scored?.total ?? "-", aWins: (statsA.penalty?.scored?.total || 0) > (statsB.penalty?.scored?.total || 0), bWins: (statsB.penalty?.scored?.total || 0) > (statsA.penalty?.scored?.total || 0) }
     ];
   } else if (activeTab === "passing") {
@@ -306,14 +306,14 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
   } else if (activeTab === "defending") {
     gaugesA = [
       { label: "Jogos sem Levar Gol", val: `${cleanPctA}%`, pct: cleanPctA, color: "var(--gold)" },
-      { label: "Solidez Defensiva", val: (10 - gaA * 3).toFixed(1), pct: Math.max(10, (10 - gaA * 3) * 10), color: "var(--gold)" }
+      { label: "Solidez Defensiva", val: ptDecimal(10 - gaA * 3, 1), pct: Math.max(10, (10 - gaA * 3) * 10), color: "var(--gold)" }
     ];
     gaugesB = [
       { label: "Jogos sem Levar Gol", val: `${cleanPctB}%`, pct: cleanPctB, color: "var(--terracotta)" },
-      { label: "Solidez Defensiva", val: (10 - gaB * 3).toFixed(1), pct: Math.max(10, (10 - gaB * 3) * 10), color: "var(--terracotta)" }
+      { label: "Solidez Defensiva", val: ptDecimal(10 - gaB * 3, 1), pct: Math.max(10, (10 - gaB * 3) * 10), color: "var(--terracotta)" }
     ];
     statRows = [
-      { label: "Gols Sofridos / Jogo", valA: gaA.toFixed(2), valB: gaB.toFixed(2), aWins: gaA < gaB, bWins: gaB < gaA },
+      { label: "Gols Sofridos / Jogo", valA: ptDecimal(gaA, 2), valB: ptDecimal(gaB, 2), aWins: gaA < gaB, bWins: gaB < gaA },
       { label: "Total de Clean Sheets", valA: statsA.clean_sheet.total, valB: statsB.clean_sheet.total, aWins: statsA.clean_sheet.total > statsB.clean_sheet.total, bWins: statsB.clean_sheet.total > statsA.clean_sheet.total },
       { label: "Faltas Cometidas / Jogo", valA: foulsA, valB: foulsB, aWins: parseFloat(foulsA) < parseFloat(foulsB), bWins: parseFloat(foulsB) < parseFloat(foulsA) },
       { label: "Cartões Amarelos", valA: sumCards(statsA.cards.yellow), valB: sumCards(statsB.cards.yellow), aWins: sumCards(statsA.cards.yellow) < sumCards(statsB.cards.yellow), bWins: sumCards(statsB.cards.yellow) < sumCards(statsA.cards.yellow) },
@@ -336,7 +336,7 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
           ${gaugesA.map(g => `
             <div class="fifa-gauge">
               <div class="fifa-gauge-circle" style="--gauge-pct: ${g.pct}; --gauge-color: ${g.color};">
-                <span class="fifa-gauge-val">${g.val}</span>
+                <span class="fifa-gauge-val">${ptDecimalText(g.val)}</span>
               </div>
               <span class="fifa-gauge-label">${g.label}</span>
             </div>`
@@ -347,11 +347,11 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
           ${statRows.map(r => `
             <div class="fifa-stat-row">
               <div class="fifa-val a ${r.aWins ? 'highlight' : ''}">
-                <span>${r.valA}</span>
+                <span>${ptDecimalText(r.valA)}</span>
               </div>
               <div class="fifa-label">${r.label}</div>
               <div class="fifa-val b ${r.bWins ? 'highlight' : ''}">
-                <span>${r.valB}</span>
+                <span>${ptDecimalText(r.valB)}</span>
               </div>
             </div>`
           ).join("")}
@@ -361,7 +361,7 @@ function renderFifaDashboard(statsA, statsB, activeTab = "summary") {
           ${gaugesB.map(g => `
             <div class="fifa-gauge">
               <div class="fifa-gauge-circle" style="--gauge-pct: ${g.pct}; --gauge-color: ${g.color};">
-                <span class="fifa-gauge-val">${g.val}</span>
+                <span class="fifa-gauge-val">${ptDecimalText(g.val)}</span>
               </div>
               <span class="fifa-gauge-label">${g.label}</span>
             </div>`

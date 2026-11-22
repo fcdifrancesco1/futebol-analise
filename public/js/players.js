@@ -80,10 +80,25 @@ function playerHonors(trophies) {
   return { titles: chips.reduce((sum, c) => sum + c.count, 0), chips: chips.slice(0, 6) };
 }
 
+// A API manda a nacionalidade em inglês; os países mais comuns no app ganham o nome em pt-BR.
+const NATIONALITY_PT = {
+  Brazil: "Brasil", Uruguay: "Uruguai", Colombia: "Colômbia", Paraguay: "Paraguai", Ecuador: "Equador",
+  Bolivia: "Bolívia", Spain: "Espanha", France: "França", England: "Inglaterra", Germany: "Alemanha",
+  Italy: "Itália", Netherlands: "Holanda", Belgium: "Bélgica", Croatia: "Croácia", Mexico: "México",
+  USA: "Estados Unidos", Japan: "Japão", Morocco: "Marrocos", Nigeria: "Nigéria", Ghana: "Gana",
+  Cameroon: "Camarões", "Côte d'Ivoire": "Costa do Marfim", "Ivory Coast": "Costa do Marfim",
+  Scotland: "Escócia", Wales: "País de Gales", Switzerland: "Suíça", Austria: "Áustria", Poland: "Polônia",
+  Denmark: "Dinamarca", Sweden: "Suécia", Norway: "Noruega", Serbia: "Sérvia", Turkey: "Turquia",
+  Türkiye: "Turquia", Ukraine: "Ucrânia", Algeria: "Argélia", Egypt: "Egito", "Korea Republic": "Coreia do Sul",
+  "South Korea": "Coreia do Sul", Greece: "Grécia", "Czech Republic": "Tchéquia", Ireland: "Irlanda"
+};
+// "180" ou "180 cm" -> "180 cm"; sem número, mostra como veio
+const withUnit = (v, unit) => { const m = String(v || "").match(/\d+/); return m ? `${m[0]} ${unit}` : (v || ""); };
+
 function playerHeroHtml(p, club, honors, teamId, season) {
   const chips = [
-    ["Posição", getSpecificPlayerRole(p, club)], ["Idade", p.age ? `${p.age}` : ""],
-    ["Nacionalidade", p.nationality], ["Altura", p.height], ["Peso", p.weight]
+    ["Posição", getSpecificPlayerRole(p, club)], ["Idade", p.age ? `${p.age} anos` : ""],
+    ["Nacionalidade", NATIONALITY_PT[p.nationality] || p.nationality], ["Altura", withUnit(p.height, "cm")], ["Peso", withUnit(p.weight, "kg")]
   ].filter(([, v]) => v);
   const number = club.games?.number;
   return `
@@ -362,8 +377,8 @@ async function renderPlayer(playerId, teamId, leagueId, season) {
       const apps = Math.max(s.games?.appearences || 0, 0);
 
       function perGame(val, digits = 2) {
-        if (!apps || val === undefined || val === null) return "0.00";
-        return (val / apps).toFixed(digits);
+        if (!apps || val === undefined || val === null) return ptNumber(0, digits);
+        return ptNumber(val / apps, digits);
       }
 
       function fmt(val, digits = 2) {

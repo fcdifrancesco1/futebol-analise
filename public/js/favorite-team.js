@@ -329,11 +329,11 @@ async function renderMyTeam() {
             </div>
             <div class="match-stat-chip">
               <span class="match-stat-chip-label">⚽ Gols Pró (Média)</span>
-              <span class="match-stat-chip-val" style="color:var(--cyan);">${totalGf} (${avgGf})</span>
+              <span class="match-stat-chip-val" style="color:var(--cyan);">${totalGf} (${ptDecimal(avgGf, 1)})</span>
             </div>
             <div class="match-stat-chip">
               <span class="match-stat-chip-label">🛡️ Gols Contra (Média)</span>
-              <span class="match-stat-chip-val">${totalGa} (${avgGa})</span>
+              <span class="match-stat-chip-val">${totalGa} (${ptDecimal(avgGa, 1)})</span>
             </div>
             <div class="match-stat-chip">
               <span class="match-stat-chip-label">🧤 Jogos sem Sofrer Gols</span>
