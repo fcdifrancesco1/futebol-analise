@@ -338,6 +338,9 @@ tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; 
   .matches-day-filters, #day-status-filters { display: flex; flex-wrap: nowrap; gap: 6px; width: 100%; overflow-x: auto; scrollbar-width: none; }
   .matches-day-filters::-webkit-scrollbar { display: none; }
   .matches-day-filter-btn { flex: none; min-height: 36px; white-space: nowrap; }
+  /* na barra de data: os quatro filtros cabem numa linha sem cortar "Encerrados" */
+  .day-selector-bar #day-status-filters { gap: 4px; }
+  .day-selector-bar .matches-day-filter-btn { flex: 1 1 auto; padding: 8px 6px; }
 
   /* destaque do dia mais baixo */
   .day-spotlight { margin-bottom: 14px; }

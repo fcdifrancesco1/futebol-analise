@@ -250,7 +250,7 @@ body { padding-bottom: 0; }
 .day-standings-card[style*="--ds-row"] .day-standings-table tbody td { padding-top: 0; padding-bottom: 0; }
 .day-standings-card[style*="--ds-row"] .day-standings-table td.team img { width: min(22px, calc(var(--ds-row) - 6px)); height: min(22px, calc(var(--ds-row) - 6px)); }
 .day-standings-empty { margin: 6px 0; }
-/* Desktop: datas à esquerda e "Escolher data" + Atualizar à direita, numa linha só */
+/* Desktop: filtros à esquerda e "Escolher data" + Atualizar à direita, numa linha só */
 .day-selector-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 9px; margin-bottom: 12px; padding: 6px; background: var(--pitch-card); border: 1px solid var(--pitch-border); border-radius: 12px; }
 .day-nav-actions { display: flex; width: auto; gap: 5px; }
 .day-nav-btn { justify-content: center; min-height: 40px; border: 0; border-radius: 8px; background: transparent; color: var(--chalk-dim); padding: 8px 10px; font-size: 11px; box-shadow: none; }
@@ -264,6 +264,7 @@ body { padding-bottom: 0; }
 .day-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
 .matches-day-filters { gap: 4px; margin: 0; padding: 0; }
 .matches-day-filter-btn { border: 1px solid transparent; border-radius: 8px; background: transparent; padding: 8px 10px; color: var(--chalk-dim); font-size: 11px; }
+.day-selector-bar .matches-day-filter-btn { min-height: 40px; }
 .matches-day-filter-btn.active { border-color: var(--pitch-border); background: var(--pitch-card-elevated); color: var(--chalk); box-shadow: none; }
 .day-timezone { flex: none; color: var(--chalk-dim); font: 600 9px var(--font-mono); }
 

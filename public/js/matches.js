@@ -7,13 +7,6 @@ if (typeof getLocalDateString !== 'function') {
   };
 }
 
-function shiftDate(dateStr, days) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + days);
-  return getLocalDateString(dt);
-}
-
 function formatDateDisplayBR(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   const dateObj = new Date(y, m - 1, d);
@@ -538,9 +531,6 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
   const document = view.document;
   const currentDate = selectedDate || getLocalDateString(new Date());
   const dateInfo = formatDateDisplayBR(currentDate);
-  const prevDate = shiftDate(currentDate, -1);
-  const nextDate = shiftDate(currentDate, 1);
-  const todayStr = getLocalDateString(new Date());
 
   app.innerHTML = `
     <div class="day-layout">
@@ -562,10 +552,11 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
       <section class="day-main" aria-label="Jogos do dia">
         <h1 class="sr-only">Jogos do dia, ${escapeHtml(dateInfo.full)}</h1>
         <div class="day-selector-bar">
-          <div class="day-nav-actions" role="group" aria-label="Selecionar data">
-            <button class="day-nav-btn" id="btn-prev-day" data-date="${prevDate}">Anterior <small>${prevDate.slice(8)}/${prevDate.slice(5, 7)}</small></button>
-            <button class="day-nav-btn ${dateInfo.isToday ? 'active' : ''}" id="btn-today-day" data-date="${todayStr}">Hoje <small>${todayStr.slice(8)}/${todayStr.slice(5, 7)}</small></button>
-            <button class="day-nav-btn" id="btn-next-day" data-date="${nextDate}">Próximo <small>${nextDate.slice(8)}/${nextDate.slice(5, 7)}</small></button>
+          <div class="matches-day-filters" id="day-status-filters" role="group" aria-label="Filtrar partidas">
+            <button class="matches-day-filter-btn ${statusFilter === 'all' ? 'active' : ''}" data-filter="all">Todos</button>
+            <button class="matches-day-filter-btn ${statusFilter === 'live' ? 'active' : ''}" data-filter="live">● Ao Vivo</button>
+            <button class="matches-day-filter-btn ${statusFilter === 'scheduled' ? 'active' : ''}" data-filter="scheduled">Próximos</button>
+            <button class="matches-day-filter-btn ${statusFilter === 'finished' ? 'active' : ''}" data-filter="finished">Encerrados</button>
           </div>
           <div class="day-current-display">
             <label class="day-date-title" for="day-date-input">Escolher data</label>
@@ -573,12 +564,6 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
             <button class="day-nav-btn day-refresh-btn" id="btn-refresh-day" title="Atualizar resultados e placares agora"><span class="refresh-spin-icon">↻</span><span>Atualizar</span></button>
           </div>
         </div>
-        <div class="day-filter-row"><div class="matches-day-filters" id="day-status-filters" role="group" aria-label="Filtrar partidas">
-          <button class="matches-day-filter-btn ${statusFilter === 'all' ? 'active' : ''}" data-filter="all">Todos</button>
-          <button class="matches-day-filter-btn ${statusFilter === 'live' ? 'active' : ''}" data-filter="live">● Ao Vivo</button>
-          <button class="matches-day-filter-btn ${statusFilter === 'scheduled' ? 'active' : ''}" data-filter="scheduled">Próximos</button>
-          <button class="matches-day-filter-btn ${statusFilter === 'finished' ? 'active' : ''}" data-filter="finished">Resultados</button>
-        </div><span class="day-timezone">HORÁRIOS LOCAIS</span></div>
         <div id="day-spotlight"></div>
         <div class="day-section-head"><h2>Partidas</h2><span id="day-visible-count" aria-live="polite"></span></div>
         <div id="day-matches-content">${skeletonTable()}</div>
@@ -587,22 +572,6 @@ async function renderMatchesOfDay(selectedDate, statusFilter = "all") {
   `;
 
   // Listeners de data
-  document.getElementById("btn-prev-day").addEventListener("click", () => {
-    location.hash = `#/jogos-do-dia/${prevDate}`;
-  });
-  document.getElementById("btn-next-day").addEventListener("click", () => {
-    location.hash = `#/jogos-do-dia/${nextDate}`;
-  });
-  document.getElementById("btn-today-day").addEventListener("click", () => {
-    if (location.hash === `#/jogos-do-dia/${todayStr}` || location.hash === "#/jogos-do-dia" || location.hash === "#/") {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
-      footballClient.invalidate("fixtures", { date: todayStr, timezone: tz });
-      footballClient.invalidate("fixtures", { date: todayStr });
-      fetchAndRenderDayMatches(todayStr, "all", true);
-    } else {
-      location.hash = `#/jogos-do-dia/${todayStr}`;
-    }
-  });
   document.getElementById("btn-refresh-day")?.addEventListener("click", async () => {
     const btn = document.getElementById("btn-refresh-day");
     if (btn) {
@@ -697,7 +666,7 @@ async function fetchAndRenderDayMatches(dateStr, filter = "all", isForced = fals
     // o ponto vermelho da aba "Ao Vivo" só aparece quando há jogo rolando hoje
     window.document.querySelectorAll('.live-indicator').forEach(el => { el.hidden = !liveCount; });
     document.querySelector('[data-filter="scheduled"]').textContent = `Próximos (${scheduledCount})`;
-    document.querySelector('[data-filter="finished"]').textContent = `Resultados (${finishedCount})`;
+    document.querySelector('[data-filter="finished"]').textContent = `Encerrados (${finishedCount})`;
 
     let filtered = relevant;
     if (filter === "live") {
