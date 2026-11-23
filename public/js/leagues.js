@@ -342,7 +342,6 @@ async function renderLeague(leagueId, season) {
           <button class="table-filter-btn ${state.currentTableFilter === 'all' ? 'active' : ''}" data-filter="all">Geral</button>
           <button class="table-filter-btn ${state.currentTableFilter === 'home' ? 'active' : ''}" data-filter="home">Mandante</button>
           <button class="table-filter-btn ${state.currentTableFilter === 'away' ? 'active' : ''}" data-filter="away">Visitante</button>
-          <button class="table-filter-btn table-full-toggle" type="button" data-toggle="full" aria-pressed="false" aria-controls="league-content" title="Mostrar todas as colunas">Completa</button>
         </div>
 
         <div id="league-content">${skeletonTable()}</div>
@@ -361,13 +360,6 @@ async function renderLeague(leagueId, season) {
   document.getElementById("table-filters").addEventListener("click", (e) => {
     const btn = e.target.closest(".table-filter-btn");
     if (!btn) return;
-    // celular: a tabela resumida (J, SG, Pts) abre todas as colunas sem recarregar
-    if (btn.dataset.toggle === "full") {
-      const on = document.getElementById("league-content")?.classList.toggle("standings-full");
-      btn.classList.toggle("active", !!on);
-      btn.setAttribute("aria-pressed", String(!!on));
-      return;
-    }
     state.currentTableFilter = btn.dataset.filter;
     document.querySelectorAll(".table-filter-btn[data-filter]").forEach(b => b.classList.toggle("active", b === btn));
     renderStandingsFromCache(leagueId, season);

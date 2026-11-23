@@ -300,11 +300,9 @@ tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; 
 
 /* ---------- celular: classificação ao vivo recolhível, barra de data compacta, filtros numa fileira ---------- */
 .day-standings-toggle { display: none; }
-.table-full-toggle { display: none; }
 @media (max-width: 760px) {
-  /* liga: tabela resumida (#, time, J, SG, Pts); "Tabela completa" abre o resto com rolagem lateral */
-  .table-full-toggle { display: inline-flex; margin-left: auto; }
-  #league-content:not(.standings-full) .x-col, .league-projection-table .x-col { display: none; }
+  /* liga: classificação com todas as colunas, rolando para o lado; a projeção segue resumida */
+  .league-projection-table .x-col { display: none; }
   .team-cell span[data-short] { font-size: 0; }
   .team-cell span[data-short]::before { content: attr(data-short); font-size: 13px; font-weight: 800; letter-spacing: .04em; }
 
