@@ -319,7 +319,12 @@ tr.club-bar .day-standings-move, tr.club-bar .move-cell > * { padding: 1px 4px; 
   .day-standings-card:not(.is-open) .day-standings-controls, .day-standings-card:not(.is-open) #day-standings-body { display: none; }
   .day-standings-card.is-open #day-standings-body { padding: 0 12px 12px; }
   .day-standings-card.is-open a.day-standings-title { margin: 0 -12px 10px; }
-  .day-standings-btn { width: 40px; height: 40px; }
+  /* celular: sem setas nem pausa; troca de campeonato arrastando a tabela, com pontos indicando a posição */
+  .day-standings-controls, .day-standings-timer { display: none !important; }
+  #day-standings-body { touch-action: pan-y; }
+  .day-standings-dots { display: flex; justify-content: center; gap: 6px; padding-bottom: 10px; }
+  .day-standings-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--pitch-border); transition: width .2s, background .2s; }
+  .day-standings-dots i.on { width: 16px; border-radius: 3px; background: var(--chalk-dim); }
 
   /* barra de data: dias numa linha, data + atualizar (só ícone) na outra */
   .day-selector-bar { gap: 6px; padding: 6px; }

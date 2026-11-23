@@ -327,6 +327,7 @@ function renderDayStandingsSlide(slide, rows, movement = null, playing = null) {
       <span><strong>${escapeHtml(comp.name)}</strong>${groupLabel}</span>
       ${playing?.size ? '<span class="day-standings-live" title="Tabela com o placar atual dos jogos em andamento; setas comparam com a tabela oficial">● Ao vivo</span>' : ""}
     </a>
+    ${dayStandings.slides.length > 1 ? `<div class="day-standings-dots" aria-hidden="true">${dayStandings.slides.map((_, i) => `<i${i === dayStandings.index ? ' class="on"' : ""}></i>`).join("")}</div>` : ""}
     <table class="day-standings-table">
       <thead><tr><th scope="col">#</th><th scope="col" class="move" aria-label="Variação desde a rodada anterior"></th><th scope="col" class="team">Time</th><th scope="col" title="Pontos">P</th><th scope="col" title="Jogos">J</th><th scope="col" title="Vitórias">V</th><th scope="col" title="Empates">E</th><th scope="col" title="Derrotas">D</th><th scope="col" title="Saldo de gols">SG</th></tr></thead>
       <tbody>
@@ -428,11 +429,13 @@ function fitDayStandings() {
   if (getComputedStyle(aside).position !== "sticky") { card.style.removeProperty("--ds-row"); aside.style.top = ""; return; } // celular: lista corrida
   card.style.removeProperty("--ds-row");
   const view = globalThis.innerHeight || 800;
+  // Fixa no mesmo ponto em que a coluna começa (sem rolar), para ficar alinhada à barra de data ao lado.
+  const top = Math.min(DAY_STANDINGS_TOP, Math.round(aside.parentElement.getBoundingClientRect().top + (globalThis.scrollY || 0)));
   const fixed = card.offsetHeight - tbody.offsetHeight;
-  const row = Math.floor((view - DAY_STANDINGS_TOP - 16 - fixed) / tbody.rows.length);
+  const row = Math.floor((view - top - 16 - fixed) / tbody.rows.length);
   card.style.setProperty("--ds-row", Math.max(22, Math.min(35, row)) + "px");
-  const extra = aside.offsetHeight - (view - DAY_STANDINGS_TOP - 16);
-  aside.style.top = extra > 0 ? (DAY_STANDINGS_TOP - extra) + "px" : "";
+  const extra = aside.offsetHeight - (view - top - 16);
+  aside.style.top = (extra > 0 ? top - extra : top) + "px";
 }
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") window.addEventListener("resize", () => fitDayStandings());
 
@@ -489,6 +492,21 @@ function setupDayStandings(fixtures, doc = globalThis.document) {
     card.addEventListener("mouseleave", () => setHover(false));
     card.addEventListener("focusin", () => setHover(true));
     card.addEventListener("focusout", e => { if (!card.contains(e.relatedTarget)) setHover(false); });
+    // Celular (sem setas): arrastar a tabela para os lados troca o campeonato; gesto vertical segue rolando a página.
+    let touchStart = null;
+    card.addEventListener("touchstart", e => {
+      const t = e.touches[0];
+      touchStart = e.touches.length === 1 && e.target.closest("#day-standings-body") ? { x: t.clientX, y: t.clientY } : null;
+    }, { passive: true });
+    card.addEventListener("touchend", e => {
+      if (!touchStart) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
+      touchStart = null;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5 || dayStandings.slides.length < 2) return;
+      e.preventDefault(); // não abre o link do time onde o dedo terminou
+      showDayStandingsSlide(dayStandings.index + (dx < 0 ? 1 : -1));
+    });
   }
 
   showDayStandingsSlide(0);

@@ -198,7 +198,7 @@ body { padding-bottom: 0; }
 
 .day-layout { display: grid; grid-template-columns: minmax(440px, 560px) minmax(0, 1fr); align-items: start; gap: 28px; }
 .day-main { min-width: 0; }
-.day-sidebar { padding-top: 4px; min-width: 0; }
+.day-sidebar { padding-top: 0; min-width: 0; }
 /* Classificação acompanha a rolagem; se a tabela for mais alta que a tela, rola por dentro */
 .day-sidebar { position: sticky; top: 92px; }
 .day-rail-card p { color: var(--chalk-dim); font-size: 11px; line-height: 1.55; }
@@ -240,6 +240,7 @@ body { padding-bottom: 0; }
 .day-standings-timer { height: 0; overflow: hidden; }
 .day-standings-timer span { display: block; height: 1px; animation: day-standings-progress 15s linear forwards; }
 .day-standings-card.is-paused .day-standings-timer span { animation-play-state: paused; }
+.day-standings-dots { display: none; } /* só no celular (courtside.css) */
 @keyframes day-standings-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 /* a barra é o relógio da troca (invisível): "reduzir movimento" do sistema zera as animações
    em accessibility.css e fazia a classificação trocar sem parar */
